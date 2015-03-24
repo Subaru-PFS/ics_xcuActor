@@ -9,6 +9,8 @@ class PCM(object):
         self.logger = logging.getLogger('PCM')
         self.logger.setLevel(loglevel)
 
+        self.EOL = '\r\n'
+
         self.host = self.actor.config.get('pcm', 'host')
         self.port = int(self.actor.config.get('pcm', 'port'))
 
@@ -21,8 +23,10 @@ class PCM(object):
     def sendOneCommand(self, cmdStr, cmd=None):
         if cmd is None:
             cmd = self.actor.bcast
-        self.logger.debug('sending %r', cmdStr)
-        cmd.diag('text="sending %r"' % cmdStr)
+
+        fullCmd = "%s%s" % (cmdStr, self.EOL)
+        self.logger.debug('sending %r', fullCmd)
+        cmd.diag('text="sending %r"' % fullCmd)
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -33,7 +37,7 @@ class PCM(object):
  
         try:
             s.connect((self.host, self.port))
-            s.sendall(cmdStr)
+            s.sendall(fullCmd)
         except socket.error as e:
             cmd.warn('text="failed to create connect or send to PCM: %s"' % (e))
             raise
@@ -50,13 +54,18 @@ class PCM(object):
 
         return ret
 
- 
+    def pcmCmd(self, cmdStr, cmd=None):
+        if cmd is None:
+            cmd = self.actor.bcast
+
+        ret = self.sendOneCommand(cmdStr, cmd)
+        return ret
+
     def motorsCmd(self, cmdStr, cmd=None):
         if cmd is None:
             cmd = self.actor.bcast
 
-        EOL = '\r\n'
-        fullCmd = "~32/1%s%s" % (cmdStr, EOL)
+        fullCmd = "~32/1%s" % (cmdStr)
         
         ret = self.sendOneCommand(fullCmd, cmd)
 
