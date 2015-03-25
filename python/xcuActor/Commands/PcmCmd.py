@@ -54,3 +54,31 @@ class PcmCmd(object):
     def moveAbs(self, cmd):
         raise UnimplementedError("moveAbs")
 
+    def power(self, cmd):
+        """ power some PCM components on or off.
+
+        Arguments:
+           on/off                - one of the two.
+           motors/gauge/bee/fee  - one subsystem to power on/off.
+        """
+        
+        cmdKeys = cmd.cmd.keywords
+        if 'on' in cmdKeys:
+            turnOn = True
+        elif 'off' in cmdKeys:
+            turnOn = False
+        else:
+            cmd.fail('text="neither on nor off was specified!"')
+            return
+
+        systems = self.actor.controllers['PCM'].powerPorts
+        for i in range(len(systems)):
+            if systems[i] in cmdKeys:
+                ret = self.actor.controllers['PCM'].powerCmd(systems[i], turnOn=turnOn, cmd=cmd)
+                if ret != 'Success':
+                    cmd.fail('text="failed to turn %s %s: %s"' % (systems[i],
+                                                                  'on' if turnOn else 'off',
+                                                                  ret))
+                    return
+        cmd.finish()
+

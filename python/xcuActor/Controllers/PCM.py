@@ -10,9 +10,11 @@ class PCM(object):
         self.logger.setLevel(loglevel)
 
         self.EOL = '\r\n'
-
+        
         self.host = self.actor.config.get('pcm', 'host')
         self.port = int(self.actor.config.get('pcm', 'port'))
+
+        self.powerPorts = ['motors', 'gauge', 'fee', 'bee']
 
     def start(self):
         pass
@@ -58,6 +60,20 @@ class PCM(object):
         if cmd is None:
             cmd = self.actor.bcast
 
+        ret = self.sendOneCommand(cmdStr, cmd)
+        return ret
+
+    def powerCmd(self, system, turnOn=True, cmd=None):
+        if cmd is None:
+            cmd = self.actor.bcast
+
+        try:
+            i = self.powerPorts.index(system)
+        except IndexError:
+            cmd.warn('text="not a known power port: %s"' % (system))
+            return False
+
+        cmdStr = "~%d%d" % (turnOn, i+1)
         ret = self.sendOneCommand(cmdStr, cmd)
         return ret
 
