@@ -1,5 +1,6 @@
 import logging
 import socket
+import time
 
 class PCM(object):
     def __init__(self, actor, name,
@@ -77,14 +78,7 @@ class PCM(object):
         ret = self.sendOneCommand(cmdStr, cmd)
         return ret
 
-    def motorsCmd(self, cmdStr, cmd=None):
-        if cmd is None:
-            cmd = self.actor.bcast
-
-        fullCmd = "~32/1%s" % (cmdStr)
-        
-        ret = self.sendOneCommand(fullCmd, cmd)
-
+    def parseMotorResponse(self, ret):
         if len(ret) < 3:
             raise RuntimeError("command response is too short!")
 
@@ -95,11 +89,41 @@ class PCM(object):
         rest = ret[3:]
 
         errCode = status & 0x0f
-        ok = (errCode == 0)
-        busy = status & 0x20
+        busy = not(status & 0x20)
         if status & 0x90:
             raise RuntimeError("unexpected response top nibble in %x" % (status))
-            
+
+        print "ret=%s, status=%0x, errCode=%0x, busy=%s" % (ret, status, errCode, busy)
+        return errCode, status, busy, rest
+
+    def waitForIdle(self, cmd, maxTime=15.0):
+        t0 = time.time()
+        t1 = time.time()
+        while True:
+            ret = self.sendOneCommand("~32/1Q", cmd)
+            _, _, busy, _ = self.parseMotorResponse(ret)
+            if not busy:
+                return True
+            if maxTime is not None and t1-t0 >= maxTime:
+                return False
+            time.sleep(0.1)
+            t1 = time.time()
+
+        return False
+
+    def motorsCmd(self, cmdStr, waitForIdle=False, returnAfterIdle=False, cmd=None, maxTime=10.0):
+        if cmd is None:
+            cmd = self.actor.bcast
+
+        if waitForIdle:
+            ok = self.waitForIdle(cmd, maxTime=maxTime)
+
+        fullCmd = "~32/1%s" % (cmdStr)
+        
+        ret = self.sendOneCommand(fullCmd, cmd)
+        errCode, status, busy, rest = self.parseMotorResponse(ret)
+        ok = errCode == 0
+
         if ok:
             errStr = "OK"
         else:
@@ -120,6 +144,14 @@ class PCM(object):
                           "Code#14",
                           "Controller Busy"]
             errStr = errStrings[errCode]
+            return errStr, busy, rest
+
+        if returnAfterIdle:
+            idle = self.waitForIdle(cmd, maxTime=maxTime)
+            busy = not idle
+            if not idle:
+                cmd.warn('text="motor controller busy for %s after motor command"' % (maxTime))
+
 
         return errStr, busy, rest
 
