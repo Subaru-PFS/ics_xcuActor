@@ -45,7 +45,7 @@ class gauge(object):
 
         try:
             ret = s.recv(1024)
-        except socket.err as e:
+        except socket.error as e:
             cmd.warn('text="failed to read response from gauge: %s"' % (e))
             raise
 
