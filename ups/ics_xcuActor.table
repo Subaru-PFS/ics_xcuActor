@@ -1,5 +1,5 @@
 setupRequired(tron_actorcore)
-setupRequired(ccdFPGA)
+setupRequired(ics_xcu_fpga)
 
 pathPrepend(PATH, ${PRODUCT_DIR}/bin)
 pathPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)

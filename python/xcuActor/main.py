@@ -14,6 +14,8 @@ class OurActor(actorcore.ICC.ICC):
                                    configFile=configFile)
 
         self.everConnected = False
+        self.turboMonitorPeriod = 0
+        self.ionpumpMonitorPeriod = 0
         
     def reloadConfiguration(self, cmd):
         cmd.inform('sections=%08x,%r' % (id(self.config),
@@ -32,6 +34,35 @@ class OurActor(actorcore.ICC.ICC):
         self.callCommand("pressure")
         reactor.callLater(self.config.getint('gauge','repeatEvery'),
                           self.status_check)
+
+    def turbo_check(self):
+        """ Perform the periodic total status report of the system. """
+        self.callCommand("turbo status")
+        if self.turboMonitorPeriod > 0:
+            reactor.callLater(self.turboMonitorPeriod,
+                              self.turbo_check)
+
+    def ionpump_check(self):
+        """ Perform the periodic total status report of the system. """
+        self.callCommand("ionpump status")
+        if self.ionpumpMonitorPeriod > 0:
+            reactor.callLater(self.ionpumpMonitorPeriod,
+                              self.ionpump_check)
+
+    def monitorTurbo(self, period):
+        running = self.turboMonitorPeriod > 0
+        self.turboMonitorPeriod = period
+
+        if not running:
+            self.turbo_check()
+            
+    def monitorIonpump(self, period):
+        running = self.ionpumpMonitorPeriod > 0
+        self.ionpumpMonitorPeriod = period
+
+        if not running:
+            self.ionpump_check()
+            
 
 
 def main():
