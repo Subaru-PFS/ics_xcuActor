@@ -14,8 +14,14 @@ class OurActor(actorcore.ICC.ICC):
                                    configFile=configFile)
 
         self.everConnected = False
-        self.turboMonitorPeriod = 0
-        self.ionpumpMonitorPeriod = 0
+
+        self.monitors = dict(turbo=0,
+                             ionpump=0,
+                             gauge=0,
+                             temps=0,
+                             cooler=0,)
+        
+        self.statusLoopCB = self.statusLoop
         
     def reloadConfiguration(self, cmd):
         cmd.inform('sections=%08x,%r' % (id(self.config),
@@ -25,46 +31,32 @@ class OurActor(actorcore.ICC.ICC):
         if self.everConnected is False:
             logging.info("Attaching all controllers...")
             # self.attachAllControllers()
-            self.everConnection = True
+            self.everConnected = True
 
-            reactor.callLater(10, self.status_check)
+            # reactor.callLater(10, self.status_check)
 
-    def status_check(self):
-        """ Perform the periodic total status report of the system. """
-        self.callCommand("pressure")
-        reactor.callLater(self.config.getint('gauge','repeatEvery'),
-                          self.status_check)
-
-    def turbo_check(self):
-        """ Perform the periodic total status report of the system. """
-        self.callCommand("turbo status")
-        if self.turboMonitorPeriod > 0:
-            reactor.callLater(self.turboMonitorPeriod,
-                              self.turbo_check)
-
-    def ionpump_check(self):
-        """ Perform the periodic total status report of the system. """
-        self.callCommand("ionpump status")
-        if self.ionpumpMonitorPeriod > 0:
-            reactor.callLater(self.ionpumpMonitorPeriod,
-                              self.ionpump_check)
-
-    def monitorTurbo(self, period):
-        running = self.turboMonitorPeriod > 0
-        self.turboMonitorPeriod = period
-
-        if not running:
-            self.turbo_check()
+    def statusLoop(self, controller):
+        self.callCommand("%s status" % (controller))
+        if self.monitors[controller] > 0:
+            reactor.callLater(self.monitors[controller],
+                              self.statusLoopCB,
+                              controller)
             
-    def monitorIonpump(self, period):
-        running = self.ionpumpMonitorPeriod > 0
-        self.ionpumpMonitorPeriod = period
+    def monitor(self, controller, period, cmd=None):
+        if controller not in self.monitors:
+            raise RuntimeError('text="%s is not a known controller"' % (controller))
 
-        if not running:
-            self.ionpump_check()
+        running = self.monitors[controller] > 0
+        self.monitors[controller] = period
+
+        if (not running) and period > 0:
+            cmd.warn('text="starting loop %s for %s via %s"' % (self.monitors[controller],
+                                                                controller, self.statusLoopCB))
+            self.statusLoopCB(controller)
+        else:
+            cmd.warn('text="NOT starting loop %s for %s via %s"' % (self.monitors[controller],
+                                                                    controller, self.statusLoopCB))
             
-
-
 def main():
     theActor = OurActor('xcu', productName='xcuActor')
     theActor.run()

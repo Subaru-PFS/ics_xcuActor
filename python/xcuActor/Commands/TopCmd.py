@@ -19,14 +19,36 @@ class TopCmd(object):
             ('ping', '', self.ping),
             ('status', '', self.status),
             ('connect', '[<controllers>]', self.connect),
+            ('monitor', '<controllers> <period>', self.monitor),
          ]
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("xcu_xcu", (1, 1),
                                         keys.Key("controllers", types.String()*(1,None),
                                                  help='the names of 1 or more controllers to load'),
+                                        keys.Key("controller", types.String(),
+                                                 help='the names a controller.'),
+                                        keys.Key("period", types.Int(),
+                                                 help='the period to sample at.'),
                                         )
 
+    def monitor(self, cmd):
+        period = cmd.cmd.keywords['period'].values[0]
+        controllers = cmd.cmd.keywords['controllers'].values
+        if 'coolor' not in self.actor.monitors:
+            self.actor.monitors['cooler'] = 0
+            
+        for c in controllers:
+            self.actor.monitor(c, period, cmd=cmd)
+                
+        cmd.finish()
+
+    def controllerKey(self):
+        controllerNames = self.actor.controllers.keys()
+        key = 'controllers=%s' % (','.join([c for c in controllerNames]))
+
+        return key
+    
     def connect(self, cmd, doFinish=True):
         """ Reload all controller objects. """
 
