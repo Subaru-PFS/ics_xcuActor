@@ -4,18 +4,18 @@ import time
 
 from opscore.utility.qstr import qstr
 
-class pump(object):
+class turbo(object):
     def __init__(self, actor, name,
                  loglevel=logging.INFO):
 
         self.actor = actor
-        self.logger = logging.getLogger('pump')
+        self.logger = logging.getLogger('turbo')
         self.logger.setLevel(loglevel)
 
         self.EOL = '\r'
         
-        self.host = self.actor.config.get('pump', 'host')
-        self.port = int(self.actor.config.get('pump', 'port'))
+        self.host = self.actor.config.get('turbo', 'host')
+        self.port = int(self.actor.config.get('turbo', 'port'))
 
     def start(self):
         pass
@@ -35,20 +35,20 @@ class pump(object):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(1.0)
         except socket.error as e:
-            cmd.warn('text="failed to create socket to pump: %s"' % (e))
+            cmd.warn('text="failed to create socket to turbo: %s"' % (e))
             raise
  
         try:
             s.connect((self.host, self.port))
             s.sendall(fullCmd)
         except socket.error as e:
-            cmd.warn('text="failed to create connect or send to pump: %s"' % (e))
+            cmd.warn('text="failed to create connect or send to turbo: %s"' % (e))
             raise
 
         try:
             ret = s.recv(1024)
         except socket.error as e:
-            cmd.warn('text="failed to read response from pump: %s"' % (e))
+            cmd.warn('text="failed to read response from turbo: %s"' % (e))
             raise
 
         self.logger.info('received %r', ret)
@@ -128,21 +128,21 @@ class pump(object):
                  'Overspeed or overcurrent tripped',
                  'Pump internal temp. system failure',
                  'Serial enable is inactive',
-                 'internal bit 17',
-                 'internal bit 18',
-                 'internal bit 19',
-                 'internal bit 20',
-                 'internal bit 21',
-                 'internal bit 22',
-                 'internal bit 23',
-                 'internal bit 24',
-                 'internal bit 25',
-                 'internal bit 26',
-                 'internal bit 27',
-                 'internal bit 28',
-                 'internal bit 29',
-                 'internal bit 30',
-                 'internal bit 31')
+                 'bit 17',
+                 'bit 18',
+                 'bit 19',
+                 'bit 20',
+                 'bit 21',
+                 'bit 22',
+                 'bit 23',
+                 'bit 24',
+                 'bit 25',
+                 'bit 26',
+                 'bit 27',
+                 'bit 28',
+                 'bit 29',
+                 'bit 30',
+                 'bit 31')
 
         allFlags = []
         for i in range(32):
@@ -150,7 +150,7 @@ class pump(object):
                 allFlags.append(flags[i])
 
         if cmd is not None:
-            cmd.inform('pumpStatus=0x%08x,%r' % (status, ','.join(allFlags)))
+            cmd.inform('turboStatus=0x%08x,%r' % (status, ', '.join(allFlags)))
 
         return allFlags
                  
@@ -163,7 +163,7 @@ class pump(object):
         rpm =  int(speeds[0]) * 60
         status = int(speeds[1], base=16)
         
-        cmd.inform('pumpSpeed=%s' % (rpm))
+        cmd.inform('turboSpeed=%s' % (rpm))
         self.statusWord(status, cmd=cmd)
         
         return rpm, status
@@ -174,7 +174,7 @@ class pump(object):
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
         speeds = self.parseReply(cmdStr, ret, cmd=cmd)
 
-        cmd.inform('pumpTemps=%s,%s' % (speeds[0], speeds[1]))
+        cmd.inform('turboTemps=%s,%s' % (speeds[0], speeds[1]))
         
         return speeds
         
@@ -190,7 +190,7 @@ class pump(object):
         W /= 10.0
 
         if cmd is not None:
-            cmd.inform('pumpVAW=%g,%g,%g' % (V,A,W))
+            cmd.inform('turboVAW=%g,%g,%g' % (V,A,W))
             
         return V,A,W
         

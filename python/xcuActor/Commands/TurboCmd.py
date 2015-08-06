@@ -77,9 +77,9 @@ class TurboCmd(object):
         cmd.finish('text=%r' % (qstr(ret)))
 
     def startTurbo(self, cmd):
-        ret = self.actor.controllers['turbo'].startTurbo(cmd=cmd)
+        ret = self.actor.controllers['turbo'].startPump(cmd=cmd)
         cmd.finish('ident=%s' % (','.join(ret)))
 
     def stopTurbo(self, cmd):
-        ret = self.actor.controllers['turbo'].stopTurbo(cmd=cmd)
+        ret = self.actor.controllers['turbo'].stopPump(cmd=cmd)
         cmd.finish('ident=%s' % (','.join(ret)))
