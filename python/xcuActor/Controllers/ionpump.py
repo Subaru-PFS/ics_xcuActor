@@ -153,29 +153,16 @@ class ionpump(object):
     
     def readOnePump(self, channel, cmd=None):
         enabled = self.readEnabled(channel)
-        if enabled:
-            V = self.readVoltage(channel)
-            A = self.readCurrent(channel)
-            p = self.readPressure(channel)
-        else:
-            V = A = p = np.nan
+
+        V = self.readVoltage(channel)
+        A = self.readCurrent(channel)
+        p = self.readPressure(channel)
+        t = self.readTemp(channel)
             
         if cmd is not None:
-            cmd.inform('ionPump%d=%d,%g,%g,%g' % (channel,
-                                                  enabled,
-                                                  V,A,p))
+            cmd.inform('ionPump%d=%d,%g,%g,%g, %g' % (channel,
+                                                      enabled,
+                                                      V,A,t,p))
 
         return enabled,V,A,p
             
-    def status(self, cmd=None):
-        reply = []
-        
-        speeds = self.speed(cmd=cmd)
-        VAW = self.pumpVAW(cmd=cmd)
-        temps = self.pumpTemps(cmd=cmd)
-        reply.extend(speeds)
-        reply.extend(VAW)
-        reply.extend(temps)
-        
-        return reply
-
