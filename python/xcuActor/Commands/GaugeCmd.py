@@ -3,7 +3,6 @@
 import time
 
 import opscore.protocols.keys as keys
-import opscore.protocols.types as types
 from opscore.utility.qstr import qstr
 
 class GaugeCmd(object):
@@ -19,12 +18,11 @@ class GaugeCmd(object):
         #
         self.vocab = [
             ('gauge', '@raw', self.gaugeRaw),
-            ('pressure', '', self.pressure),
+            ('gauge', 'status', self.pressure),
         ]
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("xcu_gauge", (1, 1),
-
                                         )
 
     def gaugeRaw(self, cmd):
@@ -33,7 +31,7 @@ class GaugeCmd(object):
         cmd_txt = cmd.cmd.keywords['raw'].values[0]
 
         ret = self.actor.controllers['gauge'].gaugeCmd(cmd_txt, cmd=cmd)
-        cmd.finish('text="returned %r"' % (ret))
+        cmd.finish('text="returned %s"' % (qstr(ret)))
 
     def pressure(self, cmd):
         ret = self.actor.controllers['gauge'].pressure(cmd=cmd)
