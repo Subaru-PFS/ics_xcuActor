@@ -71,7 +71,7 @@ class IonpumpCmd(object):
         cmd.finish('ident=%s' % (','.join(ret)))
 
     def status(self, cmd):
-        for i in range(1,5):
+        for i in range(1,3):
             self.actor.controllers['ionpump'].readOnePump(i, cmd=cmd)
         cmd.finish()
 
