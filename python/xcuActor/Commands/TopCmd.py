@@ -64,8 +64,24 @@ class TopCmd(object):
             except Exception as e:
                 cmd.fail('text="failed to connect controller %s: %s"' % (dev, e))
                 return
-        cmd.finish()
+        cmd.finish(self.controllerKey())
         
+    def disconnect(self, cmd, doFinish=True):
+        """ Disconnect the given, or all, controller objects. """
+
+        if 'controllers' in cmd.cmd.keywords:
+            controllers = cmd.cmd.keywords['controllers'].values
+        else:
+            controllers = eval(self.actor.config.get(self.actor.name, 'controllers'))
+        controllers = map(str, controllers)
+
+        for dev in controllers:
+            try:
+                self.actor.attachController(dev)
+            except Exception as e:
+                cmd.fail('text="failed to connect controller %s: %s"' % (dev, e))
+                return
+        cmd.finish(self.controllerKey())
 
     def ping(self, cmd):
         """Query the actor for liveness/happiness."""
@@ -78,6 +94,6 @@ class TopCmd(object):
 
         self.actor.sendVersionKey(cmd)
         
-        cmd.inform('text=%s' % (qstr("Present, with controllers=%s" % (self.actor.controllers.keys()))))
-        cmd.finish()
+        cmd.inform('text=%s' % ("Present!"))
+        cmd.finish(self.controllerKey())
 
