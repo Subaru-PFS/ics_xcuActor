@@ -35,7 +35,7 @@ class ionpump(object):
 
         coreCmd = "\x80%s\x03" % (cmdStr)
         crc = self.calcCrc(coreCmd)
-        fullCmd = "\x02%s%02x" % (coreCmd, crc)
+        fullCmd = "\x02%s%02X" % (coreCmd, crc)
         self.logger.info('sending %r', fullCmd)
         cmd.diag('text="sending %r"' % fullCmd)
 
