@@ -19,15 +19,17 @@ class PcmCmd(object):
         #
         self.vocab = [
             ('pcm', '@raw', self.pcmRaw),
+            ('pcm', 'status', self.udpStatus),
+
+            ('power', '@(on|off) @(motors|gauge|temps|bee|fee|interlocks|all) [@(force)]', self.power),
+
+            ('gauge', 'status', self.gaugeStatus),
 
             ('motors', '@raw', self.motorsRaw),
-            ('initCcd', '', self.initCcd),
-            ('homeCcd', '[<axes>]', self.homeCcd),
-            ('moveCcd', '[<a>] [<b>] [<c>] [<piston>] [@(abs)] [@(rel)]', self.moveCcd),
-            ('halt', '', self.haltMotors),
-
-            ('power', '@(on|off) @(motors|bee|fee|gauge|all) [@(force)]', self.power),
-            ('udpStatus', '', self.udpStatus),
+            ('motors', 'initCcd', self.initCcd),
+            ('motors', 'homeCcd [<axes>]', self.homeCcd),
+            ('motors', 'moveCcd [<a>] [<b>] [<c>] [<piston>] [@(abs)] [@(rel)]', self.moveCcd),
+            ('motors', 'halt', self.haltMotors),
         ]
 
         # Define typed command arguments for the above commands.
@@ -42,8 +44,6 @@ class PcmCmd(object):
                                                  help='the number of ticks to move actuator C'),
                                         keys.Key("piston", types.Int(),
                                                  help='the number of ticks to move actuators A,B, and C'),
-
-
                                         )
 
     def pcmRaw(self, cmd):
@@ -54,10 +54,22 @@ class PcmCmd(object):
         ret = self.actor.controllers['PCM'].pcmCmd(cmd_txt, cmd=cmd)
         cmd.finish('text="returned %r"' % (ret))
 
+    def gaugeRaw(self, cmd):
+        """ Send a raw command to the gauge controller. """
+
+        cmd_txt = cmd.cmd.keywords['raw'].values[0]
+
+        ret = self.actor.controllers['PCM'].gaugeCmd(cmd_txt, cmd=cmd)
+        cmd.finish('text="returned %s"' % (qstr(ret)))
+
+    def gaugeStatus(self, cmd):
+        ret = self.actor.controllers['PCM'].gaugeStatus(cmd=cmd)
+        cmd.finish('pressure=%g' % (ret))
+
     def udpStatus(self, cmd):
         """ Force generation of the UDP keywords which we most care about. """
 
-        self.actor.controllers['PcmUdp'].udpStatus(cmd=cmd)
+        self.actor.controllers['pcmUdp'].status(cmd=cmd)
         cmd.finish()
 
     def power(self, cmd):

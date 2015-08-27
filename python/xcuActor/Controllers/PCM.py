@@ -3,19 +3,25 @@ import socket
 import time
 
 class PCM(object):
+    powerPorts = ('motors', 'gauge', 'p3', 'temps',
+                  'bee', 'fee', 'interlock', 'p8')
+    
     def __init__(self, actor, name,
-                 loglevel=logging.INFO):
+                 loglevel=logging.INFO, host='10.1.1.4', port=1000):
 
-        self.actor = actor
-        self.logger = logging.getLogger('PCM')
+        self.logger = logging.getLogger()
         self.logger.setLevel(loglevel)
 
+        self.actor = actor
+
         self.EOL = '\r\n'
-        
+
         self.host = self.actor.config.get('pcm', 'host')
         self.port = int(self.actor.config.get('pcm', 'port'))
 
-        self.powerPorts = ['motors', 'gauge', 'fee', 'bee']
+        #self.host = host
+        #self.port = port
+
 
     def start(self):
         pass
@@ -24,59 +30,50 @@ class PCM(object):
         pass
 
     def sendOneCommand(self, cmdStr, cmd=None):
-        if cmd is None:
-            cmd = self.actor.bcast
-
         fullCmd = "%s%s" % (cmdStr, self.EOL)
         self.logger.debug('sending %r', fullCmd)
-        cmd.diag('text="sending %r"' % fullCmd)
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(1.0)
         except socket.error as e:
-            cmd.warn('text="failed to create socket to PCM: %s"' % (e))
+            self.logger.error('text="failed to create socket to PCM: %s"' % (e))
             raise
  
         try:
             s.connect((self.host, self.port))
             s.sendall(fullCmd)
         except socket.error as e:
-            cmd.warn('text="failed to create connect or send to PCM: %s"' % (e))
+            self.logger.error('text="failed to create connect or send to PCM: %s"' % (e))
             raise
 
         try:
             ret = s.recv(1024)
         except socket.err as e:
-            cmd.warn('text="failed to read response from PCM: %s"' % (e))
+            self.logger.error('text="failed to read response from PCM: %s"' % (e))
             raise
 
         self.logger.debug('received %r', ret)
-        cmd.diag('text="received %r"' % ret)
         s.close()
 
         return ret
 
-    def pcmCmd(self, cmdStr, cmd=None):
-        if cmd is None:
-            cmd = self.actor.bcast
-
-        ret = self.sendOneCommand(cmdStr, cmd)
-        return ret
-
     def powerCmd(self, system, turnOn=True, cmd=None):
-        if cmd is None:
-            cmd = self.actor.bcast
-
         try:
             i = self.powerPorts.index(system)
         except IndexError:
-            cmd.warn('text="not a known power port: %s"' % (system))
+            self.logger.error('text="not a known power port: %s"' % (system))
             return False
 
         cmdStr = "~%d%d" % (turnOn, i+1)
-        ret = self.sendOneCommand(cmdStr, cmd)
+        ret = self.sendOneCommand(cmdStr)
         return ret
+
+    def powerOn(self, system):
+        print self.powerCmd(system, turnOn=True)
+
+    def powerOff(self, system):
+        print self.powerCmd(system, turnOn=False)
 
     def parseMotorResponse(self, ret):
         if len(ret) < 3:
@@ -93,14 +90,15 @@ class PCM(object):
         if status & 0x90:
             raise RuntimeError("unexpected response top nibble in %x" % (status))
 
-        print "ret=%s, status=%0x, errCode=%0x, busy=%s" % (ret, status, errCode, busy)
+        self.logger.debug("ret=%s, status=%0x, errCode=%0x, busy=%s",
+                          ret, status, errCode, busy)
         return errCode, status, busy, rest
 
-    def waitForIdle(self, cmd, maxTime=15.0):
+    def waitForIdle(self, maxTime=15.0):
         t0 = time.time()
         t1 = time.time()
         while True:
-            ret = self.sendOneCommand("~32/1Q", cmd)
+            ret = self.sendOneCommand("~32/1Q")
             _, _, busy, _ = self.parseMotorResponse(ret)
             if not busy:
                 return True
@@ -111,16 +109,13 @@ class PCM(object):
 
         return False
 
-    def motorsCmd(self, cmdStr, waitForIdle=False, returnAfterIdle=False, cmd=None, maxTime=10.0):
-        if cmd is None:
-            cmd = self.actor.bcast
-
+    def motorsCmd(self, cmdStr, waitForIdle=False, returnAfterIdle=False, maxTime=10.0):
         if waitForIdle:
-            ok = self.waitForIdle(cmd, maxTime=maxTime)
+            ok = self.waitForIdle(maxTime=maxTime)
 
         fullCmd = "~32/1%s" % (cmdStr)
         
-        ret = self.sendOneCommand(fullCmd, cmd)
+        ret = self.sendOneCommand(fullCmd)
         errCode, status, busy, rest = self.parseMotorResponse(ret)
         ok = errCode == 0
 
@@ -147,13 +142,23 @@ class PCM(object):
             return errStr, busy, rest
 
         if returnAfterIdle:
-            idle = self.waitForIdle(cmd, maxTime=maxTime)
+            idle = self.waitForIdle(maxTime=maxTime)
             busy = not idle
             if not idle:
-                cmd.warn('text="motor controller busy for %s after motor command"' % (maxTime))
-
+                self.logger.warn('text="motor controller busy for %s after motor command"' % (maxTime))
 
         return errStr, busy, rest
 
+    def gaugeStatus(self, cmd=None):
+        cmdStr = '~320010074002=?106'
 
+        data_out = self.sendOneCommand(cmdStr, cmd=cmd)
+        
+        mantissa = int(data_out[10:14]) * 10 ** -3 
+        exponent = int(data_out[14:16]) - 20
 
+        # convert to torr
+        reading = 0.750061683 * (mantissa * 10**exponent) 
+
+        return reading
+        
