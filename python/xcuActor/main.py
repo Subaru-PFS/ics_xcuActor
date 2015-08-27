@@ -19,6 +19,7 @@ class OurActor(actorcore.ICC.ICC):
                              ionpump=0,
                              gauge=0,
                              temps=0,
+                             ltemps=0,
                              cooler=0,)
         
         self.statusLoopCB = self.statusLoop
@@ -36,7 +37,11 @@ class OurActor(actorcore.ICC.ICC):
             # reactor.callLater(10, self.status_check)
 
     def statusLoop(self, controller):
-        self.callCommand("%s status" % (controller))
+        try:
+            self.callCommand("%s status" % (controller))
+        except:
+            pass
+        
         if self.monitors[controller] > 0:
             reactor.callLater(self.monitors[controller],
                               self.statusLoopCB,
