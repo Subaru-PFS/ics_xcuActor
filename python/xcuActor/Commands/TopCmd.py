@@ -33,10 +33,10 @@ class TopCmd(object):
                                         )
 
     def monitor(self, cmd):
+        """ Enable/disable/adjust period controller monitors. """
+        
         period = cmd.cmd.keywords['period'].values[0]
         controllers = cmd.cmd.keywords['controllers'].values
-        if 'coolor' not in self.actor.monitors:
-            self.actor.monitors['cooler'] = 0
             
         for c in controllers:
             self.actor.monitor(c, period, cmd=cmd)
@@ -95,5 +95,7 @@ class TopCmd(object):
         self.actor.sendVersionKey(cmd)
         
         cmd.inform('text=%s' % ("Present!"))
+        cmd.inform('text="config id=0x%08x %r"' % (id(self.actor.config),
+                                                   self.actor.config.sections()))
         cmd.finish(self.controllerKey())
 

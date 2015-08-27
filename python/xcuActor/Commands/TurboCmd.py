@@ -42,7 +42,7 @@ class TurboCmd(object):
 
         cmd_txt = cmd.cmd.keywords['raw'].values[0]
 
-        ret = self.actor.controllers['turbo'].turboCmd(cmd_txt, cmd=cmd)
+        ret = self.actor.controllers['turbo'].pumpCmd(cmd_txt, cmd=cmd)
         cmd.finish('text="returned %r"' % (ret))
 
     def ident(self, cmd):
