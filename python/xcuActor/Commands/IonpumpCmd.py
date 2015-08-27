@@ -23,6 +23,8 @@ class IonpumpCmd(object):
             ('ionpumpWrite', '@raw', self.ionpumpWriteRaw),
             ('ionpump', 'monitor <period>', self.monitor),
             ('ionpump', 'status', self.status),
+            ('ionpump', 'off', self.off),
+            ('ionpump', 'on', self.on),
         ]
 
         # Define typed command arguments for the above commands.
@@ -79,4 +81,12 @@ class IonpumpCmd(object):
         period = cmd.cmd.keywords['period'].values[0]
         self.actor.monitorIonpump(period)
         cmd.finish()
+        
+    def on(self, cmd=None):
+        ret = self.actor.controllers['ionpump'].on(cmd)
+        cmd.finish('text="returned %r"' % (ret))
+       
+    def off(self, cmd=None):
+        ret = self.actor.controllers['ionpump'].off(cmd)
+        cmd.finish('text="returned %r"' % (ret))
         
