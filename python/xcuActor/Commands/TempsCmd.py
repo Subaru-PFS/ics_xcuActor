@@ -23,7 +23,6 @@ class TempsCmd(object):
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("xcu_temps", (1, 1),
-
                                         )
 
     def tempsRaw(self, cmd):
@@ -32,8 +31,8 @@ class TempsCmd(object):
         cmd_txt = cmd.cmd.keywords['raw'].values[0]
 
         ret = self.actor.controllers['temps'].tempsCmd(cmd_txt, cmd=cmd)
-        cmd.finish('text="returned %s"' % (qstr(ret)))
+        cmd.finish('text=%s' % (qstr('returned: %s' % (ret))))
 
     def status(self, cmd):
-        self.actor.controllers['temps'].status(cmd=cmd)
-        cmd.finish()
+        temps = self.actor.controllers['temps'].fetchTemps(cmd=cmd)
+        cmd.finish('temps=%s' % ', '.join(['%0.3f' % (t) for t in temps]))
