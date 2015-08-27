@@ -79,13 +79,34 @@ class cooler(object):
                                                     KP, KI,KD))
         return mode, KP, KI, KD
     
-    def startCooler(self, setpoint, cmd=None):
-       ret = self.sendOneCommand('LOGIN=STIRLING')
-       ret = self.sendOneCommand('TTARGET=%g' % (setpoint))
-       ret = self.sendOneCommand('COOLER=ON')
-       ret = self.sendOneCommand('LOGOUT=STIRLING')
+    def startCooler(self, mode, setpoint, cmd=None):
+        headTemp = float(self.sendOneCommand('TC'))
 
-       self.status(cmd=cmd)
+        if headTemp > 350:
+            cmd.fail('text="the cryocooler temperature is too high (%sK). Check the temperature sense cable."' % (headTemp))
+            return
+        
+        ret = self.sendOneCommand('LOGIN=STIRLING')
+        if mode is 'power':
+            ret = self.sendOneCommand('PWOUT=%g' % (setpoint))
+            ret = self.sendOneCommand('COOLER=POWER')
+            pass
+        else:
+            ret = self.sendOneCommand('TTARGET=%g' % (setpoint))
+            ret = self.sendOneCommand('COOLER=ON')
+        self.sendOneCommand('LOGOUT=STIRLING')
+
+        self.status(cmd=cmd)
+
+        if cmd:
+            cmd.finish()
+        
+    def stopCooler(self, cmd=None):
+        ret = self.sendOneCommand('LOGIN=STIRLING')
+        ret = self.sendOneCommand('COOLER=OFF')
+        self.sendOneCommand('LOGOUT=STIRLING')
+
+        self.status(cmd=cmd)
         
     def getTemps(self, cmd=None):
         power = float(self.sendOneCommand('P'))
@@ -97,10 +118,15 @@ class cooler(object):
             cmd.inform('coolerTemps=%g,%g,%g, %g' % (setTemp,
                                                      baseTemp, headTemp,
                                                      power))
-            
+
+        return setTemp, baseTemp, headTemp, setPoint
+    
     def status(self, cmd=None):
-        self.getPID(cmd=cmd)
-        self.getTemps(cmd=cmd)
+        ret = self.getPID(cmd=cmd)
+        ret2 = self.getTemps(cmd=cmd)
+        ret.extend(ret2)
+
+        return ret
         
     def rawCmd(self, cmdStr, cmd=None):
         if cmd is None:
