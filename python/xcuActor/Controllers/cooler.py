@@ -6,7 +6,7 @@ import numpy as np
 
 class cooler(object):
     def __init__(self, actor, name,
-                 loglevel=logging.INFO):
+                 loglevel=logging.DEBUG):
 
         self.actor = actor
         self.logger = logging.getLogger('cooler')
@@ -14,11 +14,8 @@ class cooler(object):
 
         self.EOL = '\r'
         
-        # self.host = self.actor.config.get('cooler', 'host')
-        # self.port = int(self.actor.config.get('cooler', 'port'))
-
-        self.host = '10.1.1.57'
-        self.port = 10001
+        self.host = self.actor.config.get('cooler', 'host')
+        self.port = int(self.actor.config.get('cooler', 'port'))
 
     def start(self):
         pass
@@ -119,11 +116,15 @@ class cooler(object):
                                                      baseTemp, headTemp,
                                                      power))
 
-        return setTemp, baseTemp, headTemp, setPoint
+        return setTemp, baseTemp, headTemp, setTemp
     
     def status(self, cmd=None):
-        ret = self.getPID(cmd=cmd)
+        ret = []
+        
+        ret1 = self.getPID(cmd=cmd)
         ret2 = self.getTemps(cmd=cmd)
+
+        ret.extend(ret1)
         ret.extend(ret2)
 
         return ret
