@@ -11,13 +11,15 @@ class ionpump(object):
                  loglevel=logging.INFO):
 
         self.actor = actor
-        self.logger = logging.getLogger('ionpump')
+        self.name = name
+        self.logger = logging.getLogger(self.name)
         self.logger.setLevel(loglevel)
 
         self.EOL = '\r'
         
-        self.host = self.actor.config.get('ionpump', 'host')
-        self.port = int(self.actor.config.get('ionpump', 'port'))
+        self.host = self.actor.config.get(self.name, 'host')
+        self.port = int(self.actor.config.get(self.name, 'port'))
+        self.busID = int(self.actor.config.get(self.name, 'busID'))
 
     def start(self):
         pass
@@ -33,7 +35,8 @@ class ionpump(object):
         if cmd is None:
             cmd = self.actor.bcast
 
-        coreCmd = "\x80%s\x03" % (cmdStr)
+        busID = chr(128 + int(self.busID))
+        coreCmd = "%s%s\x03" % (busID, cmdStr)
         crc = self.calcCrc(coreCmd)
         fullCmd = "\x02%s%02X" % (coreCmd, crc)
         self.logger.info('sending %r', fullCmd)
