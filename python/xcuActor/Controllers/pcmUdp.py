@@ -59,8 +59,10 @@ class pcmUdp(object):
 
         if lastVal is None:
             keep = True
+        elif val == lastVal:
+            keep = False
         else:
-            if ((key[0] == 'I' and abs(val - lastVal) < 0.1) or
+            if ((key[0] == 'I' and abs(val - lastVal) < 0.2) or
                 (key in {'IL', 'IH'} and abs(val - lastVal) < 0.15) or
                 (key[0] == 'V' and abs(val - lastVal) < 0.2) or
                 (key == 'T' and abs(val - lastVal) < 0.4) or
@@ -104,19 +106,18 @@ class pcmUdp(object):
         key, val = self.translateKeyVal(rawKey, rawVal)
         
         lastVal = self.dataStore.get(key, None)
-        if val != lastVal:
-            keep = self.filterVal(key, val, lastVal)
-            if keep:
-                self.logger.info('%s=%s' % (key, val))
-                self.dataStore[key] = val
-                self.actor.bcast.inform('%s=%s' % (key, val))
+        keep = self.filterVal(key, val, lastVal)
+        if keep:
+            self.logger.info('%s=%s' % (key, val))
+            self.dataStore[key] = val
+            self.actor.bcast.inform('%s=%s' % (key, val))
         
     def datagramReceived(self, data, addr):
         try:
             data = data.strip()
             key, val = data.split(':')
         except Exception as e:
-            self.logger.warn('text="failed to parse UDP message from %s: %r"' % (addr, data))
+            self.logger.warn('text="failed to parse UDP message (%s) from %s: %r"' % (data, addr, e))
             return
 
         self.updateVal(key, val)
