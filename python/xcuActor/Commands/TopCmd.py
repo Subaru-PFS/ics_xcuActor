@@ -18,12 +18,15 @@ class TopCmd(object):
         self.vocab = [
             ('ping', '', self.ping),
             ('status', '', self.status),
-            ('connect', '[<controllers>]', self.connect),
+            ('connect', '<controller> [<name>]', self.connect),
+            ('disconnect', '<controller>', self.disconnect),
             ('monitor', '<controllers> <period>', self.monitor),
          ]
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("xcu_xcu", (1, 1),
+                                        keys.Key("name", types.String(),
+                                                 help='an optional name to assign to a controller instance'),
                                         keys.Key("controllers", types.String()*(1,None),
                                                  help='the names of 1 or more controllers to load'),
                                         keys.Key("controller", types.String(),
@@ -52,35 +55,32 @@ class TopCmd(object):
     def connect(self, cmd, doFinish=True):
         """ Reload all controller objects. """
 
-        if 'controllers' in cmd.cmd.keywords:
-            controllers = cmd.cmd.keywords['controllers'].values
-        else:
-            controllers = eval(self.actor.config.get(self.actor.name, 'controllers'))
-        controllers = map(str, controllers)
+        controller = cmd.cmd.keywords['controller'].values[0]
+        try:
+            instanceName = cmd.cmd.keywords['name'].values[0]
+        except:
+            instanceName = controller
 
-        for dev in controllers:
-            try:
-                self.actor.attachController(dev)
-            except Exception as e:
-                cmd.fail('text="failed to connect controller %s: %s"' % (dev, e))
+        try:
+            self.actor.attachController(controller,
+                                        instanceName=instanceName)
+        except Exception as e:
+                cmd.fail('text="failed to connect controller %s: %s"' % (instanceName,
+                                                                         e))
                 return
+
         cmd.finish(self.controllerKey())
         
     def disconnect(self, cmd, doFinish=True):
         """ Disconnect the given, or all, controller objects. """
 
-        if 'controllers' in cmd.cmd.keywords:
-            controllers = cmd.cmd.keywords['controllers'].values
-        else:
-            controllers = eval(self.actor.config.get(self.actor.name, 'controllers'))
-        controllers = map(str, controllers)
+        controller = cmd.cmd.keywords['controller'].values[0]
 
-        for dev in controllers:
-            try:
-                self.actor.attachController(dev)
-            except Exception as e:
-                cmd.fail('text="failed to connect controller %s: %s"' % (dev, e))
-                return
+        try:
+            self.actor.attachController(controller)
+        except Exception as e:
+            cmd.fail('text="failed to connect controller %s: %s"' % (controller, e))
+            return
         cmd.finish(self.controllerKey())
 
     def ping(self, cmd):
