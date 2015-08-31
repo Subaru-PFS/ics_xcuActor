@@ -3,6 +3,7 @@
 import time
 
 import opscore.protocols.keys as keys
+import opscore.protocols.types as types
 from opscore.utility.qstr import qstr
 
 class TempsCmd(object):
@@ -18,11 +19,14 @@ class TempsCmd(object):
         #
         self.vocab = [
             ('temps', '@raw', self.tempsRaw),
+            ('temps', 'flash <filename>', self.flash),
             ('temps', 'status', self.status),
         ]
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("xcu_temps", (1, 1),
+                                        keys.Key("filename", types.String(),
+                                                 help='filename to flash'),
                                         )
 
     def tempsRaw(self, cmd):
@@ -33,6 +37,16 @@ class TempsCmd(object):
         ret = self.actor.controllers['temps'].tempsCmd(cmd_txt, cmd=cmd)
         cmd.finish('text=%s' % (qstr('returned: %s' % (ret))))
 
+    def flash(self, cmd):
+        filename = cmd.cmd.keywords['filename'].values[0]
+        try:
+            self.actor.controllers['temps'].sendImage(filename, cmd=cmd)
+        except Exception as e:
+            cmd.fail('text="failed to flash from %s: %s"' % (filename, e))
+            return
+
+        cmd.finish('text="flashed from %s"' % (filename))
+            
     def status(self, cmd):
         temps = self.actor.controllers['temps'].fetchTemps(cmd=cmd)
         cmd.finish('temps=%s' % ', '.join(['%0.3f' % (t) for t in temps]))
