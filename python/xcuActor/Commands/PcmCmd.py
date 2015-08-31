@@ -21,7 +21,7 @@ class PcmCmd(object):
             ('pcm', '@raw', self.pcmRaw),
             ('pcm', 'status', self.udpStatus),
 
-            ('power', '@(on|off) @(motors|gauge|temps|bee|fee|interlocks|all) [@(force)]', self.power),
+            ('power', '@(on|off) @(motors|gauge|p3|temps|bee|fee|interlock|p8|all) [@(force)]', self.power),
 
             ('gauge', 'status', self.gaugeStatus),
 
