@@ -30,7 +30,6 @@ class CoolerCmd(object):
         self.keys = keys.KeysDictionary("xcu_cooler", (1, 1),
                                         keys.Key("setpoint", types.Float(),
                                                  help='cooler setpoint'),
-                                        
         )
 
     def coolerRaw(self, cmd):

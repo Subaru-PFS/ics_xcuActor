@@ -26,7 +26,7 @@ class TempsCmd(object):
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("xcu_temps", (1, 1),
                                         keys.Key("filename", types.String(),
-                                                 help='filename to flash'),
+                                                 help='filename to read or flash'),
                                         )
 
     def tempsRaw(self, cmd):
@@ -50,3 +50,4 @@ class TempsCmd(object):
     def status(self, cmd):
         temps = self.actor.controllers['temps'].fetchTemps(cmd=cmd)
         cmd.finish('temps=%s' % ', '.join(['%0.3f' % (t) for t in temps]))
+

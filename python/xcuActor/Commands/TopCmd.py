@@ -40,7 +40,7 @@ class TopCmd(object):
         
         period = cmd.cmd.keywords['period'].values[0]
         controllers = cmd.cmd.keywords['controllers'].values
-            
+
         for c in controllers:
             self.actor.monitor(c, period, cmd=cmd)
                 
