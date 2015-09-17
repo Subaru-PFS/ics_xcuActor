@@ -18,6 +18,10 @@ class OurActor(actorcore.ICC.ICC):
         self.everConnected = False
 
         self.monitors = dict(turbo=0,
+                             gauge1=0,
+                             roughGauge1=0,
+                             gauge2=0,
+                             roughGauge2=0,
                              ionpump=0,
                              gauge=0,
                              temps=0,
