@@ -19,11 +19,9 @@ class PcmCmd(object):
         #
         self.vocab = [
             ('pcm', '@raw', self.pcmRaw),
-            ('pcm', 'status', self.udpStatus),
+            ('pcm status', '', self.udpStatus),
 
-            ('power', '@(on|off) @(motors|gauge|p3|temps|bee|fee|interlock|p8|all) [@(force)]', self.power),
-
-            ('gauge', 'status', self.gaugeStatus),
+            ('power', '@(on|off) @(motors|gauge|cooler|temps|bee|fee|interlock|heaters|all) [@(force)]', self.power),
         ]
 
         # Define typed command arguments for the above commands.
@@ -38,18 +36,6 @@ class PcmCmd(object):
         ret = self.actor.controllers['PCM'].pcmCmd(cmd_txt, cmd=cmd)
         cmd.finish('text="returned %r"' % (ret))
 
-    def gaugeRaw(self, cmd):
-        """ Send a raw command to the gauge controller. """
-
-        cmd_txt = cmd.cmd.keywords['raw'].values[0]
-
-        ret = self.actor.controllers['PCM'].gaugeCmd(cmd_txt, cmd=cmd)
-        cmd.finish('text="returned %s"' % (qstr(ret)))
-
-    def gaugeStatus(self, cmd):
-        ret = self.actor.controllers['PCM'].gaugeStatus(cmd=cmd)
-        cmd.finish('pressure=%g' % (ret))
-
     def udpStatus(self, cmd):
         """ Force generation of the UDP keywords which we most care about. """
 
@@ -60,8 +46,8 @@ class PcmCmd(object):
         """ Power some PCM components on or off.
 
         Arguments:
-           on/off                - one of the two.
-           motors/gauge/bee/fee  - one subsystem to power on/off.
+           on/off    - one of the two.
+           name      - one subsystem to power on/off.
            force               
         """
         

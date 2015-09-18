@@ -19,12 +19,12 @@ class TurboCmd(object):
         #
         self.vocab = [
             ('turbo', '@raw', self.turboRaw),
-            ('turbo', 'ident', self.ident),
-            ('turbo', 'status', self.status),
-            ('turbo', 'start', self.startTurbo),
-            ('turbo', 'stop', self.stopTurbo),
-            ('turbo', 'standby <percent>', self.standby),
-            ('turbo', 'standby off', self.standby),
+            ('turbo ident', '', self.ident),
+            ('turbo status', '', self.status),
+            ('turbo start', '', self.startTurbo),
+            ('turbo stop', '', self.stopTurbo),
+            ('turbo standby', '<percent>', self.standby),
+            ('turbo standby',  'off', self.standbyOff),
         ]
 
         # Define typed command arguments for the above commands.
@@ -61,17 +61,22 @@ class TurboCmd(object):
         cmd.finish()
 
     def standby(self, cmd):
-        """ Put the pump into "standby mode", which is at a lower speed than normal mode. """
+        """ Put the pump into "standby mode", which is at a lower speed than normal mode. 
+
+        Note that the pump must be in normal mode for this to take effect.
+        """
         
-        if 'percent' in cmd.cmd.keywords:
-            percent = cmd.cmd.keywords['percent'].values[0]
-            ret = self.actor.controllers['turbo'].startStandby(percent=percent,
-                                                               cmd=cmd)
-        else:
-            ret = self.actor.controllers['turbo'].stopStandby(cmd=cmd)
-            
+        percent = cmd.cmd.keywords['percent'].values[0]
+        ret = self.actor.controllers['turbo'].startStandby(percent=percent,
+                                                           cmd=cmd)
         cmd.finish('text=%r' % (qstr(ret)))
 
+    def standbyOff(self, cmd):
+        """ Put the pump back into normal (full-speed) mode. """
+        
+        ret = self.actor.controllers['turbo'].stopStandby(cmd=cmd)
+        cmd.finish('text=%r' % (qstr(ret)))
+        
     def startTurbo(self, cmd):
         """ Start the turbo pump. """
 

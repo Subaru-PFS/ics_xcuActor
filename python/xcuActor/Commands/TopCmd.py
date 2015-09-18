@@ -42,6 +42,9 @@ class TopCmd(object):
         controllers = cmd.cmd.keywords['controllers'].values
 
         for c in controllers:
+            if c in ('roughGauge1', 'rough1') and c not in self.actor.monitors:
+                self.actor.monitors[c] = 0
+                
             self.actor.monitor(c, period, cmd=cmd)
                 
         cmd.finish()

@@ -19,8 +19,8 @@ class TempsCmd(object):
         #
         self.vocab = [
             ('temps', '@raw', self.tempsRaw),
-            ('temps', 'flash <filename>', self.flash),
-            ('temps', 'status', self.status),
+            ('temps flash', '<filename>', self.flash),
+            ('temps status', '', self.status),
         ]
 
         # Define typed command arguments for the above commands.

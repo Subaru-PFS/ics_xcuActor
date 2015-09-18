@@ -19,11 +19,11 @@ class CoolerCmd(object):
         #
         self.vocab = [
             ('cooler', '@raw', self.coolerRaw),
-            ('cooler', 'status', self.status),
-            ('cooler', 'temps', self.temps),
-            ('cooler', 'on <setpoint>', self.tempLoop),
-            ('cooler', 'power <setpoint>', self.powerLoop),
-            ('cooler', 'off', self.off),
+            ('cooler status', '', self.status),
+            ('cooler temps', '', self.temps),
+            ('cooler on', '<setpoint>', self.tempLoop),
+            ('cooler power', '<setpoint>', self.powerLoop),
+            ('cooler off', '', self.off),
         ]
 
         # Define typed command arguments for the above commands.
@@ -61,7 +61,7 @@ class CoolerCmd(object):
         cmd.finish()
         
     def powerLoop(self, cmd):
-        """ Turn cryocooler temperature control loop on. """
+        """ Turn cryocooler power control loop on. """
 
         setpoint = cmd.cmd.keywords['setpoint'].values[0]
         
