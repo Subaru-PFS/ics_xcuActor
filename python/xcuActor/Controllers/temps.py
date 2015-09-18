@@ -256,9 +256,12 @@ class temps(object):
         if cmd is None:
             cmd = self.actor.bcast
 
-        ret = self.dev.sendOneCommand(cmdStr, cmd)
+        ret = self.dev.sendOneCommand(cmdStr, cmd=cmd)
         return ret
 
+    def correctTemps(self, values):
+        return evalFit(slopeFunc, hackCoeffs, values)
+    
     def fetchTemps(self, sensors=None, cmd=None):
         if sensors is None:
             sensors = range(12)
@@ -268,5 +271,29 @@ class temps(object):
             replies[s_i] = self.dev.sendOneCommand('?K%d' % (s_i + 1), cmd=cmd)
         values = [float(s) for s in replies]
 
-        return values
-    
+        return self.correctTemps(values)
+
+hackCoeffs = np.array([[0.98555011, -0.04371074],
+                       [0.98076066, -0.04474339],
+                       [0.99328676, -0.04429770],
+                       [0.99484957, -0.04424603],
+                       [1.01602077, -0.04135464],
+                       [1.01753831, -0.04326154],
+                       [0.99910862, -0.04233828],
+                       [1.00469784, -0.04293416],
+                       [0.98602365, -0.04645644],
+                       [0.99490294, -0.04358688],
+                       [1.00978633, -0.04253082],
+                       [1.01484596, -0.04503893]])
+
+def slopeFunc(x, a, b):
+    return a*x + b*(x-273.15)
+
+def evalFit(func, coeffs, tofit):
+    res = []
+    for i in range(len(tofit)):
+        res1 = func(tofit[i], *coeffs[i])
+        res.append(res1)
+            
+    return res
+                            
