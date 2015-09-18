@@ -20,7 +20,6 @@ class TurboCmd(object):
         self.vocab = [
             ('turbo', '@raw', self.turboRaw),
             ('turbo', 'ident', self.ident),
-            ('turbo', 'monitor <period>', self.monitor),
             ('turbo', 'status', self.status),
             ('turbo', 'start', self.startTurbo),
             ('turbo', 'stop', self.stopTurbo),
@@ -61,25 +60,30 @@ class TurboCmd(object):
         self.actor.controllers['turbo'].status(cmd=cmd)
         cmd.finish()
 
-    def monitor(self, cmd):
-        period = cmd.cmd.keywords['period'].values[0]
-        self.actor.monitorTurbo(period)
-        cmd.finish()
-        
     def standby(self, cmd):
+        """ Put the pump into "standby mode", which is at a lower speed than normal mode. """
+        
         if 'percent' in cmd.cmd.keywords:
             percent = cmd.cmd.keywords['percent'].values[0]
             ret = self.actor.controllers['turbo'].startStandby(percent=percent,
-                                                              cmd=cmd)
+                                                               cmd=cmd)
         else:
             ret = self.actor.controllers['turbo'].stopStandby(cmd=cmd)
             
         cmd.finish('text=%r' % (qstr(ret)))
 
     def startTurbo(self, cmd):
+        """ Start the turbo pump. """
+
         ret = self.actor.controllers['turbo'].startPump(cmd=cmd)
         cmd.finish('ident=%s' % (','.join(ret)))
 
     def stopTurbo(self, cmd):
+        """ Stop the turbo pump. 
+
+        By default, the pump is slightly braked, with the energy fed
+        back into the power supply.
+        """
+
         ret = self.actor.controllers['turbo'].stopPump(cmd=cmd)
         cmd.finish('ident=%s' % (','.join(ret)))

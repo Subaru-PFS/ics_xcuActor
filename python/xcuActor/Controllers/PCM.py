@@ -19,10 +19,6 @@ class PCM(object):
         self.host = self.actor.config.get('pcm', 'host')
         self.port = int(self.actor.config.get('pcm', 'port'))
 
-        #self.host = host
-        #self.port = port
-
-
     def start(self):
         pass
 
@@ -32,6 +28,8 @@ class PCM(object):
     def sendOneCommand(self, cmdStr, cmd=None):
         fullCmd = "%s%s" % (cmdStr, self.EOL)
         self.logger.debug('sending %r', fullCmd)
+        if cmd:
+            cmd.diag('text="sending %r"' % (fullCmd))
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -49,15 +47,28 @@ class PCM(object):
 
         try:
             ret = s.recv(1024)
-        except socket.err as e:
+        except socket.error as e:
             self.logger.error('text="failed to read response from PCM: %s"' % (e))
             raise
 
-        self.logger.debug('received %r', ret)
+        self.logger.debug('received: %s' % (ret))
         s.close()
+
+        if cmd:
+            cmd.diag('text="received %r"' % (ret))
+            
+        if ret.startswith('Error:'):
+            raise RuntimeError('Error reading or writing: %s' % (ret))
 
         return ret
 
+    def pcmStatus(self, cmd=None):
+        if cmd is not None:
+            cmd.inform('powerNames=%s' % (self.powerPorts))
+            
+    def pcmCmd(self, cmdStr, cmd=None):
+        return self.sendOneCommand(cmdStr, cmd=cmd)
+    
     def powerCmd(self, system, turnOn=True, cmd=None):
         try:
             i = self.powerPorts.index(system)

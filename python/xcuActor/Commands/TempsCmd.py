@@ -38,6 +38,8 @@ class TempsCmd(object):
         cmd.finish('text=%s' % (qstr('returned: %s' % (ret))))
 
     def flash(self, cmd):
+        """ Flash the temperatire board with new firmware. """
+        
         filename = cmd.cmd.keywords['filename'].values[0]
         try:
             self.actor.controllers['temps'].sendImage(filename, cmd=cmd)
@@ -48,6 +50,8 @@ class TempsCmd(object):
         cmd.finish('text="flashed from %s"' % (filename))
             
     def status(self, cmd):
+        """ Return all status keywords. """
+        
         temps = self.actor.controllers['temps'].fetchTemps(cmd=cmd)
-        cmd.finish('temps=%s' % ', '.join(['%0.3f' % (t) for t in temps]))
+        cmd.finish('temps=%s' % ', '.join(['%0.2f' % (t) for t in temps]))
 
