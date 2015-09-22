@@ -19,12 +19,12 @@ class TurboCmd(object):
         #
         self.vocab = [
             ('turbo', '@raw', self.turboRaw),
-            ('turbo ident', '', self.ident),
-            ('turbo status', '', self.status),
-            ('turbo start', '', self.startTurbo),
-            ('turbo stop', '', self.stopTurbo),
-            ('turbo standby', '<percent>', self.standby),
-            ('turbo standby',  'off', self.standbyOff),
+            ('turbo', 'ident', self.ident),
+            ('turbo', 'status', self.status),
+            ('turbo', 'start', self.startTurbo),
+            ('turbo', 'stop', self.stopTurbo),
+            ('turbo', 'standby <percent>', self.standby),
+            ('turbo', 'standby off', self.standbyOff),
         ]
 
         # Define typed command arguments for the above commands.

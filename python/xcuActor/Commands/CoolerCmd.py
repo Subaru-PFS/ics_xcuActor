@@ -19,11 +19,11 @@ class CoolerCmd(object):
         #
         self.vocab = [
             ('cooler', '@raw', self.coolerRaw),
-            ('cooler status', '', self.status),
-            ('cooler temps', '', self.temps),
-            ('cooler on', '<setpoint>', self.tempLoop),
-            ('cooler power', '<setpoint>', self.powerLoop),
-            ('cooler off', '', self.off),
+            ('cooler', 'status', self.status),
+            ('cooler', 'temps', self.temps),
+            ('cooler', 'on <setpoint>', self.tempLoop),
+            ('cooler', 'power <setpoint>', self.powerLoop),
+            ('cooler', 'off', self.off),
         ]
 
         # Define typed command arguments for the above commands.

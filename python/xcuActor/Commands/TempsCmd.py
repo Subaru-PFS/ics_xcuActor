@@ -19,14 +19,18 @@ class TempsCmd(object):
         #
         self.vocab = [
             ('temps', '@raw', self.tempsRaw),
-            ('temps flash', '<filename>', self.flash),
-            ('temps status', '', self.status),
+            ('temps', 'flash <filename>', self.flash),
+            ('temps', 'status', self.status),
+            ('heaters', '@(on|off) @(legs|base) <power>', self.heaters),
+            ('heaters', 'status', self.heaterStatus),
         ]
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("xcu_temps", (1, 1),
                                         keys.Key("filename", types.String(),
                                                  help='filename to read or flash'),
+                                        keys.Key("power", types.Int(),
+                                                 help='power level to set (0..100)'),
                                         )
 
     def tempsRaw(self, cmd):

@@ -19,7 +19,7 @@ class PcmCmd(object):
         #
         self.vocab = [
             ('pcm', '@raw', self.pcmRaw),
-            ('pcm status', '', self.udpStatus),
+            ('pcm', 'status [@(clear)]', self.udpStatus),
 
             ('power', '@(on|off) @(motors|gauge|cooler|temps|bee|fee|interlock|heaters|all) [@(force)]', self.power),
         ]
