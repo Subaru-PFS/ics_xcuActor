@@ -41,13 +41,24 @@ class TopCmd(object):
         period = cmd.cmd.keywords['period'].values[0]
         controllers = cmd.cmd.keywords['controllers'].values
 
+        knownControllers = ["gauge"]
+        for c in self.actor.config.get(self.actor.name, 'controllers').split(','):
+            c = c.strip()
+            knownControllers.append(c)
+        
+        foundOne = False
         for c in controllers:
-            if c in ('roughGauge1', 'rough1') and c not in self.actor.monitors:
-                self.actor.monitors[c] = 0
+            if c not in knownControllers:
+                cmd.warn('text="not starting monitor for %s: unknown controller"' % (c))
+                continue
                 
             self.actor.monitor(c, period, cmd=cmd)
-                
-        cmd.finish()
+            foundOne = True
+
+        if foundOne:
+            cmd.finish()
+        else:
+            cmd.fail('text="no controllers found"')
 
     def controllerKey(self):
         controllerNames = self.actor.controllers.keys()
