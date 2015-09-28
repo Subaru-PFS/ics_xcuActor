@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import numpy as np
+
 import time
 
 import opscore.protocols.keys as keys
@@ -21,7 +23,10 @@ class TempsCmd(object):
             ('temps', '@raw', self.tempsRaw),
             ('temps', 'flash <filename>', self.flash),
             ('temps', 'status', self.status),
-            ('heaters', '@(on|off) @(legs|base) <power>', self.heaters),
+            ('temps', 'test1', self.test1),
+            ('temps', 'test2', self.test2),
+            ('HPheaters', '@(on|off) @(one|two)', self.HPheaters),
+            ('heaters', '@(on|off) @(ccd|spider) <power>', self.heaters),
             ('heaters', 'status', self.heaterStatus),
         ]
 
@@ -41,6 +46,74 @@ class TempsCmd(object):
         ret = self.actor.controllers['temps'].tempsCmd(cmd_txt, cmd=cmd)
         cmd.finish('text=%s' % (qstr('returned: %s' % (ret))))
 
+    def heaterStatus(self, cmd):
+        self.actor.controllers['temps'].fetchHeaters(cmd=cmd)
+        cmd.finish()
+        
+    def heaters(self, cmd):
+        """ Control the heaters. """
+
+        cmdKeys = cmd.cmd.keywords
+
+        power = cmdKeys['power'].values[0]
+        if 'on' in cmdKeys:
+            turnOn = True
+        elif 'off' in cmdKeys:
+            turnOn = False
+        else:
+            cmd.fail('text="neither on nor off was specified!"')
+            return
+
+        if 'spider' in cmdKeys:
+            heater = 'spider'
+        elif 'ccd':
+            heater = 'ccd'
+        else:
+            cmd.fail('text="no heater (ccd or spider) was specified!"')
+            return
+
+        try:
+            self.actor.controllers['temps'].heater(turnOn=turnOn,
+                                                   heater=heater,
+                                                   power=power,
+                                                   cmd=cmd)
+        except Exception as e:
+            cmd.fail('text="failed to control heaters: %s"' % (e))
+            return
+
+        cmd.finish()
+
+    def HPheaters(self, cmd):
+        """ Control the heaters. """
+
+        cmdKeys = cmd.cmd.keywords
+
+        if 'on' in cmdKeys:
+            turnOn = True
+        elif 'off' in cmdKeys:
+            turnOn = False
+        else:
+            cmd.fail('text="neither on nor off was specified!"')
+            return
+
+        if 'one' in cmdKeys:
+            heater = 1
+        elif 'two' in cmdKeys:
+            heater = 2
+        else:
+            cmd.fail('text="no heater (legs or base) was specified!"')
+            return
+
+        try:
+            self.actor.controllers['temps'].HPheater(turnOn=turnOn,
+                                                     heaterNum=heater,
+                                                     cmd=cmd)
+        except Exception as e:
+            cmd.fail('text="failed to control heaters: %s"' % (e))
+            return
+
+        cmd.finish()
+
     def flash(self, cmd):
         """ Flash the temperatire board with new firmware. """
         
@@ -59,3 +132,82 @@ class TempsCmd(object):
         temps = self.actor.controllers['temps'].fetchTemps(cmd=cmd)
         cmd.finish('temps=%s' % ', '.join(['%0.2f' % (t) for t in temps]))
 
+    def test2(self, cmd):
+        """Test readings against dewar feedthrough test pack. 
+
+        This checks that the temperature board readings are within 0.5K of the reference values,
+        and that the cooler tip value is 0.5K of its reference value. 
+
+        The test expects all four test resistor packs -- T3, T4, T6,
+        and T7 -- to be installed in the corresponding feedthrough
+        headers inside the dewar.
+        """
+
+        testPoints = dict(JP4=(5,6,7),
+                          JP6=(4,'tip'),
+                          JP7=(1,2,3),
+                          JP3=(8,9,10,11,12))
+        
+        testData = [146.26,158.59,174.96,188.48,208.43,225.06,252.95,284.05,298.16,321.68,348.23,403.70]
+        coolerTestData = 272.36
+        
+        try:
+            temps = self.actor.controllers['temps'].fetchTemps(cmd=cmd)
+        except Exception as e:
+            cmd.fail('text="Failed to read test1 sensors: %s"' % (e))
+            return
+
+        errs = []
+        tdAll = np.array(testData) - np.array(temps)
+        for i, td1 in enumerate(tdAll):
+            if np.abs(td1) >= 0.5:
+                errs.append('sensor%d: read=%0.2f, ref=%0.2f' % (i+1, temps[i], testData[i]))
+
+        try:
+            coolerStat = self.actor.controllers['cooler'].status(cmd=cmd)
+            coolerTemp = coolerStat[-2]
+            if abs(coolerTemp - coolerTestData) >= 0.5:
+                errs.append('coolerTip: read=%0.2f, ref=%0.2f' % (coolerTemp, coolerTestData))
+        except Exception as e:
+            errs.append('failed to read cooler: %s' % (e))
+
+        if errs:
+            for e in errs:
+                cmd.warn('text="test2 error: %s"' % (e))
+            cmd.fail('text="temperature test2 failed"')
+        else:
+            cmd.finish('text="temperature test2 OK"')
+                
+    def test1(self, cmd):
+        """Test readings against pie pan test pack. 
+
+        This checks that the temperature board readings are within 0.5K of the reference values.
+
+        The test requires that the T11 resistor pack to be installed
+        in JP11 on the back of the pie pan.
+        """
+
+        testData = [474.84,434.26,396.66,347.96,317.79,295.26,286.63,248.27,228.53,210.77,192.77,174.80]
+        
+        try:
+            temps = self.actor.controllers['temps'].fetchTemps(cmd=cmd)
+        except Exception as e:
+            cmd.fail('text="Failed to read test1 sensors: %s"' % (e))
+            return
+
+        errs = []
+        tdAll = np.array(testData) - np.array(temps)
+        for i, td1 in enumerate(tdAll):
+            if np.abs(td1) >= 0.5:
+                errs.append('sensor%d: read=%0.2f, ref=%0.2f' % (i+1, temps[i], testData[i]))
+
+        if errs:
+            for e in errs:
+                cmd.warn('text="test1 error: %s"' % (e))
+            cmd.fail('text="temperature test1 failed"')
+        else:
+            cmd.finish('text="temperature test1 OK"')
+                
+        
+            
+        
