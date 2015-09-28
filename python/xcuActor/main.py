@@ -17,16 +17,7 @@ class OurActor(actorcore.ICC.ICC):
         
         self.everConnected = False
 
-        self.monitors = dict(turbo=0,
-                             gauge1=0,
-                             roughGauge1=0,
-                             gauge2=0,
-                             roughGauge2=0,
-                             ionpump=0,
-                             gauge=0,
-                             temps=0,
-                             ltemps=0,
-                             cooler=0,)
+        self.monitors = dict()
         
         self.statusLoopCB = self.statusLoop
         
@@ -37,7 +28,7 @@ class OurActor(actorcore.ICC.ICC):
     def connectionMade(self):
         if self.everConnected is False:
             logging.info("Attaching all controllers...")
-            self.allControllers = self.config.get(self.name, 'startingControllers')
+            self.allControllers = [s.strip() for s in self.config.get(self.name, 'startingControllers').split(',')]
             self.attachAllControllers()
             self.everConnected = True
 
@@ -56,18 +47,17 @@ class OurActor(actorcore.ICC.ICC):
             
     def monitor(self, controller, period, cmd=None):
         if controller not in self.monitors:
-            raise RuntimeError('text="%s is not a known controller"' % (controller))
+            self.monitors[controller] = 0
 
         running = self.monitors[controller] > 0
         self.monitors[controller] = period
 
         if (not running) and period > 0:
-            cmd.warn('text="starting loop %s for %s via %s"' % (self.monitors[controller],
-                                                                controller, self.statusLoopCB))
+            cmd.warn('text="starting %gs loop for %s"' % (self.monitors[controller],
+                                                          controller))
             self.statusLoopCB(controller)
         else:
-            cmd.warn('text="NOT starting loop %s for %s via %s"' % (self.monitors[controller],
-                                                                    controller, self.statusLoopCB))
+            cmd.warn('text="adjusted %s loop to %gs"' % (controller, self.monitors[controller]))
             
 def main():
     parser = argparse.ArgumentParser()
