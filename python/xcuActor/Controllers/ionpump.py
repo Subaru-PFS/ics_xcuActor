@@ -20,6 +20,7 @@ class ionpump(object):
         self.host = self.actor.config.get(self.name, 'host')
         self.port = int(self.actor.config.get(self.name, 'port'))
         self.busID = int(self.actor.config.get(self.name, 'busID'))
+        self.pumpIDs = [int(ID) for ID in self.actor.config.get('ionpump', 'pumpids').split(',')]
 
     def start(self):
         pass
@@ -40,7 +41,7 @@ class ionpump(object):
         crc = self.calcCrc(coreCmd)
         fullCmd = "\x02%s%02X" % (coreCmd, crc)
         self.logger.info('sending %r', fullCmd)
-        cmd.diag('text="sending %r"' % fullCmd)
+        cmd.diag('text="ionpump sending %r"' % fullCmd)
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -63,7 +64,7 @@ class ionpump(object):
             raise
 
         self.logger.info('received %r', ret)
-        cmd.diag('text="received %r"' % ret)
+        cmd.diag('text="ionpump received %r"' % ret)
         s.close()
 
         reply = self.parseRawReply(ret)
@@ -150,19 +151,26 @@ class ionpump(object):
 
         return float(reply)
         
-    def off(self, cmd=None):
-        reply = self.sendWriteCommand(11, '0')
-        self.readOnePump(1)
+    def _onOff(self, newState, cmd=None):
+        """ Turn the pumps on or off, and report the status. """
         
-        reply = self.sendWriteCommand(12, '0')
-        self.readOnePump(2)
+        ret = []
+        for c in self.pumpsIDs:
+            self.sendWriteCommand(10+c, '%s' % (int(newState)))
+            ret1 = self.readOnePump(c, cmd=cmd)
+            ret.extend(ret1)
+
+        return ret
+    
+    def off(self, cmd=None):
+        """ Turn the pumps on, and report the status. """
+
+        return self._onOff(True, cmd=cmd)
 
     def on(self, cmd=None):
-        reply = self.sendWriteCommand(11, '1')
-        self.readOnePump(1)
-        
-        reply = self.sendWriteCommand(12, '1')
-        self.readOnePump(2)
+        """ Turn the pumps on, and report the status. """
+
+        return self._onOff(True, cmd=cmd)
 
     def readEnabled(self, channel):
         reply = self.sendReadCommand(10 + channel)
