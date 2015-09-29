@@ -7,14 +7,16 @@ class gauge(object):
                  loglevel=logging.INFO):
 
         self.actor = actor
-        self.logger = logging.getLogger('gauge')
+        self.name = name
+        self.logger = logging.getLogger(self.name)
         self.logger.setLevel(loglevel)
 
         self.EOL = '\r'
         
-        self.host = self.actor.config.get('gauge', 'host')
-        self.port = int(self.actor.config.get('gauge', 'port'))
-
+        self.host = self.actor.config.get(self.name, 'host')
+        self.port = int(self.actor.config.get(self.name, 'port'))
+        self.busID = 1
+        
     def start(self):
         pass
 
@@ -54,13 +56,28 @@ class gauge(object):
         s.close()
 
         return ret
+    
+    def gaugeCrc(self, s):
+        return sum([ord(c) for c in s]) % 256
 
+    def gaugeRawCmd(self, cmdStr, cmd=None):
+        cmdStr = '%03d%s' % (self.busID, cmdStr)
+        crc = self.gaugeCrc(cmdStr)
+        cmdStr = '%s%03d' % (cmdStr, crc)
+
+        ret = self.sendOneCommand(cmdStr, cmd=cmd)
+
+        return ret
+
+    def gaugeRawQuery(self, code, cmd=None):
+        cmdStr = '00%03d02=?' % (code)
+        return self.gaugeRawCmd(cmdStr, cmd=None)
+    
     def pressure(self, cmd=None):
-        cmdStr = '0010074002=?106'
+        data_out = self.gaugeRawQuery(740)
 
-        data_out = self.sendOneCommand(cmdStr, cmd=cmd)
-        
-        mantissa = int(data_out[10:14]) * 10 ** -3 
+        # 001 10 740 06 430022 030
+        mantissa = int(data_out[10:14]) * 10.0 ** -3 
         exponent = int(data_out[14:16]) - 20
 
         # convert to torr
@@ -72,6 +89,7 @@ class gauge(object):
         if cmd is None:
             cmd = self.actor.bcast
 
-        ret = self.sendOneCommand(cmdStr, cmd)
+        # ret = self.sendOneCommand(cmdStr, cmd)
+        ret = self.gaugeRawCmd(cmdStr, cmd=cmd)
         return ret
 

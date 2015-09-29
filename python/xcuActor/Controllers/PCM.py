@@ -160,10 +160,20 @@ class PCM(object):
 
         return errStr, busy, rest
 
-    def gaugeStatus(self, cmd=None):
-        cmdStr = '~320010074002=?106'
+    def gaugeCrc(self, s):
+        return sum([ord(c) for c in s]) % 256
 
-        data_out = self.sendOneCommand(cmdStr, cmd=cmd)
+    def gaugeRawCmd(self, cmdStr, cmd=None):
+        crc = self.gaugeCrc(cmdStr)
+        pcmCmd = '~32'
+        cmdStr = '%s%s%03d' % (pcmCmd, cmdStr, crc)
+
+        ret = self.sendOneCommand(cmdStr, cmd=cmd)
+
+        return ret
+
+    def gaugeStatus(self, cmd=None):
+        data_out = self.gaugeRawCmd('0010074002=?', cmd=cmd)
         
         mantissa = int(data_out[10:14]) * 10 ** -3 
         exponent = int(data_out[14:16]) - 20
