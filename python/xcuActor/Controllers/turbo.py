@@ -33,7 +33,7 @@ class turbo(object):
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(1.0)
+            # s.settimeout(1.0)
         except socket.error as e:
             cmd.warn('text="failed to create socket to turbo: %s"' % (e))
             raise
@@ -45,11 +45,16 @@ class turbo(object):
             cmd.warn('text="failed to create connect or send to turbo: %s"' % (e))
             raise
 
-        try:
-            ret = s.recv(1024)
-        except socket.error as e:
-            cmd.warn('text="failed to read response from turbo: %s"' % (e))
-            raise
+        ret = ''
+        while True:
+            try:
+                ret1 = s.recv(1024)
+            except socket.error as e:
+                cmd.warn('text="failed to read response from turbo: %s"' % (e))
+                raise
+            ret = ret + ret1
+            if ret1[-1] in '\r\n':
+                break
 
         self.logger.info('received %r', ret)
         cmd.diag('text="received %r"' % ret)

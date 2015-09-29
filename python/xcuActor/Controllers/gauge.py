@@ -33,20 +33,20 @@ class gauge(object):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(1.0)
         except socket.error as e:
-            cmd.warn('text="failed to create socket to gauge: %s"' % (e))
+            cmd.warn('text="failed to create socket to %s: %s"' % (self.name, e))
             raise
  
         try:
             s.connect((self.host, self.port))
             s.sendall(fullCmd)
         except socket.error as e:
-            cmd.warn('text="failed to create connect or send to gauge: %s"' % (e))
+            cmd.warn('text="failed to create connect or send to %s: %s"' % (self.name, e))
             raise
 
         try:
             ret = s.recv(1024)
         except socket.error as e:
-            cmd.warn('text="failed to read response from gauge: %s"' % (e))
+            cmd.warn('text="failed to read response from %s: %s"' % (self.name, e))
             raise
 
         self.logger.debug('received %r', ret)
