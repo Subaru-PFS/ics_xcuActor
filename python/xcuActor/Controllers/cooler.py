@@ -104,19 +104,19 @@ class cooler(object):
         self.sendOneCommand('LOGOUT=STIRLING')
 
         self.status(cmd=cmd)
-        
+
     def getTemps(self, cmd=None):
         power = float(self.sendOneCommand('P'))
-        headTemp = float(self.sendOneCommand('TC'))
-        baseTemp = float(self.sendOneCommand('TEMP RJ'))
+        tipTemp = float(self.sendOneCommand('TC'))
+        rejectTemp = float(self.sendOneCommand('TEMP2'))
         setTemp = float(self.sendOneCommand('TTARGET'))
 
         if cmd is not None:
             cmd.inform('coolerTemps=%g,%g,%g, %g' % (setTemp,
-                                                     baseTemp, headTemp,
+                                                     rejectTemp, tipTemp,
                                                      power))
 
-        return setTemp, baseTemp, headTemp, setTemp
+        return setTemp, rejectTemp, tipTemp, setTemp
     
     def status(self, cmd=None):
         ret = []
