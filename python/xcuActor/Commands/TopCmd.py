@@ -91,9 +91,9 @@ class TopCmd(object):
         controller = cmd.cmd.keywords['controller'].values[0]
 
         try:
-            self.actor.attachController(controller)
+            self.actor.detachController(controller)
         except Exception as e:
-            cmd.fail('text="failed to connect controller %s: %s"' % (controller, e))
+            cmd.fail('text="failed to disconnect controller %s: %s"' % (controller, e))
             return
         cmd.finish(self.controllerKey())
 
@@ -109,6 +109,7 @@ class TopCmd(object):
         self.actor.sendVersionKey(cmd)
         
         cmd.inform('text=%s' % ("Present!"))
+        cmd.inform('text="monitors: %s"' % (self.actor.monitors))
         cmd.inform('text="config id=0x%08x %r"' % (id(self.actor.config),
                                                    self.actor.config.sections()))
         cmd.finish(self.controllerKey())
