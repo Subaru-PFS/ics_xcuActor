@@ -12,11 +12,13 @@ class PcmListener(DatagramProtocol):
         self.pcmPort = port
 
     def datagramReceived(self, data, addr):
+        if addr[0] != self.pcmHost:
+            return
         self.owner.datagramReceived(data, addr)
-
+        
     def startProtocol(self):
-        print "startProtocol!"
         # self.transport.connect(self.pcmHost, self.pcmPort)
+        print "startProtocol!"
 
     def stopProtocol(self):
         print "stopProtocol!"
@@ -26,7 +28,6 @@ class PcmListener(DatagramProtocol):
 
 class pcmUdp(object):
     def __init__(self, actor, name,
-                 host='10.1.1.4', port=1025,
                  loglevel=logging.INFO):
 
         self.actor = actor
@@ -34,8 +35,8 @@ class pcmUdp(object):
         self.logger = logging.getLogger('PcmUdp')
         self.logger.setLevel(loglevel)
 
-        self.host = host
-        self.port = port
+        self.host = self.actor.config.get('pcm', 'host')
+        self.port = int(self.actor.config.get('pcm', 'udpPort'))
 
         self.udpListener = None
 
