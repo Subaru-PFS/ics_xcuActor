@@ -94,7 +94,7 @@ class pcmUdp(object):
             kl.append("%s=%s" % (k, self.dataStore.get(k, None)))
         cmd.inform("; ".join(kl))
 
-    def clearKeys(self, keys):
+    def clearKeys(self, keys=None):
         """ Force updates of a given list of keys. """
 
         if keys is None:

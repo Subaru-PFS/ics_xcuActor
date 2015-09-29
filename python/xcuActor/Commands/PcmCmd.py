@@ -39,7 +39,13 @@ class PcmCmd(object):
     def udpStatus(self, cmd):
         """ Force generation of the UDP keywords which we most care about. """
 
+        clear = 'clear' in cmd.cmd.keywords
+
         self.actor.controllers['pcmUdp'].status(cmd=cmd)
+
+        if clear:
+            self.actor.controllers['pcmUdp'].clearKeys()
+            
         cmd.finish()
 
     def power(self, cmd):
