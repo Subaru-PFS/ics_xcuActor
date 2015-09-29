@@ -7,11 +7,11 @@ which is generally controlled by the ``xcuActor``. As a bare minimum,
 the ``PCM`` board and the ``BEE`` must be powered and on the network.
 
 For the purposes of this document, I'll assume that the ``xcuActor``
-will be run on the ``BEE``. See XXXX if not. Also, I'll assume that
-you are working on the ``r1`` camera.
+will be run on the ``BEE`` itself. See XXXX if not. Also, I'll assume that
+you are working on the ``r1`` camera. 
 
 
-Power connections
+Power prerequisites
 -----------------
 
 The pie pan takes 24V and 48V power from the rack. The P3
@@ -57,7 +57,7 @@ PFS network.
 
 The ``pfscore`` actor must be running and connected to ``tron``.
 
-Software startup
+XCU actor startup
 ----------------
 
 The core software depends on the PCM being powered and reachable. See

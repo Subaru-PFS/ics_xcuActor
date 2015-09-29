@@ -12,7 +12,8 @@ Contents:
    :maxdepth: 2
 
    startup
-
+   devices
+   
 Indices and tables
 ==================
 
