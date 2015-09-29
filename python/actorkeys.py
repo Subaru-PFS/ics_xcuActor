@@ -1,4 +1,4 @@
-KeysDictionary("xcu", (1, 3),
+KeysDictionary("xcu", (1, 4),
                # All cooler keys:
                Key("coolerTemps",
                    Float(invalid="NaN", units="K", name='setpoint'), 
@@ -7,12 +7,13 @@ KeysDictionary("xcu", (1, 3),
                    Float(invalid="NaN", units="W", name='power'), 
                    help="Cryocooler state. Setpoint, Reject, Tip."),
 
-               # All ion gauge keywords:
+               # All ion gauge keywords
                Key("pressure", Float(invalid="NaN", units="Torr"),
-                   help="Ion gauge pressure."),
+                   help="Ion gauge pressure. Comes via PCM UDP."),
 
                # All ion pump keywords:
-               #  cmd.inform('ionPump%d=%d,%g,%g,%g, %g' % (channel,
+               # Need to add:
+               #    The error bit masks and descriptions, current spat out as text
                Key("ionpump1",
                    Bool(name='enabled'),
                    Float(name='Voltage', invalid="NaN", units="V"),
@@ -62,9 +63,24 @@ KeysDictionary("xcu", (1, 3),
                    Float(name='Pressure', invalid="NaN", units="Torr"),
                    help="Ion pump status."),
 
+               # PCM keywords
+               Key("powerNames", String()*8,
+                   help="names of the PCM power port devices."),
+               Key("powerMask", Int(),
+                   help="mask of the powered PCM ports. 1=on"),
+               Key("poweredUp", String(),
+                   help="convenience string naming the powered PCM ports"),
                
+               # Temp & heater keywords
+               #    Still need heater names, description of high power heaters.
                Key("temps", Float(invalid="NaN", units="K")*12,
                    help="Temperatures from the IDG board"),
                Key("tempNames", String(invalid="N/C")*12,
                    help="Names of the temperature probes on the IDG board"),
+               Key("heaters",
+                   Int(name='H1enabled', help='is heater 1 enabled'),
+                   Int(name='H2enabled', help='is heater 2 enabled'),
+                   Int(name='H1fraction', help='fractional power to heater 1. 0..1'),
+                   Int(name='H1fraction', help='fractional power to heater 1, 0..1'),
+                   help='status of the low power heaters.'),
 )
