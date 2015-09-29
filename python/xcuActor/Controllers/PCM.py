@@ -6,18 +6,20 @@ class PCM(object):
     powerPorts = ('motors', 'gauge', 'cooler', 'temps',
                   'bee', 'fee', 'interlock', 'heaters')
     
-    def __init__(self, actor, name,
+    def __init__(self, actor=None, name='unknown',
                  loglevel=logging.INFO, host='10.1.1.4', port=1000):
 
         self.logger = logging.getLogger()
         self.logger.setLevel(loglevel)
-
-        self.actor = actor
-
         self.EOL = '\r\n'
 
-        self.host = self.actor.config.get('pcm', 'host')
-        self.port = int(self.actor.config.get('pcm', 'port'))
+        self.actor = actor
+        if actor is not None:
+            self.host = self.actor.config.get('pcm', 'host')
+            self.port = int(self.actor.config.get('pcm', 'port'))
+        else:
+            self.host = host
+            self.port = port
 
     def start(self):
         pass
@@ -120,13 +122,13 @@ class PCM(object):
 
         return False
 
-    def motorsCmd(self, cmdStr, waitForIdle=False, returnAfterIdle=False, maxTime=10.0):
+    def motorsCmd(self, cmdStr, waitForIdle=False, returnAfterIdle=False, maxTime=10.0, cmd=None):
         if waitForIdle:
             ok = self.waitForIdle(maxTime=maxTime)
 
         fullCmd = "~32/1%s" % (cmdStr)
         
-        ret = self.sendOneCommand(fullCmd)
+        ret = self.sendOneCommand(fullCmd, cmd=cmd)
         errCode, status, busy, rest = self.parseMotorResponse(ret)
         ok = errCode == 0
 
