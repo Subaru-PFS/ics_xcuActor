@@ -1,3 +1,4 @@
+import sys
 import logging
 from collections import OrderedDict
 
@@ -67,12 +68,29 @@ class pcmUdp(object):
                 (key in {'IL', 'IH'} and abs(val - lastVal) < 0.15) or
                 (key[0] == 'V' and abs(val - lastVal) < 0.2) or
                 (key == 'T' and abs(val - lastVal) < 0.4) or
-                (key == 'P' and abs(val - lastVal) < 0.1)):
+                (key == 'P') and (abs((val - lastVal)/lastVal) < 0.005)):
 
                 keep = False
 
         return keep
-                
+
+    def getPoweredNames(self, mask):
+        """ Return a list of names of the powered ports. """
+
+        mask = int(mask)
+        
+        ports = []
+        pcm = self.actor.controllers.get('PCM', None)
+        for i in range(8):
+            if mask & (1 << i):
+                if pcm is None:
+                    ports.append("p%d" % (i+1))
+                else:
+                    ports.append(pcm.powerPorts[i])
+
+        portStr = ','.join(['"%s"' % p for p in ports])
+        return portStr
+    
     def status(self, cmd):
         """ Generate all keywords. """
 
@@ -111,8 +129,15 @@ class pcmUdp(object):
         if keep:
             self.logger.info('%s=%s' % (key, val))
             self.dataStore[key] = val
-            self.actor.bcast.inform('%s=%s' % (key, val))
-        
+            if key == 'IO':
+                self.actor.bcast.inform("powerMask=0x%02x; poweredUp=%s" % (int(val),
+                                                                            self.getPoweredNames(val)))
+            elif key == 'VP1':
+                self.actor.bcast.inform("pressure=%0.3f" % (float(val)))
+                
+            else:
+                self.actor.bcast.inform('%s=%s' % (key, val))
+            
     def datagramReceived(self, data, addr):
         try:
             data = data.strip()
