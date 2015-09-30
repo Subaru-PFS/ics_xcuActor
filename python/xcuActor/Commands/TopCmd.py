@@ -17,7 +17,7 @@ class TopCmd(object):
         #
         self.vocab = [
             ('ping', '', self.ping),
-            ('status', '', self.status),
+            ('status', '[@all]', self.status),
             ('connect', '<controller> [<name>]', self.connect),
             ('disconnect', '<controller>', self.disconnect),
             ('monitor', '<controllers> <period>', self.monitor),
@@ -112,5 +112,10 @@ class TopCmd(object):
         cmd.inform('text="monitors: %s"' % (self.actor.monitors))
         cmd.inform('text="config id=0x%08x %r"' % (id(self.actor.config),
                                                    self.actor.config.sections()))
+
+        if 'all' in cmd.cmd.keywords:
+            for c in self.actor.controllers:
+                self.actor.callCommand("%s status" % (c))
+            
         cmd.finish(self.controllerKey())
 
