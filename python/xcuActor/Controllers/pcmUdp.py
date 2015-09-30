@@ -1,5 +1,7 @@
 import sys
 import logging
+import socket
+
 from collections import OrderedDict
 
 from twisted.internet.protocol import DatagramProtocol
@@ -9,7 +11,7 @@ class PcmListener(DatagramProtocol):
 
     def wireIn(self, owner, host, port):
         self.owner = owner
-        self.pcmHost = host
+        self.pcmHost = socket.gethostbyname(host)
         self.pcmPort = port
 
     def datagramReceived(self, data, addr):
@@ -153,6 +155,8 @@ class pcmUdp(object):
 
         self.dataStore = OrderedDict()
         pcm = PcmListener()
+        self.actor.bcast.inform('text="wiring in to host=%s port=%sf"' % (self.host,
+                                                                          self.port))
         pcm.wireIn(self, self.host, self.port)
         self.udpListener = pcm
         self.logger.info('text="wiring in listener"')
@@ -169,7 +173,6 @@ class pcmUdp(object):
         if self.udpListener is not None:
             self.udpListener.transport.loseConnection()
             self.udpListener = None
-            
 
 def _doRunRun(pcm, reactor):
     pcm.start()
