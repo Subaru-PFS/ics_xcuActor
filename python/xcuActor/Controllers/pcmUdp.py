@@ -43,6 +43,25 @@ class pcmUdp(object):
 
         self.udpListener = None
 
+        self.setupTests()
+
+    def setupTests(self):
+        """ Construct the testing framework. 
+        
+        For now, dumber than dumb.
+        """
+
+        self.tests = dict()
+        td = self.tests
+
+        td['VL'] = dict()
+        td['VH'] = dict()
+        td['VL']['low'] = 24.0
+        td['VH']['low'] = 24.0
+
+        td['VL']['high'] = 28.0
+        td['VH']['high'] = 28.0
+        
     def translateKeyVal(self, rawKey, rawVal):
         key = rawKey
         
@@ -58,6 +77,23 @@ class pcmUdp(object):
             val *= 51.715
         return key, val
 
+    def checkLimits(self, key, val):
+        """ Check values against limits. Broadcast warning if out of range.
+
+        Trickier than it first seems: many tests should be context-sensitive. We ignore those for now.
+        """
+
+        bcast = self.actor.bcast
+        
+        test = self.tests.get(key, None)
+        if test is None:
+            return
+        
+        if 'low' in test and val < test['low']:
+            bcast.warn('text="PCM %s is low (%s < %s)"' % (key, val, test['low']))
+        if 'high' in test and val > test['high']:
+            bcast.warn('text="PCM %s is high (%s > %s)"' % (key, val, test['low']))
+            
     def filterVal(self, key, val, lastVal):
         keep = True
 
@@ -74,6 +110,9 @@ class pcmUdp(object):
 
                 keep = False
 
+        if keep:
+            self.checkLimits(key, val)
+            
         return keep
 
     def getPoweredNames(self, mask):
