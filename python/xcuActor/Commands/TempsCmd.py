@@ -26,7 +26,8 @@ class TempsCmd(object):
             ('temps', 'test1', self.test1),
             ('temps', 'test2', self.test2),
             ('HPheaters', '@(on|off) @(one|two)', self.HPheaters),
-            ('heaters', '@(on|off) @(ccd|spider) <power>', self.heaters),
+            ('heaters', '@(ccd|spider) <power>', self.heatersOn),
+            ('heaters', '@(ccd|spider) @off', self.heatersOff),
             ('heaters', 'status', self.heaterStatus),
         ]
 
@@ -50,19 +51,12 @@ class TempsCmd(object):
         self.actor.controllers['temps'].fetchHeaters(cmd=cmd)
         cmd.finish()
         
-    def heaters(self, cmd):
-        """ Control the heaters. """
+    def heatersOn(self, cmd):
+        """ Turn one of the heaters on. """
 
         cmdKeys = cmd.cmd.keywords
 
         power = cmdKeys['power'].values[0]
-        if 'on' in cmdKeys:
-            turnOn = True
-        elif 'off' in cmdKeys:
-            turnOn = False
-        else:
-            cmd.fail('text="neither on nor off was specified!"')
-            return
 
         if 'spider' in cmdKeys:
             heater = 'spider'
@@ -73,9 +67,33 @@ class TempsCmd(object):
             return
 
         try:
-            self.actor.controllers['temps'].heater(turnOn=turnOn,
+            self.actor.controllers['temps'].heater(turnOn=True,
                                                    heater=heater,
                                                    power=power,
+                                                   cmd=cmd)
+        except Exception as e:
+            cmd.fail('text="failed to control heaters: %s"' % (e))
+            return
+
+        cmd.finish()
+
+    def heatersOff(self, cmd):
+        """ Turn one of the heaters off. """
+
+        cmdKeys = cmd.cmd.keywords
+
+        if 'spider' in cmdKeys:
+            heater = 'spider'
+        elif 'ccd':
+            heater = 'ccd'
+        else:
+            cmd.fail('text="no heater (ccd or spider) was specified!"')
+            return
+
+        try:
+            self.actor.controllers['temps'].heater(turnOn=False,
+                                                   heater=heater,
+                                                   power=0,
                                                    cmd=cmd)
         except Exception as e:
             cmd.fail('text="failed to control heaters: %s"' % (e))
@@ -126,12 +144,15 @@ class TempsCmd(object):
 
         cmd.finish('text="flashed from %s"' % (filename))
             
-    def status(self, cmd):
+    def status(self, cmd, doFinish=True):
         """ Return all status keywords. """
         
         temps = self.actor.controllers['temps'].fetchTemps(cmd=cmd)
-        cmd.finish('temps=%s' % ', '.join(['%0.2f' % (t) for t in temps]))
+        ender = cmd.finish if doFinish else cmd.inform
+        ender('temps=%s' % ', '.join(['%0.2f' % (t) for t in temps]))
 
+        return temps
+    
     def test2(self, cmd):
         """Test readings against dewar feedthrough test pack. 
 
@@ -147,14 +168,15 @@ class TempsCmd(object):
                           JP6=(4,'tip'),
                           JP7=(1,2,3),
                           JP3=(8,9,10,11,12))
-        
+
+        # These are the readings from the single test pack.
         testData = [146.26,158.59,174.96,188.48,208.43,225.06,252.95,284.05,298.16,321.68,348.23,403.70]
         coolerTestData = 272.36
         
         try:
-            temps = self.actor.controllers['temps'].fetchTemps(cmd=cmd)
+            temps = self.status(cmd=cmd, doFinish=False)
         except Exception as e:
-            cmd.fail('text="Failed to read test1 sensors: %s"' % (e))
+            cmd.fail('text="Failed to read test2 sensors: %s"' % (e))
             return
 
         errs = []
@@ -187,10 +209,11 @@ class TempsCmd(object):
         in JP11 on the back of the pie pan.
         """
 
+        # These are the readings from the single test1 pack.
         testData = [474.84,434.26,396.66,347.96,317.79,295.26,286.63,248.27,228.53,210.77,192.77,174.80]
         
         try:
-            temps = self.actor.controllers['temps'].fetchTemps(cmd=cmd)
+            temps = self.status(cmd=cmd, doFinish=False)
         except Exception as e:
             cmd.fail('text="Failed to read test1 sensors: %s"' % (e))
             return
