@@ -132,10 +132,30 @@ class pcmUdp(object):
         portStr = ','.join(['"%s"' % p for p in ports])
         return portStr
     
+    def _handleIOKey(self, cmd=None):
+        val = self.dataStore.get('IO')
+        if val is None:
+            return
+        
+        cmd.inform("powerMask=0x%02x; poweredUp=%s" % (int(val),
+                                                       self.getPoweredNames(val)))
+        return val
+        
+    def _handlePowerKeys(self, cmd=None):
+        vl = self.dataStore.get('VL', None)
+        vh = self.dataStore.get('VH', None)
+        if vl is None or vh is None:
+            return
+        
+        cmd.inform("pcmPower=%0.2f,%0.2f" % (vl, vh))
+
     def status(self, cmd):
         """ Generate all keywords. """
 
-        for k in 'IO', 'T', 'P':
+        self._handleIOKey(cmd=cmd)
+        self._handlePowerKeys(cmd=cmd)
+        
+        for k in 'T', 'P':
             cmd.inform("%s=%s" % (k, self.dataStore.get(k, None)))
 
         kl = []
@@ -170,14 +190,14 @@ class pcmUdp(object):
         if keep:
             self.logger.info('%s=%s' % (key, val))
             self.dataStore[key] = val
+            self.actor.bcast.inform('%s=%s' % (key, val))
+
             if key == 'IO':
-                self.actor.bcast.inform("powerMask=0x%02x; poweredUp=%s" % (int(val),
-                                                                            self.getPoweredNames(val)))
+                self._handleIOKey(self.actor.bcast)
+            elif key == 'VH':
+                self._handlePowerKeys(self.actor.bcast)
             elif key == 'VP1':
                 self.actor.bcast.inform("pressure=%0.3f" % (float(val)))
-                
-            else:
-                self.actor.bcast.inform('%s=%s' % (key, val))
             
     def datagramReceived(self, data, addr):
         try:
