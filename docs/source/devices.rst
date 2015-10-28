@@ -19,6 +19,7 @@ The ``xcuActor`` controls all the non-readout devices at the dewar pie pan. Spec
 
  - the ion gauge, via the PCM board.
 
+ - the gatevalve, via onboard DIO pins and a kernel module.
 
 By default the program runs on the ``BEE``, but can run anywhere
 unless you want to control the turbo or the gate valve.

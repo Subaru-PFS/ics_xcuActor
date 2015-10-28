@@ -13,6 +13,7 @@ Contents:
 
    startup
    devices
+   cooldown
    
 Indices and tables
 ==================
