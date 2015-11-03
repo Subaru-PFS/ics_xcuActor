@@ -15,19 +15,28 @@ class gatevalve(object):
                          closed=0x4,
                          open=0x2,
                          active=0x1)
-        self.bitnames = {v:k for k, v in self.bitnames.iteritems()}
+        self.bitnames = {v:k for k, v in self.bits.iteritems()}
         self.posBits = self.bits['open'] | self.bits['closed']
         self.positionNames = {self.bits['open']:'open',
                               self.bits['closed']:'closed',
                               0:'unknown',
                               self.posBits:'invalid'}
-        self.activeBits = self.bits['enabled'] | self.bits['active']
+        self.requestBits = self.bits['enabled'] | self.bits['active']
+        self.requestNames = {self.bits['enabled']:'blocked',
+                             self.bits['active']:'invalid',
+                             0:'inactive',
+                             self.requestBits:'open'}
 
+        self.dev = rtdADIO.ADIO(self.bits['enabled'])
+
+    def __del__(self):
+        self.dev.disconnect()
+        
     def start(self):
         pass
 
     def stop(self, cmd=None):
-        pass
+        self.dev.disconnect()
 
     def spinUntil(self, testFunc, starting=None, wait=5.0, cmd=None):
         """ """
@@ -71,17 +80,19 @@ class gatevalve(object):
         return self.dev.status()
 
     def describeStatus(self, bits):
+        """ Return the description of the position and the requested position. """
+        
         rawPos = bits & self.posBits
         pos = self.positionNames[rawPos]
-        rawActive = bits & self.activeBits
-        active = "unknown"
+        rawRequest = bits & self.requestBits
+        request = self.requestNames[rawRequest]
 
-        return pos, active
+        return pos, request
         
     def status(self, silentIf=None, cmd=None):
-        ret = self.dev.getStatus()
+        ret = self.getStatus()
         if cmd and ret != silentIf:
-            pos,active = self.describeStatus(ret)
-            cmd.inform('gatevalve=0x%02x,%s,%s' % (ret, pos, active))
+            pos, request = self.describeStatus(ret)
+            cmd.inform('gatevalve=0x%02x,%s,%s' % (ret, pos, request))
 
         return ret
