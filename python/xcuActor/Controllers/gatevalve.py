@@ -12,9 +12,9 @@ class gatevalve(object):
         self.logger.setLevel(loglevel)
 
         self.bits = dict(enabled=0x8,
-                         closed=0x4,
-                         open=0x2,
-                         active=0x1)
+                         active=0x4,
+                         closed=0x2,
+                         open=0x1)
         self.bitnames = {v:k for k, v in self.bits.iteritems()}
         self.posBits = self.bits['open'] | self.bits['closed']
         self.positionNames = {self.bits['open']:'open',
