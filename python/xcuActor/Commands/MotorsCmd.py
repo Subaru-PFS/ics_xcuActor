@@ -62,9 +62,9 @@ class MotorsCmd(object):
     def initCcd(self, cmd):
         """ Initialize all CCD motor axes: set scales and limits, etc. """
 
-        velocity = 12800
+        velocity = 7400
         scaleCmd = "~10%d01"
-        initCmd = "aM%dn2f0V%dh0m40R"
+        initCmd = "aM%dn2f0V%dh0m54R"
         initCmd2 = ""
         for m in 1,2,3:
             ret = self.actor.controllers['PCM'].pcmCmd(scaleCmd % (m), cmd=cmd)
