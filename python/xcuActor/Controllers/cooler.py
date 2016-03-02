@@ -4,6 +4,9 @@ import time
 
 import numpy as np
 
+import xcuActor.Controllers.bufferedSocket as bufferedSocket
+reload(bufferedSocket)
+
 class cooler(object):
     def __init__(self, actor, name,
                  loglevel=logging.DEBUG):
@@ -17,6 +20,8 @@ class cooler(object):
         self.host = self.actor.config.get('cooler', 'host')
         self.port = int(self.actor.config.get('cooler', 'port'))
 
+        self.ioBuffer = bufferedSocket.BufferedSocket('coolerIO', EOL='\r\n')
+        
     def start(self):
         pass
 
@@ -45,18 +50,14 @@ class cooler(object):
             cmd.warn('text="failed to create connect or send to cooler: %s"' % (e))
             raise
 
-        try:
-            ret = s.recv(1024)
-        except socket.error as e:
-            cmd.warn('text="failed to read response from cooler: %s"' % (e))
-            raise
-
-        if not ret.startswith(fullCmd):
+        ret = self.ioBuffer.getOneResponse(sock=s, cmd=cmd)
+        if not ret.startswith(cmdStr):
             cmd.warn('text="command to cooler (%r) was not echoed: %r"' % (fullCmd,
                                                                            ret))
             raise
 
-        reply = ret[len(fullCmd):].strip()
+        ret = self.ioBuffer.getOneResponse(sock=s, cmd=cmd)
+        reply = ret.strip()
         
         self.logger.debug('received %r', reply)
         cmd.diag('text="received %r"' % reply)

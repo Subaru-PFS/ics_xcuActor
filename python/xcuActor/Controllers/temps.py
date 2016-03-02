@@ -4,6 +4,9 @@ import logging
 import socket
 import time
 
+import xcuActor.Controllers.bufferedSocket as bufferedSocket
+reload(bufferedSocket)
+
 class NonClosingSocket(object):
     def __init__(self, s):
         self.s = s
@@ -22,7 +25,6 @@ class DeviceIO(object):
         self.logger.setLevel(loglevel)
 
         self.device = None if keepOpen else False
-        
         self.EOL = EOL
 
     def connect(self, cmd=None, timeout=1.0):
@@ -52,6 +54,8 @@ class SocketIO(DeviceIO):
         DeviceIO.__init__(self, *argl, **argv)
         self.host = host
         self.port = port
+
+        self.ioBuffer = bufferedSocket.BufferedSocket('tempsio')
         
     def _connect(self, cmd=None, timeout=1.0):
         try:
@@ -71,21 +75,13 @@ class SocketIO(DeviceIO):
 
         return s
 
-    def readOneLine(self, s=None, timeout=1.0, cmd=None):
-        if s is None:
-            s = self.connect(cmd=cmd)
+    def readOneLine(self, sock=None, timeout=1.0, cmd=None):
+        if sock is None:
+            sock = self.connect(cmd=cmd)
             
-        lastTimeout = s.gettimeout()
-        if timeout != lastTimeout:
-            s.setTimeout(timeout)
-            
-        try:
-            ret = s.recv(1024)
-        except socket.error as e:
-            cmd.warn('text="failed to read response from %s: %s"' % (self.name, e))
-            raise
-
-        s.close()
+        ret = self.ioBuffer.getOneResponse(sock, timeout=timeout, cmd=cmd)
+        
+        sock.close()
         
         return ret
 
@@ -98,20 +94,15 @@ class SocketIO(DeviceIO):
         cmd.diag('text="sending %r"' % fullCmd)
 
         if sock is None:
-            s = self.connect()
-        else:
-            s = sock
+            sock = self.connect()
         
         try:
-            s.sendall(fullCmd)
+            sock.sendall(fullCmd)
         except socket.error as e:
             cmd.warn('text="failed to create send command to %s: %s"' % (self.name, e))
             raise
 
-        ret = s.recv(1024)
-
-        if sock is None:
-            s.close()
+        ret = self.readOneLine(sock=sock, cmd=cmd)
 
         self.logger.debug('received %r', ret)
         cmd.diag('text="received %r"' % ret)
@@ -298,7 +289,7 @@ class temps(object):
             atLevel0 = self.dev.sendOneCommand('?V%d' % (heaterNum+1), cmd=cmd)
 
             enabled.append(int(enabled0))
-            atLevel.append(int(atLevel0, base=16))
+            atLevel.append(float(atLevel0))
 
         maxLevel = float(0xfff)
         
@@ -309,9 +300,6 @@ class temps(object):
                                                       atLevel[1]/maxLevel))
         return enabled + atLevel
         
-    def correctTemps(self, values):
-        return evalFit(slopeFunc, hackCoeffs, values)
-    
     def fetchTemps(self, sensors=None, cmd=None):
         if sensors is None:
             sensors = range(12)
@@ -321,29 +309,4 @@ class temps(object):
             replies[s_i] = self.dev.sendOneCommand('?K%d' % (s_i + 1), cmd=cmd)
         values = [float(s) for s in replies]
 
-        return self.correctTemps(values)
-
-hackCoeffs = np.array([[0.98555011, -0.04371074],
-                       [0.98076066, -0.04474339],
-                       [0.99328676, -0.04429770],
-                       [0.99484957, -0.04424603],
-                       [1.01602077, -0.04135464],
-                       [1.01753831, -0.04326154],
-                       [0.99910862, -0.04233828],
-                       [1.00469784, -0.04293416],
-                       [0.98602365, -0.04645644],
-                       [0.99490294, -0.04358688],
-                       [1.00978633, -0.04253082],
-                       [1.01484596, -0.04503893]])
-
-def slopeFunc(x, a, b):
-    return a*x + b*(x-273.15)
-
-def evalFit(func, coeffs, tofit):
-    res = []
-    for i in range(len(tofit)):
-        res1 = func(tofit[i], *coeffs[i])
-        res.append(res1)
-            
-    return res
-                            
+        return values
