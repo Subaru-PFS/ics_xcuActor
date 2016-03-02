@@ -31,9 +31,10 @@ class MotorsCmd(object):
         #
         self.vocab = [
             ('motors', '@raw', self.motorsRaw),
+            ('motors', 'initDefaults', self.storePowerOnParameters),
             ('motors', 'initCcd', self.initCcd),
             ('motors', 'homeCcd [<axes>]', self.homeCcd),
-            ('motors', 'moveCcd [<a>] [<b>] [<c>] [<piston>] [@(abs)] [@(rel)]', self.moveCcd),
+            ('motors', 'moveCcd [<a>] [<b>] [<c>] [<piston>] [@(microns)] [@(abs)]', self.moveCcd),
             ('motors', 'halt', self.haltMotors),
         ]
 
@@ -156,13 +157,20 @@ class MotorsCmd(object):
             piston = -99999
         if piston:
             a = b = c = piston
-
-        if a is not None:
-            a *= 16
-        if b is not None:
-            b *= 16
-        if c is not None:
-            c *= 16
+        if moveMicrons:
+            if a is not None:
+                a = int(float(a) *self.a_microns_to_steps)
+            if b is not None:
+                b = int(float(b) *self.b_microns_to_steps)
+            if c is not None:
+                c = int(float(c) *self.c_microns_to_steps)
+        else:
+            if a is not None:
+                a *= 16
+            if b is not None:
+                b *= 16
+            if c is not None:
+                c *= 16
 
         if absMove:
             cmdStr = "A%s,%s,%s,R" % (a if a is not None else '',
