@@ -22,7 +22,7 @@ class TempsCmd(object):
         self.vocab = [
             ('temps', '@raw', self.tempsRaw),
             ('temps', 'flash <filename>', self.flash),
-            ('temps', 'status', self.status),
+            ('temps', 'status [<channel>]', self.getTemps),
             ('temps', 'test1', self.test1),
             ('temps', 'test2', self.test2),
             ('HPheaters', '@(on|off) @(one|two)', self.HPheaters),
@@ -37,6 +37,8 @@ class TempsCmd(object):
                                                  help='filename to read or flash'),
                                         keys.Key("power", types.Int(),
                                                  help='power level to set (0..100)'),
+                                        keys.Key("channel", types.Int(),
+                                                 help='channel to read'),           
                                         )
 
     def tempsRaw(self, cmd):
@@ -46,6 +48,28 @@ class TempsCmd(object):
 
         ret = self.actor.controllers['temps'].tempsCmd(cmd_txt, cmd=cmd)
         cmd.finish('text=%s' % (qstr('returned: %s' % (ret))))
+
+    def getTemps(self, cmd, doFinish=True):
+        
+        try:
+            channelID = int(cmd.cmd.keywords['channel'].values[0])
+        except:
+            channelID = None
+        
+        if channelID is None:
+            cmdStr = "?t"
+        elif channelID<1 or channelID>12:
+            cmd.fail('text="invalid cahnnel specified"')
+        else:
+            cmdStr = "?K%d" % (channelID)
+        ret = self.actor.controllers['temps'].tempsCmd(cmdStr, cmd=cmd) 
+
+        if channelID is None:
+            ender = cmd.finish if doFinish else cmd.inform
+            temps = ret.split(',')
+            ender('temps=%s' % ', '.join(['%0.2f' % (float(t)) for t in temps]))
+        else:
+            cmd.finish('text="returned %r"' % (ret))
 
     def heaterStatus(self, cmd):
         self.actor.controllers['temps'].fetchHeaters(cmd=cmd)
@@ -66,6 +90,9 @@ class TempsCmd(object):
             cmd.fail('text="no heater (ccd or spider) was specified!"')
             return
 
+        if power == 0:
+            return self.heatersOff(cmd)
+            
         try:
             self.actor.controllers['temps'].heater(turnOn=True,
                                                    heater=heater,
