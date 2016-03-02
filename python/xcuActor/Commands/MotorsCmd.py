@@ -66,7 +66,7 @@ class MotorsCmd(object):
 
         cmd_txt = cmd.cmd.keywords['raw'].values[0]
 
-        errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(cmd_txt)
+        errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(cmd_txt, cmd=cmd)
         if errCode != "OK":
             cmd.fail('text="code=%s, returned %s"' % (errCode, rest))
         else:
@@ -184,7 +184,8 @@ class MotorsCmd(object):
         errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(cmdStr,
                                                                       waitForIdle=True,
                                                                       returnAfterIdle=True,
-                                                                      maxTime=5.0)
+                                                                      maxTime=5.0,
+                                                                      cmd=cmd)
 
         if errCode != "OK":
             cmd.fail('text="move failed with code=%s"' % (errCode))
@@ -192,7 +193,7 @@ class MotorsCmd(object):
             cmd.finish()
 
     def haltMotors(self, cmd):
-        errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd('T')
+        errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd('T', cmd=cmd)
         cmd.finish()
         
         
