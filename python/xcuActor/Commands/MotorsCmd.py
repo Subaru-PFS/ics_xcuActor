@@ -94,6 +94,23 @@ class MotorsCmd(object):
                     return
         cmd.finish()
 
+    def storePowerOnParameters(self, cmd):
+        s0instruction = "s0e1e2e3R" # contoller executes stored programs 1,2 & 3
+        motorParams = "s%daM%dn2f0V%dh%dm%dR"
+        
+        errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(s0instruction, cmd=cmd) 
+        if errCode != "OK":
+            cmd.fail('text="init of s0 instruction failed with code=%s"' % (errCode))
+            return
+            
+        for m in 1,2,3:
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(motorParams % (m, m, self.velocity, self.holdCurrent, self.runCurrent), cmd=cmd)
+            if errCode != "OK":
+                cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
+                return
+        
+        cmd.finish()
+
     def homeCcd(self, cmd):
         """ Home CCD motor axes.
 
