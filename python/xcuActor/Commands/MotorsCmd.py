@@ -7,6 +7,18 @@ import opscore.protocols.types as types
 from opscore.utility.qstr import qstr
 
 class MotorsCmd(object):
+    
+    # MOTOR PARAMETERS FOR INITIALIZATION used by initCcd    
+    velocity=7400   # microSteps per second
+    runCurrent=54   # percentage of controller peak current 
+    holdCurrent=0   
+    homeDistance=100000 # max steps for homing
+    
+    #CONVERSION FACTORS TO CONVERT MICRONS TO MOTOR STEPS
+    # microsteps per rev * pivot ratio / screw pitch
+    a_microns_to_steps = 3600.0 * 36.02 / 317.5
+    b_microns_to_steps = 3600.0 * 36.02 / 317.5
+    c_microns_to_steps = 3600.0 * 36.77 / 317.5 
 
     def __init__(self, actor):
         # This lets us access the rest of the actor.
@@ -62,16 +74,15 @@ class MotorsCmd(object):
     def initCcd(self, cmd):
         """ Initialize all CCD motor axes: set scales and limits, etc. """
 
-        velocity = 7400
         scaleCmd = "~10%d01"
-        initCmd = "aM%dn2f0V%dh0m54R"
+        initCmd = "aM%dn2f0V%dh%dm%dR" # F1 reverses the home direction
         initCmd2 = ""
         for m in 1,2,3:
             ret = self.actor.controllers['PCM'].pcmCmd(scaleCmd % (m), cmd=cmd)
             if ret != "Success":
                 cmd.fail('text="setting scale for axis %d failed with: %s"' % (m, ret))
                 return
-            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(initCmd % (m, velocity), cmd=cmd)
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(initCmd % (m, self.velocity, self.holdCurrent, self.runCurrent), cmd=cmd)
             if errCode != "OK":
                 cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
                 return
@@ -90,7 +101,6 @@ class MotorsCmd(object):
         The timeouts are currently too short.
         """
 
-        homeDistance = 100000
         homeCmd = "aM%dZ%dR"
         
         cmdKeys = cmd.cmd.keywords
@@ -104,10 +114,11 @@ class MotorsCmd(object):
 
         cmd.inform('text="homing axes: %r"' % (axes))
         for m in axes:
-            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(homeCmd % (m, homeDistance), 
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(homeCmd % (m, self.homeDistance), 
                                                                           waitForIdle=True,
                                                                           returnAfterIdle=True,
-                                                                          maxTime=5.0)
+                                                                          maxTime=5.0,
+                                                                          cmd=cmd)
             if errCode != "OK":
                 cmd.fail('text="home of axis %d failed with code=%s"' % (m, errCode))
                 return
@@ -124,7 +135,7 @@ class MotorsCmd(object):
         """
 
         cmdKeys = cmd.cmd.keywords
-
+        moveMicrons = 'microns' in cmdKeys
         absMove = 'abs' in cmdKeys 
         goHome = 'home' in cmdKeys 
         piston = cmdKeys['piston'].values[0] if 'piston' in cmdKeys else None
