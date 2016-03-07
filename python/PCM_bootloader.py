@@ -33,14 +33,14 @@ class PCM_Bootloader(object):
                     [cLIA_warning, 'User code space invalid'],
                     [cLIA_error, 'Loader commnd recieved while not in loader mode'],
                     [cLIA_error, 'New code frame length error'],
-                    [cLIA_message, 'Processed multicast IP packet'],
+                    [cLIA_debug, 'Processed multicast IP packet'],
                     [cLIA_error, 'Record framing error'],
                     [cLIA_warning, 'Unsupported record type'],
                     [cLIA_warning, 'Skipped ID and Config bits'],
                     [cLIA_error, 'Checksum error'],
                     [cLIA_warning, 'Invalid address - Attempt to overwrite loader'],
-                    [cLIA_message, 'Finished programming current record'],
-                    [cLIA_message, 'Finished programming sequence'],
+                    [cLIA_debug, 'Finished programming current record'],
+                    [cLIA_debug, 'Finished programming sequence'],
                     [cLIA_message, 'Written to EEprom'],
                     [cLIA_error, 'Missing type 4 record'],
                     [cLIA_message, 'Dump completed']])
@@ -53,7 +53,7 @@ class PCM_Bootloader(object):
     
     def __init__(self, hostname=None,
                  logger='PCM',
-                 logLevel=logging.DEBUG):
+                 logLevel=logging.INFO):
 
         logging.basicConfig(format='%(asctime)s %(message)s')
         self.logger = logging.getLogger(logger)
@@ -123,10 +123,10 @@ class PCM_Bootloader(object):
                 s.settimeout(2)
             s.sendto(command, (HOST, PORT))  # send command to taget
 
-            self.logger.info('send: %s' % (binascii.hexlify(command)))
+            self.logger.debug('send: %s' % (binascii.hexlify(command)))
 
             raw = s.recv(1024)  # wait to recieve response
-            self.logger.info('recv: %s' % (binascii.hexlify(raw)))
+            self.logger.debug('recv: %s' % (binascii.hexlify(raw)))
             ret = self.parseLIAResponse(raw)
             dump = ''
             # Loop for file dump only... ret['dump'] will contain dump data
@@ -295,6 +295,10 @@ class PCM_Bootloader(object):
                 self.LIA_IP = IPAddress
         except Exception, e:
             r['messages'].append('%s%s: %s' % (self.cLIA_error, 'Invalid Address Format: %s', e))
+        self.logger.info('forcing IP address to %s...', IPAddress)
+
+        self.logger.info('forcing IP address to %s...', IPAddress)
+
         finally:
             self.incLIASequence()
 
@@ -313,6 +317,8 @@ class PCM_Bootloader(object):
         self.logResponse(r)
         
     def enterLDRmode(self, LIA_ID=None):
+        self.logger.info('capturing console...')
+
         # puts PCM into active loader state
         LIA_CMD = int(self.cLIA_Capture)
         r = self.sendUDPData(LIA_CMD, LIA_ID)
@@ -324,6 +330,8 @@ class PCM_Bootloader(object):
         return r
 
     def uploadHEXfile(self, fileName, LIA_ID=None):
+        self.logger.info('starting upload of %s', fileName)
+
         # uplaods a new hex file (app) to the PCM
         LIA_CMD = int(self.cLIA_Upload)
         try:
