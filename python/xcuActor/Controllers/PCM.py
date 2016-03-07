@@ -78,7 +78,7 @@ class PCM(object):
             self.logger.error('text="not a known power port: %s"' % (system))
             return False
 
-        cmdStr = "~%d%d" % (turnOn, i+1)
+        cmdStr = "~se,ch%d,%s" % (i+1, 'on' if turnOn else 'off')
         ret = self.sendOneCommand(cmdStr)
         return ret
 
