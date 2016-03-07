@@ -88,16 +88,18 @@ class PCM_Bootloader(object):
         resp = dict()
         resp['messages'] = []
 
+        return resp
+
     def sendUDPData(self, LIA_CMD, LIA_ID=None, LIA_DATA='', HOST=None, PORT=None):
         # send data over UDP broadcast (unicast optional), and receives unicast response
         # for dump, receive loops until end of dump flag is received
         # returns a dictionary object
-        ret = {}
-        if LIA_ID == None:
+        ret = self.newResponse()
+        if LIA_ID is None:
             LIA_ID = self.LIA_ID
-        if HOST == None:
+        if HOST is None:
             HOST = self.cLIA_MCHost
-        if PORT == None:
+        if PORT is None:
             PORT = self.cLIA_Port
         header = '%s%s%04x%02x' % (
             self.cLIA_Tag, LIA_ID, self.LIA_SEQ, LIA_CMD)
@@ -137,21 +139,29 @@ class PCM_Bootloader(object):
                     dump = '%s %s' % (ret['dataSeq'], ret['data'])
                 else:
                     dump = '%s\r\n%s %s' % (dump, ret['dataSeq'], ret['data'])
-                ret = s.recv(1024)
-                self.logger.debug('recv: %s' % (binascii.hexlify(ret)))
-                ret = self.parseLIAResponse(ret)
+                raw = s.recv(1024)
+                self.logger.debug('recv: %s' % (binascii.hexlify(raw)))
+                ret = self.parseLIAResponse(raw)
 
             ret['dump'] = dump
-        except:
-            self.logger.warn('recv: no response')
+        except Exception, e:
+            self.logger.warn('recv: no response. e=%s, ret=%s', e, ret)
+            if ret is None:
+                ret = self.newResponse()
             ret['errorFlag'] = True
             ret['messages'].append(self.cLIA_error + 'No response')
         finally:
             if s:
                 s.close()
-            self.logger.warn(ret['messages'])
+
         return ret
 
+    def hexIP2asciiIP(self, hexStr):
+        octets = [str(int(hexStr[2*i:2*i+2], 16)) for i in range(4)]
+        ip = '.'.join(octets)
+
+        return ip
+    
     def parseLIAResponse(self, LIAdata):
         # creates a dictionary containing each field of the loader response packet
         # checks for errors and appends a status message
@@ -167,14 +177,15 @@ class PCM_Bootloader(object):
             ret['HWver'] = sRec[16:18]
             ret['SWver'] = sRec[18:20]
             ret['LIA_ID'] = sRec[20:24]
-            ret['IP'] = skt.inet_ntoa(sRec[24:32])
+            ret['IP'] = self.hexIP2asciiIP(sRec[24:32])
             ret['status'] = sRec[32:36]
             ret['dataSeq'] = sRec[36:38]
             ret['data'] = LIAdata[19:]
 
             status = self.parseStatusWord(str(ret['status']))
 
-            ret['messages'].append('%s%s%s' % (self.cLIA_message, ret['message'], status['message']))
+            ret['messages'].append('%s%s' % (self.cLIA_debug,
+                                             status['messages'][0]))
             ret['errorFlag'] = status['errorFlag']
             ret['warningFlag'] = status['warningFlag']
             ret['dumpCompleteFlag'] = status['dumpCompleteFlag']
@@ -192,13 +203,14 @@ class PCM_Bootloader(object):
                 ret['messages'].append('%s%s' % (self.cLIA_error, msg))
                 self.errorFlag = True
 
-        except:
+        except Exception, e:
             if LIAdata is not None:
                 msg = 'Invalid LIA response'
             else:
                 msg = 'LIA failed to respond'
-            ret['messages'].append('%s%s' % (self.cLIA_error, msg))
+            ret['messages'].append('%s%s, e=%s' % (self.cLIA_error, msg, e))
             ret['errorFlag'] = True
+
         return ret
 
     def parseStatusWord(self, status):
@@ -258,31 +270,33 @@ class PCM_Bootloader(object):
         cmd = '~reset,sys'
         ret = self.sendTCPData(cmd, self.hostname, 1000)
         self.logger.debug(ret)
-
-        self.logResponse(r)
         
     def getLIAStatus(self):
+        self.logger.info('fetching status...')
+        
         # Used to "ping" devices to find PCM's LIA_ID (last 4 of MAC)
         attempts = 0
         success = False
         LIA_CMD = int(self.cLIA_Stat)
-        while attempts < self.cLIA_Attempts and success == False:
+        while attempts < self.cLIA_Attempts and success is False:
             ret = self.sendUDPData(LIA_CMD, '0000')
             self.logger.debug(ret)
-            if ret['errorFlag'] == True:
+            if ret['errorFlag'] is True:
                 attempts += 1
             else:
                 self.LIA_ID = ret['LIA_ID']
                 success = True
         self.incLIASequence()
-        if success == False:
+        if success is False:
             self.logger.debug('failed to locate LIA')
 
-        self.logResponse(r)
+        self.logResponse(ret)
         
         return ret
 
     def setLIA_IP(self, IPAddress, LIA_ID=None):
+        self.logger.info('forcing IP address to %s...', IPAddress)
+
         # can set the LIA bootloader IP (not necessary, but allows unicast)
         LIA_CMD = int(self.cLIA_IP)
 
@@ -294,11 +308,8 @@ class PCM_Bootloader(object):
             if r['errorFlag'] is False:
                 self.LIA_IP = IPAddress
         except Exception, e:
-            r['messages'].append('%s%s: %s' % (self.cLIA_error, 'Invalid Address Format: %s', e))
-        self.logger.info('forcing IP address to %s...', IPAddress)
-
-        self.logger.info('forcing IP address to %s...', IPAddress)
-
+            self.logger.error('%s%s: %s' % (self.cLIA_error, 'Invalid Address Format: %s', e))
+            raise
         finally:
             self.incLIASequence()
 
@@ -343,9 +354,9 @@ class PCM_Bootloader(object):
                     # only send type 0, 1 or 4 data packets
                     attempts = 0
                     success = False
-                    while attempts < self.cLIA_Attempts and success == False:
+                    while attempts < self.cLIA_Attempts and success is False:
                         r = self.sendUDPData(LIA_CMD, LIA_ID, l)
-                        if r['errorFlag'] == False:
+                        if r['errorFlag'] is False:
                             success = True
                             attempts = 0
                             self.incLIASequence()
@@ -355,10 +366,10 @@ class PCM_Bootloader(object):
                         print'UPLOAD FAILED'
                         break
             if success:
-                self.logger.debug('UPLOAD COMPLETED')
+                self.logger.info('UPLOAD COMPLETED')
             self.logger.debug(r['messages'])
         except:
-            self.logger.debug('Error opening file')
+            self.logger.warn('Error opening file')
         finally:
             self.incLIASequence()
 
@@ -396,6 +407,8 @@ class PCM_Bootloader(object):
         self.logResponse(r)
         
     def erasePGMandEE(self, LIA_ID=None):
+        self.logger.info('erasing all...')
+
         # erases all memory
         LIA_CMD = int(self.cLIA_EraseAll)
         r = self.sendUDPData(LIA_CMD, LIA_ID)
@@ -406,6 +419,8 @@ class PCM_Bootloader(object):
         return r
 
     def erasePGMonly(self, LIA_ID=None):
+        self.logger.info('erasing program...')
+
         # erases program memory
         LIA_CMD = int(self.cLIA_ErasePgm)
         r = self.sendUDPData(LIA_CMD, LIA_ID)
@@ -414,6 +429,8 @@ class PCM_Bootloader(object):
         self.logResponse(r)
         
     def eraseEEonly(self, LIA_ID=None):
+        self.logger.info('erasing EE...')
+        
         # erases EEProm (not applicable to PCM)
         LIA_CMD = int(self.cLIA_EraseEE)
         r = self.sendUDPData(LIA_CMD, LIA_ID)
@@ -422,6 +439,8 @@ class PCM_Bootloader(object):
         self.logResponse(r)
         
     def exitLDRmode(self, LIA_ID=None):
+        self.logger.info('existing bootloader...')
+        
         # causes PCM to exit bootloader and start app
         LIA_CMD = int(self.cLIA_Reboot)
         r = self.sendUDPData(LIA_CMD, LIA_ID)
@@ -432,9 +451,7 @@ class PCM_Bootloader(object):
     def logResponse(self, response):
         """ Transform internal messages into logging messages. """
 
-        lines = response.split('\n')
-        for l in lines:
-            msg = l
+        for msg in response['messages']:
             if response['errorFlag'] or msg.startswith(self.cLIA_error):
                 self.logger.error(msg)
             elif response['warningFlag'] or msg.startswith(self.cLIA_warning):
@@ -449,36 +466,68 @@ def burnBabyBurn(args):
     host = args.host
     hexfile = args.hexfile
 
-    pcm = PCM_Bootloader(hostname=host)
+    pcm = PCM_Bootloader(hostname=host,
+                         logLevel=(logging.DEBUG if args.debug else logging.INFO))
+    
     pcm.rebootPCM()
-    time.sleep(2)
-
-    ret = pcm.setLIA_IP(host, LIA_ID='6c7d')
-
+    time.sleep(1)
+    
+    for i in range(5):
+        ret = pcm.setLIA_IP(host, LIA_ID='6c7d')
+        time.sleep(0.5)
+        
     if ret['errorFlag']:
-        raise RuntimeError('failed to force IP address: %s' % (ret['messages']))
+        raise RuntimeError('failed to force IP address: %s' % (ret['messages'],))
 
     ret = pcm.getLIAStatus()
     if ret['errorFlag']:
         raise RuntimeError(
-            'failed to find target. returned: %s' % (ret['messages']))
+            'failed to find target. returned: %s' % (ret['messages'],))
     ret = pcm.enterLDRmode()
     if ret['errorFlag']:
         raise RuntimeError(
-            'failed to enter loader mode. returned: %s' % (ret['messages']))
+            'failed to enter loader mode. returned: %s' % (ret['messages'],))
     ret = pcm.erasePGMandEE()
     if ret['errorFlag']:
         raise RuntimeError(
-            'failed to erase target. returned: %s' % (ret['messages']))
+            'failed to erase target. returned: %s' % (ret['messages'],))
     ret = pcm.uploadHEXfile(hexfile)
     if ret['errorFlag']:
         raise RuntimeError(
-            'failed to program target. returned: %s' % (ret['messages']))
+            'failed to program target. returned: %s' % (ret['messages'],))
+
+    ret = pcm.exitLDRmode()
+    
+def readHex(args):
+    host = args.host
+    hexfile = args.hexfile
+
+    pcm = PCM_Bootloader(hostname=host,
+                         logLevel=(logging.DEBUG if args.debug else logging.INFO))
+    pcm.rebootPCM()
+
+    ret = pcm.getLIAStatus()
+    if ret['errorFlag']:
+        raise RuntimeError(
+            'failed to find target. returned: %s' % (ret['messages'],))
+    ret = pcm.enterLDRmode()
+    if ret['errorFlag']:
+        raise RuntimeError(
+            'failed to enter loader mode. returned: %s' % (ret['messages'],))
+    ret = pcm.erasePGMandEE()
+    if ret['errorFlag']:
+        raise RuntimeError(
+            'failed to erase target. returned: %s' % (ret['messages'],))
+    ret = pcm.uploadHEXfile(hexfile)
+    if ret['errorFlag']:
+        raise RuntimeError(
+            'failed to program target. returned: %s' % (ret['messages'],))
 
 
 def main(argv=None):
     import argparse
-
+    import shlex
+    
     if argv is None:
         argv = sys.argv[1:]
     if isinstance(argv, basestring):
