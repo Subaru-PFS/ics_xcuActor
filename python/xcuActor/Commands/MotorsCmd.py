@@ -31,6 +31,7 @@ class MotorsCmd(object):
         #
         self.vocab = [
             ('motors', '@raw', self.motorsRaw),
+            ('motors', 'status', self.motorStatus),
             ('motors', 'initDefaults', self.storePowerOnParameters),
             ('motors', 'initCcd', self.initCcd),
             ('motors', 'homeCcd [<axes>]', self.homeCcd),
@@ -72,17 +73,29 @@ class MotorsCmd(object):
         else:
             cmd.finish('text="returned %s"' % (rest))
 
+    def motorStatus(self, cmd):
+        """ Initialize all CCD motor axes: set scales and limits, etc. """
+
+        getLimitCmd = "aM%d?4" # F1 reverses the home direction
+        getCountsCmd = "aM%d?0"
+        for m in 1,2,3:
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(getLimitCmd % (m), cmd=cmd)
+            if errCode != "OK":
+                cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
+                return
+            if getCountsCmd:
+                errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(getCountsCmd % (m), cmd=cmd)
+                if errCode != "OK":
+                    cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
+                    return
+        cmd.finish()    
+    
     def initCcd(self, cmd):
         """ Initialize all CCD motor axes: set scales and limits, etc. """
 
-        scaleCmd = "~10%d01"
         initCmd = "aM%dn2f0V%dh%dm%dR" # F1 reverses the home direction
         initCmd2 = ""
         for m in 1,2,3:
-            ret = self.actor.controllers['PCM'].pcmCmd(scaleCmd % (m), cmd=cmd)
-            if ret != "Success":
-                cmd.fail('text="setting scale for axis %d failed with: %s"' % (m, ret))
-                return
             errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(initCmd % (m, self.velocity, self.holdCurrent, self.runCurrent), cmd=cmd)
             if errCode != "OK":
                 cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
@@ -95,7 +108,7 @@ class MotorsCmd(object):
         cmd.finish()
 
     def storePowerOnParameters(self, cmd):
-        s0instruction = "s0e1e2e3R" # contoller executes stored programs 1,2 & 3
+        s0instruction = "s0e1M500e2M500e3R" # contoller executes stored programs 1,2 & 3
         motorParams = "s%daM%dn2f0V%dh%dm%dR"
         
         errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(s0instruction, cmd=cmd) 
@@ -130,7 +143,7 @@ class MotorsCmd(object):
             cmd.fail('txt="unknown axis name in %r: %s"' % (_axes, e))
             return
 
-        cmd.inform('text="homing axes: %r"' % (axes))
+        cmd.inform('text="CPL homing axes: %r"' % (axes))
         for m in axes:
             errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(homeCmd % (m, self.homeDistance), 
                                                                           waitForIdle=True,
