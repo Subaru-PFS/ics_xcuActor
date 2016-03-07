@@ -30,7 +30,7 @@ class PCM(object):
     def sendOneCommand(self, cmdStr, cmd=None):
         fullCmd = "%s%s" % (cmdStr, self.EOL)
         self.logger.debug('sending %r', fullCmd)
-        if cmd:
+        if cmd is not None:
             cmd.diag('text="sending %r"' % (fullCmd))
 
         try:
@@ -56,7 +56,7 @@ class PCM(object):
         self.logger.debug('received: %s' % (ret))
         s.close()
 
-        if cmd:
+        if cmd is not None:
             cmd.diag('text="received %r"' % (ret))
             
         if ret.startswith('Error:'):
@@ -107,11 +107,11 @@ class PCM(object):
                           ret, status, errCode, busy)
         return errCode, status, busy, rest
 
-    def waitForIdle(self, maxTime=15.0):
+    def waitForIdle(self, maxTime=15.0, cmd=None):
         t0 = time.time()
         t1 = time.time()
         while True:
-            ret = self.sendOneCommand("~32/1Q")
+            ret = self.sendOneCommand("~@,,/1Q", cmd=cmd)
             _, _, busy, _ = self.parseMotorResponse(ret)
             if not busy:
                 return True
@@ -124,9 +124,11 @@ class PCM(object):
 
     def motorsCmd(self, cmdStr, waitForIdle=False, returnAfterIdle=False, maxTime=10.0, cmd=None):
         if waitForIdle:
-            ok = self.waitForIdle(maxTime=maxTime)
+            ok = self.waitForIdle(maxTime=maxTime, cmd=cmd)
+        cmd.warn('text="confused"')
+        
 
-        fullCmd = "~32/1%s" % (cmdStr)
+        fullCmd = "~@,,/1%s" % (cmdStr)
         
         ret = self.sendOneCommand(fullCmd, cmd=cmd)
         errCode, status, busy, rest = self.parseMotorResponse(ret)
@@ -167,7 +169,7 @@ class PCM(object):
 
     def gaugeRawCmd(self, cmdStr, cmd=None):
         crc = self.gaugeCrc(cmdStr)
-        pcmCmd = '~32'
+        pcmCmd = '~@,T1500,'
         cmdStr = '%s%s%03d' % (pcmCmd, cmdStr, crc)
 
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
