@@ -1,8 +1,11 @@
+#!/usr/bin/env python
+
 # Bootloader
 
 import socket as skt
 import binascii
 import logging
+import os.path
 import sys
 import time
 
@@ -498,8 +501,13 @@ def fetchNetInfo(hostname):
 
     
 def burnBabyBurn(args):
+    print args
     hostname = args.host
     hexfile = args.hexfile
+    if hexfile is None:
+        ourPath = os.path.dirname(sys.argv[0])
+        hexfile = os.path.join(ourPath, '..', 'etc', 'PCM_main.hex')
+        hexfile = os.path.normpath(hexfile)
 
     netParts = fetchNetInfo(hostname)
     if netParts is False:
@@ -509,8 +517,9 @@ def burnBabyBurn(args):
     parts = mac.split(':')
     liaID = parts[-2] + parts[-1]
 
-    print("ip, LIA_ID, iface, ourIP = %s, %s, %s, %s" % (ip, liaID, iface, ourIp))
-
+    print("ip, LIA_ID, iface, ourIP, hexfile = %s, %s, %s, %s,%s" % (ip,
+                                                                     liaID, iface, ourIp,
+                                                                     hexfile))
     pcm = PCM_Bootloader(hostname=ip,
                          logLevel=(logging.DEBUG if args.debug else logging.INFO))
     
