@@ -29,7 +29,7 @@ class PCM_Bootloader(object):
     cLIA_debug = 'Debug: '
 
     cLIA_Status = ([[cLIA_warning, 'A reset vector is required'],
-                    [cLIA_message, 'Loader mode set via control port'],
+                    [cLIA_debug, 'Loader mode set via control port'],
                     [cLIA_warning, 'User code space invalid'],
                     [cLIA_error, 'Loader commnd recieved while not in loader mode'],
                     [cLIA_error, 'New code frame length error'],
@@ -51,7 +51,9 @@ class PCM_Bootloader(object):
     cLIA_MCHost = '230.10.10.11'
     cLIA_Port = 16384
     
-    def __init__(self, hostname=None,
+    def __init__(self,
+                 hostname=None,
+                 ourIp=None,
                  logger='PCM',
                  logLevel=logging.INFO):
 
@@ -63,14 +65,21 @@ class PCM_Bootloader(object):
         self.LIA_ID = '0000'
         self.LIA_IP = None
         self.hostname = hostname
-
+        self.ourIp = ourIp
+        
+        self.tcp = None
+        self.udp = None
+        
     #------------------------------------------------------------------------------#
     # BOOTLOADER UTILITIES
     # Used by the bootloader code to communicate with the PCM and parse responses.
     #------------------------------------------------------------------------------#   
     def sendTCPData(self, command, HOST, PORT=1000):
         # send data over TCP
-        s = skt.socket(skt.AF_INET, skt.SOCK_STREAM)
+        if self.tcp is None:
+            self.tcp = skt.socket(skt.AF_INET, skt.SOCK_STREAM)
+        s = self.tcp
+        
         try:
             s.settimeout(2)
             s.connect((HOST, PORT))
@@ -80,9 +89,6 @@ class PCM_Bootloader(object):
             return(data)
         except:
             return 0
-        finally:
-            if s:
-                s.close()
 
     def newResponse(self):
         resp = dict()
@@ -90,10 +96,11 @@ class PCM_Bootloader(object):
 
         return resp
 
-    def sendUDPData(self, LIA_CMD, LIA_ID=None, LIA_DATA='', HOST=None, PORT=None):
+    def sendUDPData(self, LIA_CMD, LIA_ID=None, LIA_DATA='', HOST=None, PORT=None, ttl=1):
         # send data over UDP broadcast (unicast optional), and receives unicast response
         # for dump, receive loops until end of dump flag is received
         # returns a dictionary object
+
         ret = self.newResponse()
         if LIA_ID is None:
             LIA_ID = self.LIA_ID
@@ -105,20 +112,17 @@ class PCM_Bootloader(object):
             self.cLIA_Tag, LIA_ID, self.LIA_SEQ, LIA_CMD)
         header = bytearray.fromhex(header)
         command = '%s%s' % (header, LIA_DATA)
-        s = skt.socket(skt.AF_INET, skt.SOCK_DGRAM)
-        s.setsockopt(skt.SOL_SOCKET, skt.SO_REUSEADDR, 1)
-        #s.setsockopt(skt.SOL_SOCKET, skt.SO_BROADCAST, 1)
-        s.setsockopt(skt.SOL_IP, skt.IP_MULTICAST_IF,
-                     skt.inet_aton('10.1.1.1'))
 
-        # if HOST==self.cLIA_MCHost:
-        # do not route Multicast (i.e. keep on same hop)
-        #s.setsockopt(skt.SOL_SOCKET, skt.IP_MULTICAST_TTL,2)
+        if self.udp is None:
+            s = self.udp = skt.socket(skt.AF_INET, skt.SOCK_DGRAM)
+            s.setsockopt(skt.SOL_SOCKET, skt.SO_REUSEADDR, 1)
+            s.setsockopt(skt.IPPROTO_IP, skt.IP_MULTICAST_TTL, ttl)
+            s.setsockopt(skt.SOL_IP, skt.IP_MULTICAST_IF,
+                         skt.inet_aton(self.ourIp))
+            s.bind((self.ourIp, 0))  # bind to host IP, any local port
+        s = self.udp
+        
         try:
-            if HOST == self.cLIA_MCHost:
-                s.bind(('10.1.1.1', 0))  # bind to any IP, any local port
-            else:
-                s.bind((HOST, 0))  # bind to host IP, any local port
             if LIA_CMD == self.cLIA_EraseAll or LIA_CMD == self.cLIA_ErasePgm or LIA_CMD == self.cLIA_EraseEE:
                 s.settimeout(20)  # allow longer for erase to complete
             else:
@@ -150,18 +154,9 @@ class PCM_Bootloader(object):
                 ret = self.newResponse()
             ret['errorFlag'] = True
             ret['messages'].append(self.cLIA_error + 'No response')
-        finally:
-            if s:
-                s.close()
 
         return ret
 
-    def hexIP2asciiIP(self, hexStr):
-        octets = [str(int(hexStr[2*i:2*i+2], 16)) for i in range(4)]
-        ip = '.'.join(octets)
-
-        return ip
-    
     def parseLIAResponse(self, LIAdata):
         # creates a dictionary containing each field of the loader response packet
         # checks for errors and appends a status message
@@ -177,7 +172,7 @@ class PCM_Bootloader(object):
             ret['HWver'] = sRec[16:18]
             ret['SWver'] = sRec[18:20]
             ret['LIA_ID'] = sRec[20:24]
-            ret['IP'] = self.hexIP2asciiIP(sRec[24:32])
+            ret['IP'] = hexIP2asciiIP(sRec[24:32])
             ret['status'] = sRec[32:36]
             ret['dataSeq'] = sRec[36:38]
             ret['data'] = LIAdata[19:]
@@ -461,20 +456,73 @@ class PCM_Bootloader(object):
             elif msg.startswith(self.cLIA_debug):
                 self.logger.debug(msg)
 
+def hexIP2asciiIP(hexStr, reverse=False):
+    octets = [str(int(hexStr[2*i:2*i+2], 16)) for i in range(4)]
+    if reverse:
+        octets = octets[::-1]
+    ip = '.'.join(octets)
 
+    return ip
+    
+
+def fetchNetInfo(hostname):
+    hostname = skt.gethostbyname(hostname)
+    with open('/proc/net/arp', 'r') as arp:
+        allArps = arp.readlines()
+
+    found = False
+    for arp in allArps[1:]:
+        ip, _, _, mac, _, iface = arp.split()
+        if hostname == ip:
+            found = True
+            break
+
+    if not found:
+        return False
+
+    # Now get the interface address. No good way right now, sorry.
+    with open('/proc/net/rt_cache', 'r') as rt:
+        allRoutes = rt.readlines()
+
+    found = False
+    for rt in allRoutes[1:]:
+        parts = rt.split()
+        if parts[0] == iface:
+            found = True
+            break
+
+    if not found:
+        return False
+
+    return ip, mac, iface, hexIP2asciiIP(parts[7], reverse=True)
+
+    
 def burnBabyBurn(args):
-    host = args.host
+    hostname = args.host
     hexfile = args.hexfile
 
-    pcm = PCM_Bootloader(hostname=host,
+    netParts = fetchNetInfo(hostname)
+    if netParts is False:
+        raise RuntimeError("cannot resolve or get info about %s (try pinging it?)" % (hostname))
+    
+    ip, mac, iface, ourIp = netParts
+    parts = mac.split(':')
+    liaID = parts[-2] + parts[-1]
+
+    print("ip, LIA_ID, iface, ourIP = %s, %s, %s, %s" % (ip, liaID, iface, ourIp))
+
+    pcm = PCM_Bootloader(hostname=ip,
                          logLevel=(logging.DEBUG if args.debug else logging.INFO))
     
     pcm.rebootPCM()
-    time.sleep(1)
+    del pcm
     
+    pcm = PCM_Bootloader(hostname=ip,
+                         ourIp = ourIp,
+                         logLevel=(logging.DEBUG if args.debug else logging.INFO))
     for i in range(5):
-        ret = pcm.setLIA_IP(host, LIA_ID='6c7d')
-        time.sleep(0.5)
+        ret = pcm.setLIA_IP(ip, LIA_ID=liaID)
+        time.sleep(1.0)
         
     if ret['errorFlag']:
         raise RuntimeError('failed to force IP address: %s' % (ret['messages'],))
@@ -506,6 +554,9 @@ def readHex(args):
                          logLevel=(logging.DEBUG if args.debug else logging.INFO))
     pcm.rebootPCM()
 
+    pcm = PCM_Bootloader(hostname=host,
+                         logLevel=(logging.DEBUG if args.debug else logging.INFO))
+
     ret = pcm.getLIAStatus()
     if ret['errorFlag']:
         raise RuntimeError(
@@ -514,11 +565,7 @@ def readHex(args):
     if ret['errorFlag']:
         raise RuntimeError(
             'failed to enter loader mode. returned: %s' % (ret['messages'],))
-    ret = pcm.erasePGMandEE()
-    if ret['errorFlag']:
-        raise RuntimeError(
-            'failed to erase target. returned: %s' % (ret['messages'],))
-    ret = pcm.uploadHEXfile(hexfile)
+    ret = pcm.dumpHEXfile(hexfile, LIA_ID=None)
     if ret['errorFlag']:
         raise RuntimeError(
             'failed to program target. returned: %s' % (ret['messages'],))
@@ -533,9 +580,11 @@ def main(argv=None):
     if isinstance(argv, basestring):
         argv = shlex.split()
 
-    parser = argparse.ArgumentParser('Test PCM burning.')
+    parser = argparse.ArgumentParser('PCM bootloader control and burning.')
     parser.add_argument('--hexfile', type=str, action='store', default=None,
                         help='the filename of the .hex file')
+    parser.add_argument('--macID', type=str, action='store', default=None,
+                        help='the last two octets of the MAC address')
     parser.add_argument('--host', type=str, action='store', default=None,
                         help='the IP address/name of the PCM board')
     parser.add_argument('--cam', type=str, action='store', default=None,
@@ -543,6 +592,15 @@ def main(argv=None):
     parser.add_argument('--debug', action='store_true')
 
     args = parser.parse_args(argv)
+
+    if args.cam is not None and args.host is not None:
+        raise SystemExit("only one of --cam or --host can be specified")
+    
+    if args.cam is None and args.host is None:
+        raise SystemExit("one of --cam or --host must be specified")
+    
+    if args.cam is not None:
+        args.host = 'pcm-%s' % (args.cam)
 
     burnBabyBurn(args)
 
