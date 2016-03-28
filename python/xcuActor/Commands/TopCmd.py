@@ -41,7 +41,7 @@ class TopCmd(object):
         period = cmd.cmd.keywords['period'].values[0]
         controllers = cmd.cmd.keywords['controllers'].values
 
-        knownControllers = ["gauge"]
+        knownControllers = ["gauge", "heaters"]
         for c in self.actor.config.get(self.actor.name, 'controllers').split(','):
             c = c.strip()
             knownControllers.append(c)
