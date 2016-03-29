@@ -24,7 +24,7 @@ class gatevalve(object):
         self.requestBits = self.bits['enabled'] | self.bits['active']
         self.requestNames = {self.bits['enabled']:'blocked',
                              self.bits['active']:'invalid',
-                             0:'inactive',
+                             0:'closed',
                              self.requestBits:'open'}
 
         self.dev = rtdADIO.ADIO(self.bits['enabled'])
