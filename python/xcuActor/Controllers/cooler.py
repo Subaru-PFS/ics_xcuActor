@@ -12,15 +12,19 @@ class cooler(object):
                  loglevel=logging.DEBUG):
 
         self.actor = actor
-        self.logger = logging.getLogger('cooler')
+        self.name = name
+        self.logger = logging.getLogger(self.name)
         self.logger.setLevel(loglevel)
 
         self.EOL = '\r'
         
-        self.host = self.actor.config.get('cooler', 'host')
-        self.port = int(self.actor.config.get('cooler', 'port'))
+        self.host = self.actor.config.get(self.name, 'host')
+        self.port = int(self.actor.config.get(self.name, 'port'))
 
-        self.ioBuffer = bufferedSocket.BufferedSocket('coolerIO', EOL='\r\n')
+        self.ioBuffer = bufferedSocket.BufferedSocket(self.name + "IO", EOL='\r\n')
+
+        self.keepUnlocked = False
+        self.sock = None
         
     def start(self):
         pass
@@ -28,7 +32,52 @@ class cooler(object):
     def stop(self, cmd=None):
         pass
 
-    def sendOneCommand(self, cmdStr, cmd=None):
+    def connectSock(self, cmd):
+        if self.sock is None:
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(1.0)
+            except socket.error as e:
+                cmd.warn('text="failed to create socket for %s: %s"' % (self.name, e))
+                raise
+ 
+            try:
+                s.connect((self.host, self.port))
+            except socket.error as e:
+                cmd.warn('text="failed to connect to %s: %s"' % (self.name, e))
+                raise
+            self.sock = s
+            
+        return self.sock
+
+    def closeSock(self, cmd):
+        if self.sock is not None:
+            try:
+                self.sock.close()
+            except socket.error as e:
+                cmd.warn('text="failed to close socket for %s: %s"' % (self.name, e))
+            
+        self.sock = None
+        
+    def sendOneCommand(self, cmdStr, doClose=True, cmd=None):
+        """ Send one command and return one response.
+
+        Args
+        ----
+        cmdStr : str
+           The cryocooler command to send.
+        doClose : bool
+           If True (the default), the device socket is closed before returning.
+       
+        Returns
+        -------
+        str : the single response string, with EOLs stripped.
+
+        Raises
+        ------
+        IOError : from any communication errors.
+        """
+        
         if cmd is None:
             cmd = self.actor.bcast
 
@@ -36,18 +85,12 @@ class cooler(object):
         self.logger.debug('sending %r', fullCmd)
         cmd.diag('text="sending %r"' % fullCmd)
 
+        s = self.connectSock(cmd)
+        
         try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(1.0)
-        except socket.error as e:
-            cmd.warn('text="failed to create socket to cooler: %s"' % (e))
-            raise
- 
-        try:
-            s.connect((self.host, self.port))
             s.sendall(fullCmd)
         except socket.error as e:
-            cmd.warn('text="failed to create connect or send to cooler: %s"' % (e))
+            cmd.warn('text="failed to send to cooler: %s"' % (e))
             raise
 
         ret = self.ioBuffer.getOneResponse(sock=s, cmd=cmd)
@@ -56,21 +99,37 @@ class cooler(object):
                                                                            ret))
             raise
 
-        ret = self.ioBuffer.getOneResponse(sock=s, cmd=cmd)
-        reply = ret.strip()
-        
-        self.logger.debug('received %r', reply)
-        cmd.diag('text="received %r"' % reply)
-        s.close()
+        reply = self.getOneResponse(cmd=cmd)
+        if doClose:
+            self.closeSock(cmd)
 
         return reply
 
+    def getOneResponse(self, sock=None, cmd=None):
+        if sock is None:
+            sock = self.connectSock(cmd)
+            
+        ret = self.ioBuffer.getOneResponse(sock=sock, cmd=cmd)
+        reply = ret.strip()
+        
+        self.logger.debug('received %r', reply)
+        if cmd is not None:
+            cmd.diag('text="received %r"' % reply)
+
+        return reply
+
+    def unlock(self, doClose=True, cmd=None):
+        self.sendOneCommand('LOGIN=STIRLING', doClose=doClose, cmd=cmd)
+
+    def lock(self, cmd):
+        if not self.keepUnlocked:
+            self.sendOneCommand('LOGOUT=STIRLING', cmd=cmd)
+        
     def getPID(self, cmd=None):
-        KP = float(self.sendOneCommand('KP'))
-        KI = float(self.sendOneCommand('KI'))
-        KD = float(self.sendOneCommand('KD'))
-        mode = self.sendOneCommand('COOLER')
-        setPower = float(self.sendOneCommand('PWOUT'))
+        KP = float(self.sendOneCommand('KP', doClose=False, cmd=cmd))
+        KI = float(self.sendOneCommand('KI', doClose=False, cmd=cmd))
+        KD = float(self.sendOneCommand('KD', doClose=False, cmd=cmd))
+        mode = self.sendOneCommand('COOLER', doClose=False, cmd=cmd)
 
         if cmd is not None:
             cmd.inform('coolerLoop=%s, %g,%g,%g' % (mode,
@@ -78,21 +137,23 @@ class cooler(object):
         return mode, KP, KI, KD
     
     def startCooler(self, mode, setpoint, cmd=None):
-        headTemp = float(self.sendOneCommand('TC'))
+        headTemp = float(self.sendOneCommand('TC', cmd=cmd))
 
         if headTemp > 350:
             cmd.fail('text="the cryocooler temperature is too high (%sK). Check the temperature sense cable."' % (headTemp))
             return
+
+        self.unlock()
         
-        ret = self.sendOneCommand('LOGIN=STIRLING')
         if mode is 'power':
-            ret = self.sendOneCommand('PWOUT=%g' % (setpoint))
-            ret = self.sendOneCommand('COOLER=POWER')
+            ret = self.sendOneCommand('PWOUT=%g' % (setpoint), doClose=False, cmd=cmd)
+            ret = self.sendOneCommand('COOLER=POWER', doClose=False, cmd=cmd)
             pass
         else:
-            ret = self.sendOneCommand('TTARGET=%g' % (setpoint))
-            ret = self.sendOneCommand('COOLER=ON')
-        self.sendOneCommand('LOGOUT=STIRLING')
+            ret = self.sendOneCommand('TTARGET=%g' % (setpoint), doClose=False, cmd=cmd)
+            ret = self.sendOneCommand('COOLER=ON', doClose=False, cmd=cmd)
+
+        self.lock(cmd=cmd)
 
         self.status(cmd=cmd)
 
@@ -100,16 +161,16 @@ class cooler(object):
             cmd.finish()
         
     def stopCooler(self, cmd=None):
-        ret = self.sendOneCommand('LOGIN=STIRLING')
-        ret = self.sendOneCommand('COOLER=OFF')
-        self.sendOneCommand('LOGOUT=STIRLING')
+        ret = self.sendOneCommand('LOGIN=STIRLING', doClose=False)
+        ret = self.sendOneCommand('COOLER=OFF', doClose=False)
+        self.sendOneCommand('LOGOUT=STIRLING', doClose=False)
 
         self.status(cmd=cmd)
 
     def getTemps(self, cmd=None):
-        power = float(self.sendOneCommand('P'))
-        tipTemp = float(self.sendOneCommand('TC'))
-        rejectTemp = float(self.sendOneCommand('TEMP2'))
+        power = float(self.sendOneCommand('P', doClose=False))
+        tipTemp = float(self.sendOneCommand('TC', doClose=False))
+        rejectTemp = float(self.sendOneCommand('TEMP2', doClose=False))
         setTemp = float(self.sendOneCommand('TTARGET'))
 
         if cmd is not None:
@@ -130,10 +191,35 @@ class cooler(object):
 
         return ret
         
-    def rawCmd(self, cmdStr, cmd=None):
+    def rawCmd(self, cmdStr, timeout=None, cmd=None):
+        """ Send a raw command to the controller and return the output.
+
+        Args
+        ----
+        cmdStr : str
+           The command string to send. We add some EOL, but otherwise do not modify this.
+        timeout : float or None
+           If not None, keep waiting up to this amount of time for new response lines. Once
+           nothing is returned the commoan output is considered complete.
+
+        Returns:
+        list of strings.
+        """
+        
         if cmd is None:
             cmd = self.actor.bcast
 
-        ret = self.sendOneCommand(cmdStr, cmd)
-        return ret
+        ret = self.sendOneCommand(cmdStr, doClose=(timeout is None), cmd=cmd)
+        retLines = [ret]
+        if timeout is not None:
+            s = self.connectSock(cmd)
+
+            while True:
+                ret = self.getOneResponse(sock=s, cmd=None)
+                if not ret:
+                    break
+                retLines.append(ret)
+            self.closeSock(cmd)
+            
+        return retLines
 

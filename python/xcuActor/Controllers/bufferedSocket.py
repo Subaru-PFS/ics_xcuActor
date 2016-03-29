@@ -31,15 +31,31 @@ class BufferedSocket(object):
             self.logger.warning(msg)
             if cmd is not None:
                 cmd.warn('text="%s"' % msg)
-            raise RuntimeError(msg)
+            raise IOError(msg)
         return sock.recv(1024)
 
     def getOneResponse(self, sock=None, timeout=None, cmd=None):
         """ Return the next available complete line. Fetch new input if necessary. 
+
+        Args
+        ----
+        sock : socket
+           Uses self.sock if not set.
+        timeout : float
+           Uses self.timeout if not set.
+
+        Returns
+        -------
+        str or None : a single line of response text, with EOL character(s) stripped.
+
         """
 
         while self.buffer.find(self.EOL) == -1:
-            more = self.getOutput(sock=sock, timeout=timeout, cmd=cmd)
+            try:
+                more = self.getOutput(sock=sock, timeout=timeout, cmd=cmd)
+            except IOError:
+                return ''
+            
             msg = '%s added: %r' % (self.name, more)
             self.logger.debug(msg)
             if cmd:

@@ -18,7 +18,7 @@ class CoolerCmd(object):
         # passed a single argument, the parsed and typed command.
         #
         self.vocab = [
-            ('cooler', '@raw', self.coolerRaw),
+            ('cooler', '[<timeout>] raw', self.coolerRaw),
             ('cooler', 'status', self.status),
             ('cooler', 'temps', self.temps),
             ('cooler', 'on <setpoint>', self.tempLoop),
@@ -27,18 +27,24 @@ class CoolerCmd(object):
         ]
 
         # Define typed command arguments for the above commands.
-        self.keys = keys.KeysDictionary("xcu_cooler", (1, 1),
+        self.keys = keys.KeysDictionary("xcu_cooler", (1, 2),
                                         keys.Key("setpoint", types.Float(),
                                                  help='cooler setpoint'),
+                                        keys.Key("timeout", types.Float(),
+                                                 help='timeout (in seconds) for raw command.'),
         )
 
     def coolerRaw(self, cmd):
         """ Send a raw command to the cryocooler controller. """
 
+        cmdKeys = cmd.cmd.keywords
+        timeout = cmdKeys['timeout'].values[0] if 'timeout' in cmdKeys else None
         cmd_txt = cmd.cmd.keywords['raw'].values[0]
 
-        ret = self.actor.controllers['cooler'].rawCmd(cmd_txt, cmd=cmd)
-        cmd.finish('text="returned %r"' % (ret))
+        retLines = self.actor.controllers['cooler'].rawCmd(cmd_txt, timeout=timeout, cmd=cmd)
+        for line in retLines[:-1]:
+            cmd.inform('text="returned %r"' % (line))
+        cmd.finish('text="returned %r"' % (retLines[-1]))
 
     def status(self, cmd):
         """ Generate all cooler keys."""
