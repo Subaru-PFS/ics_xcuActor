@@ -1,4 +1,7 @@
+#!/usr/bin/env python
+
 import logging
+import sys
 import time
 
 import rtdADIO.ADIO
@@ -27,7 +30,8 @@ class gatevalve(object):
                              0:'closed',
                              self.requestBits:'open'}
 
-        self.dev = rtdADIO.ADIO(self.bits['enabled'])
+        self.dev = rtdADIO.ADIO(self.bits['enabled'],
+                                logger=self.logger)
 
     def __del__(self):
         self.dev.disconnect()
@@ -59,7 +63,7 @@ class gatevalve(object):
         self.dev.set(self.bits['enabled'])
 
         def isOpen(status):
-            status & self.posBits == self.bits['open']
+            return (status & self.posBits) == self.bits['open']
             
         ret = self.spinUntil(isOpen, starting=starting, wait=wait, cmd=cmd)
         return ret
@@ -71,7 +75,7 @@ class gatevalve(object):
         self.dev.clear(self.bits['enabled'])
 
         def isClosed(status):
-            status & self.posBits == self.bits['closed']
+            return (status & self.posBits) == self.bits['closed']
             
         ret = self.spinUntil(isClosed, starting=starting, wait=wait, cmd=cmd)
         return ret
