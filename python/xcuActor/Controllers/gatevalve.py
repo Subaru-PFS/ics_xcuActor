@@ -91,8 +91,42 @@ class gatevalve(object):
         
     def status(self, silentIf=None, cmd=None):
         ret = self.getStatus()
+        pos, request = self.describeStatus(ret)
         if cmd and ret != silentIf:
-            pos, request = self.describeStatus(ret)
             cmd.inform('gatevalve=0x%02x,%s,%s' % (ret, pos, request))
 
         return ret
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+    if isinstance(argv, basestring):
+        import shlex
+        argv = shlex.split(argv)
+
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--open', action='store_true')
+    parser.add_argument('--close', action='store_true')
+
+    args = parser.parse_args(argv)
+
+    gv = gatevalve(None, gatevalve)
+    def _status(gv):
+        stat0 = gv.status()
+        pos, request = gv.describeStatus(stat0)
+    
+        print "status=0x%02x,%s,%s" % (stat0,
+                                       pos, request)
+
+    _status(gv)
+    if args.open:
+        gv.open()
+    if args.close:
+        gv.close()
+    _status(gv)
+
+if __name__ == "__main__":
+    main()
+    
