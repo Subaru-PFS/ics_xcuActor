@@ -163,9 +163,9 @@ class ionpump(object):
         return ret
     
     def off(self, cmd=None):
-        """ Turn the pumps on, and report the status. """
+        """ Turn the pumps off, and report the status. """
 
-        return self._onOff(True, cmd=cmd)
+        return self._onOff(False, cmd=cmd)
 
     def on(self, cmd=None):
         """ Turn the pumps on, and report the status. """
