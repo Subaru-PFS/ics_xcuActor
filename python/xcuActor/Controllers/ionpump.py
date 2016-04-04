@@ -155,7 +155,7 @@ class ionpump(object):
         """ Turn the pumps on or off, and report the status. """
         
         ret = []
-        for c in self.pumpsIDs:
+        for c in self.pumpIDs:
             self.sendWriteCommand(10+c, '%s' % (int(newState)))
             ret1 = self.readOnePump(c, cmd=cmd)
             ret.extend(ret1)
