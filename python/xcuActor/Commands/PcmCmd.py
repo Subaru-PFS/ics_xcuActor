@@ -171,6 +171,50 @@ class PcmCmd(object):
             return
         cmd.finish('text="returned %r"' % (ret))
         
+    def getPowerState(self,cmd):
+        """ Request port status
+
+        Arguments:
+           name      - one subsystem to read voltage/current or all
+        """
+        cmdKeys = cmd.cmd.keywords
+        
+        r = cmdKeys['counts'] if 'counts' in cmdKeys else None
+        n = cmdKeys['n'] if 'n' in cmdKeys else 1
+
+        cmdStr = "~rdV,%s,%d,%s" % ('all',n,r)
+        rawVolts = self.actor.controllers['PCM'].pcmCmd(cmdStr, cmd=cmd)
+        cmdStr = "~rdC,%s,%d,%s" % ('all',n,r)
+        rawAmps = self.actor.controllers['PCM'].pcmCmd(cmdStr, cmd=cmd)
+
+        volts = [float(v) for v in rawVolts.split(',')]
+        amps = [float(a) for a in rawAmps.split(',')]
+        states = [c for c in self.actor.controllers['PCM'].pcmCmd('~ge', cmd=cmd)]
+
+        cmd.diag('text="states: %s"' % (states))
+        try:
+            portName = self.getParameterName(cmdKeys[1].name)
+        except IndexError:
+            portName = 'all'
+            
+        rawPortNames = self.actor.config.get('pcm', 'portNames')
+        allPortNames = [s.strip() for s in rawPortNames.split(',')]
+        if portName == 'all':
+            portNames = allPortNames
+        else:
+            portNames = [portName]
+
+        for name in portNames:
+            nidx = allPortNames.index(name)
+            cmd.inform('pcmPort%d="%s","%s",%0.2f,%0.2f,%0.2f' %
+                       (nidx+1, name,
+                        states[-(nidx+1)],
+                        volts[nidx+2],
+                        amps[nidx+2],
+                        volts[nidx+2]*amps[nidx+2]))
+
+        cmd.finish()
+        
     def getEnvironment(self, cmd):
         """ Request PCM environment
 
