@@ -7,8 +7,6 @@ import opscore.protocols.types as types
 from opscore.utility.qstr import qstr
 
 class PcmCmd(object):
-
- 
     def __init__(self, actor):
         # This lets us access the rest of the actor.
         self.actor = actor
@@ -20,12 +18,14 @@ class PcmCmd(object):
         #
         self.vocab = [
             ('pcm', '@raw', self.pcmRaw),
-            #('pcm', 'status [@(clear)]', self.udpStatus),       
+            # ('pcm', 'status [@(clear)]', self.udpStatus),       
             ('power', '@(on|off|cycle) @(motors|gauge|cooler|temps|bee|fee|interlock|heaters|all) [@(force)]', self.nPower),
-            #('power', '@(on|off) @(motors|gauge|cooler|temps|bee|fee|interlock|heaters|all) [@(force)]', self.power),
-            ('power', '@(voltage|current) @(ups|aux|motors|gauge|cooler|temps|bee|fee|interlock|heaters|all) [<n>] [@(counts)]', self.getPower),
+            # ('power', '@(on|off) @(motors|gauge|cooler|temps|bee|fee|interlock|heaters|all) [@(force)]', self.power),
+            ('power', '@(voltage|current) @(ups|aux|motors|gauge|cooler|temps|bee|fee|interlock|heaters|all) [<n>] [@(counts)]',
+             self.getPower),
             ('power', '@(status)', self.getPowerStatus), 
-            ('pcm', '@(calibrate) @(voltage|current|environment) @(ups|aux|motors|gauge|cooler|temps|bee|fee|interlock|heaters|temperature|pressure) <r1> <m1> <r2> <m2>', self.calibrateChannel),        
+            ('pcm', '@(calibrate) @(voltage|current|environment) @(ups|aux|motors|gauge|cooler|temps|bee|fee|interlock|heaters|temperature|pressure) <r1> <m1> <r2> <m2>',
+             self.calibrateChannel), 
             ('pcm', '@(saveCalData)', self.saveCalDataToROM),            
             ('pcm', '@(environment) @(temperature|pressure|all)', self.getEnvironment),
             ('pcm', 'status', self.getPCMStatus),
@@ -80,19 +80,19 @@ class PcmCmd(object):
 
     def getParameterName(self, x):
         return {
-            'ups' : 'bus0',
-            'aux' : 'bus1',
+            'ups': 'bus0',
+            'aux': 'bus1',
             'all': 'all',
-            'motors' : 'ch1',
+            'motors': 'ch1',
             'gauge': 'ch2',
-            'cooler' : 'ch3',
-            'temps' : 'ch4',
+            'cooler': 'ch3',
+            'temps': 'ch4',
             'bee': 'ch5',
-            'fee' : 'ch6',
-            'interlock' : 'ch7',
-            'heaters' : 'ch8',
-            'temperature' : 'temp',
-            'pressure' : 'pres',
+            'fee': 'ch6',
+            'interlock': 'ch7',
+            'heaters': 'ch8',
+            'temperature': 'temp',
+            'pressure': 'pres',
         }.get(x)     
 
     def nPower(self, cmd):
@@ -258,13 +258,14 @@ class PcmCmd(object):
       
         cmdStr = "~ge"
         ret = self.actor.controllers['PCM'].pcmCmd(cmdStr, cmd=cmd)
-        if ret == None:
+        if ret is None:
             cmd.fail('text="failed to execute getStatus command"')
             return
         binVal = self.powerMasktoInt(ret)
         cmd.inform("powerMask=0x%02x; poweredUp=%s" % (binVal,
                                                        self.getPoweredNames(binVal)))    
-        cmd.finish('text="returned %r"' % (ret))    
+        self.getPowerState(cmd)
+        
 
     def resetPCM(self, cmd):
         """ Reset PCM or Ethernet
@@ -461,7 +462,7 @@ class PcmCmd(object):
         
     def powerMasktoInt(self,mask):
         for n in mask:
-            if n !=1:
+            if n != 1:
                 n=0
         return int(mask[2:],2)
                 
