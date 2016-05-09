@@ -291,7 +291,7 @@ class temps(object):
             enabled.append(int(enabled0))
             atLevel.append(float(atLevel0))
 
-        maxLevel = float(0xfff)
+        maxLevel = 1.0 # float(0xfff)
         
         if cmd is not None:
             cmd.inform('heaters=%d,%d,%0.3f,%0.3f' % (enabled[0],
