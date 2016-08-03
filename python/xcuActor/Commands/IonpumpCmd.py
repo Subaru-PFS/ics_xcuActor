@@ -85,9 +85,15 @@ class IonpumpCmd(object):
         
     def on(self, cmd=None):
         ret = self.actor.controllers['ionpump'].on(cmd)
-        cmd.finish('text="returned %r"' % (ret))
+        if '5' in ret:
+            cmd.fail('text="ion pump controller is in LOCAL mode!"')
+        else:
+            cmd.finish()
        
     def off(self, cmd=None):
         ret = self.actor.controllers['ionpump'].off(cmd)
-        cmd.finish('text="returned %r"' % (ret))
+        if '5' in ret:
+            cmd.fail('text="ion pump controller is in LOCAL mode!"')
+        else:
+            cmd.finish()
         
