@@ -76,18 +76,42 @@ class MotorsCmd(object):
     def motorStatus(self, cmd):
         """ Initialize all CCD motor axes: set scales and limits, etc. """
 
-        getLimitCmd = "aM%d?4" # F1 reverses the home direction
-        getCountsCmd = "aM%d?0"
+        getLimitCmd = "?aa%d" # F1 reverses the home direction
+        getCountsCmd = "?0"
         for m in 1,2,3:
-            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(getLimitCmd % (m), cmd=cmd)
+            # added this to select axis
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd('aM%dR' % (m), cmd=cmd)
+            if errCode != "OK":
+                cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
+    
+            errCode, busy, rawLim = self.actor.controllers['PCM'].motorsCmd((getLimitCmd % (m)), cmd=cmd)
             if errCode != "OK":
                 cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
                 return
+                # rawLimit data  is ADC values from 0 to 16384... binary based on threshold
+            
+            binLim0 = 0
+            binLim1 = 0            
+            rl = rawLim.split(',')    
+            if int(rl[0]) > 8000:
+                binLim0 = 1    
+
+            if int(rl[1]) > 8000:
+                binLim1 = 1
+                
             if getCountsCmd:
-                errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(getCountsCmd % (m), cmd=cmd)
+                errCode, busy, rawCnt = self.actor.controllers['PCM'].motorsCmd(getCountsCmd, cmd=cmd)
                 if errCode != "OK":
                     cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
-                    return
+                    return            
+            # convert steps to microns
+            if m == 1:           
+                microns = float(rawCnt) / float(self.a_microns_to_steps)
+            elif m == 2:
+                microns = float(rawCnt) / float(self.b_microns_to_steps)
+            else:
+                microns = float(rawCnt) / float(self.c_microns_to_steps)
+            cmd.inform('Motor_Axis_%d = %s, %s, %s, %s, %f' % (m, rawLim, binLim0, binLim1, rawCnt, microns))      
         cmd.finish()    
     
     def initCcd(self, cmd):
