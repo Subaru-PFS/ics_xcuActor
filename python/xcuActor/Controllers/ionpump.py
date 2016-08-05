@@ -22,10 +22,6 @@ class ionpump(object):
         self.busID = int(self.actor.config.get(self.name, 'busID'))
         self.pumpIDs = [int(ID) for ID in self.actor.config.get('ionpump', 'pumpids').split(',')]
 
-        self.busID = 1
-        self.port = 4004
-        self.pumpIDs = 3,2
-
     @property
     def npumps(self):
         return len(self.pumpIDs)
