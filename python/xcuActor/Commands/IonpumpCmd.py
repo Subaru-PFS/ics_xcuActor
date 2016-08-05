@@ -73,8 +73,8 @@ class IonpumpCmd(object):
         cmd.finish('ident=%s' % (','.join(ret)))
 
     def status(self, cmd):
-        pumpIDs = self.actor.controllers['ionpump'].pumpIDs
-        for i in pumpIDs:
+        npumps = self.actor.controllers['ionpump'].npumps
+        for i in range(npumps):
             self.actor.controllers['ionpump'].readOnePump(i, cmd=cmd)
         cmd.finish()
 
@@ -84,11 +84,16 @@ class IonpumpCmd(object):
         cmd.finish()
         
     def on(self, cmd=None):
+        npumps = self.actor.controllers['ionpump'].npumps
         ret = self.actor.controllers['ionpump'].on(cmd)
         if '5' in ret:
             cmd.fail('text="ion pump controller is in LOCAL mode!"')
-        else:
-            cmd.finish()
+            return
+        
+        for ii in range(100):
+            for i in range(npumps):
+                self.actor.controllers['ionpump'].readOnePump(i, cmd=cmd)
+        cmd.finish()
        
     def off(self, cmd=None):
         ret = self.actor.controllers['ionpump'].off(cmd)

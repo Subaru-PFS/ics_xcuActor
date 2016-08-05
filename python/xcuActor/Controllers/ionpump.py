@@ -22,6 +22,14 @@ class ionpump(object):
         self.busID = int(self.actor.config.get(self.name, 'busID'))
         self.pumpIDs = [int(ID) for ID in self.actor.config.get('ionpump', 'pumpids').split(',')]
 
+        self.busID = 1
+        self.port = 4004
+        self.pumpIDs = 3,2
+
+    @property
+    def npumps(self):
+        return len(self.pumpIDs)
+    
     def start(self):
         pass
 
@@ -40,7 +48,8 @@ class ionpump(object):
         coreCmd = "%s%s\x03" % (busID, cmdStr)
         crc = self.calcCrc(coreCmd)
         fullCmd = "\x02%s%02X" % (coreCmd, crc)
-        self.logger.info('sending %r', fullCmd)
+        self.logger.info('sending %r to %s:%s', fullCmd, self.host, self.port)
+        cmd.diag('text="sending %r to %s:%s"' % (fullCmd, self.host, self.port))
         cmd.diag('text="ionpump sending %r"' % fullCmd)
 
         try:
@@ -155,10 +164,10 @@ class ionpump(object):
         """ Turn the pumps on or off, and report the status. """
         
         ret = []
-        for c in self.pumpIDs:
-            self.sendWriteCommand(10+c, '%s' % (int(newState)))
-            ret1 = self.readOnePump(c, cmd=cmd)
-            ret.extend(ret1)
+        for c_i, c in enumerate(self.pumpIDs):
+            retCmd = self.sendWriteCommand(10+c, '%s' % (int(newState)))
+            self.readOnePump(c_i, cmd=cmd)
+            ret.append(retCmd)
 
         return ret
     
@@ -176,7 +185,8 @@ class ionpump(object):
         reply = self.sendReadCommand(10 + channel)
         return int(reply)
     
-    def readOnePump(self, channel, cmd=None):
+    def readOnePump(self, channelNum, cmd=None):
+        channel = self.pumpIDs[channelNum]
         enabled = self.readEnabled(channel)
 
         V = self.readVoltage(channel)
@@ -185,7 +195,7 @@ class ionpump(object):
         t = self.readTemp(channel)
             
         if cmd is not None:
-            cmd.inform('ionPump%d=%d,%g,%g,%g, %g' % (channel,
+            cmd.inform('ionPump%d=%d,%g,%g,%g, %g' % (channelNum+1,
                                                       enabled,
                                                       V,A,t,p))
 
