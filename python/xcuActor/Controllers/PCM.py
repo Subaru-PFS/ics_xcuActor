@@ -125,10 +125,9 @@ class PCM(object):
     def motorsCmd(self, cmdStr, waitForIdle=False, returnAfterIdle=False, maxTime=10.0, cmd=None):
         if waitForIdle:
             ok = self.waitForIdle(maxTime=maxTime, cmd=cmd)
-        cmd.warn('text="confused"')
         
 
-        fullCmd = "~@,,/1%s" % (cmdStr)
+        fullCmd = "~@,T2000,/1%s" % (cmdStr)
         
         ret = self.sendOneCommand(fullCmd, cmd=cmd)
         errCode, status, busy, rest = self.parseMotorResponse(ret)
