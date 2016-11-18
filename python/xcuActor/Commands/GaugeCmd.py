@@ -71,7 +71,7 @@ class GaugeCmd(object):
 
         cmd_txt = cmd.cmd.keywords['raw'].values[0]
         
-        ret = self.actor.controllers['PCM'].gaugeRawCmd(cmd_txt, cmd=cmd)
+        ret = self.actor.controllers['PCM'].gaugeRawReadCmd(cmd_txt, cmd=cmd)
         cmd.finish('text="returned %s"' % (qstr(ret)))
 
     def pcmGaugeQuery(self, cmd):

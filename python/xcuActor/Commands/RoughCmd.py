@@ -46,7 +46,7 @@ class RoughCmd(object):
 
         cmd_txt = cmd.cmd.keywords['raw'].values[0]
 
-        ret = self.actor.controllers['rough'].pumpCmd(cmd_txt, cmd=cmd)
+        ret = self.actor.controllers[cmd.cmd.name].pumpCmd(cmd_txt, cmd=cmd)
         cmd.finish('text="returned %r"' % (ret))
 
     def ident(self, cmd):
