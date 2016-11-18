@@ -224,17 +224,17 @@ class MotorsCmd(object):
         b = cmdKeys['b'].values[0] if 'b' in cmdKeys else None
         c = cmdKeys['c'].values[0] if 'c' in cmdKeys else None
 
-        if not (piston or a or b or c or goHome): 
+        if not ((piston is not None) or a or b or c or goHome): 
             cmd.fail('text="No motion specified"')
             return
 
-        if piston and (a or b or c) and goHome:
+        if (piston is None) and (a or b or c) and goHome:
             cmd.fail('text="Either piston or home or one or more of a,b,c must be specified."')
             return
 
         if goHome:
             piston = -99999
-        if piston:
+        if piston is not None:
             a = b = c = piston
         if moveMicrons:
             if a is not None:
