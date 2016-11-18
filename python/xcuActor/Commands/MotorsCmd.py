@@ -181,8 +181,7 @@ class MotorsCmd(object):
         The timeouts are currently too short.
         """
 
-        homeCmd = "aM%dZ%d" + "A%dz%dR" % (self.stepsOffHome * self.microstepping,
-                                           self.zeroOffset)
+        homeCmd = "aM%dZ%d" + "gS03P1G100z%dR" % (self.zeroOffset)
         
         cmdKeys = cmd.cmd.keywords
         _axes = cmdKeys['axes'].values if 'axes' in cmdKeys else [1,2,3]
@@ -193,12 +192,12 @@ class MotorsCmd(object):
             cmd.fail('txt="unknown axis name in %r: %s"' % (_axes, e))
             return
 
-        cmd.inform('text="CPL homing axes: %r"' % (axes))
+        cmd.inform('text="homing axes: %s"' % (axes))
         for m in axes:
             errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(homeCmd % (m, self.homeDistance), 
                                                                           waitForIdle=True,
                                                                           returnAfterIdle=True,
-                                                                          maxTime=5.0,
+                                                                          maxTime=10.0,
                                                                           cmd=cmd)
             if errCode != "OK":
                 cmd.fail('text="home of axis %d failed with code=%s"' % (m, errCode))
