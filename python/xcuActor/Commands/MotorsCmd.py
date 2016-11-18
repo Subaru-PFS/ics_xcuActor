@@ -137,7 +137,9 @@ class MotorsCmd(object):
         initCmd = "aM%dn2f0V%dh%dm%dR" # F1 reverses the home direction
         initCmd2 = ""
         for m in 1,2,3:
-            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(initCmd % (m, self.velocity, self.holdCurrent, self.runCurrent), cmd=cmd)
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(initCmd % (m, self.velocity,
+                                                                                     self.holdCurrent, self.runCurrent),
+                                                                          cmd=cmd)
             if errCode != "OK":
                 cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
                 return
@@ -158,7 +160,9 @@ class MotorsCmd(object):
             return
             
         for m in 1,2,3:
-            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(motorParams % (m, m, self.velocity, self.holdCurrent, self.runCurrent), cmd=cmd)
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(motorParams % (m, m, self.velocity,
+                                                                                         self.holdCurrent, self.runCurrent),
+                                                                          cmd=cmd)
             if errCode != "OK":
                 cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
                 return
