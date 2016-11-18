@@ -121,11 +121,11 @@ class MotorsCmd(object):
                 
             # convert steps to microns
             if m == 1:           
-                microns = float(rawCnt) / float(self.a_microns_to_microsteps)
+                microns = float(zeroedCnt) / float(self.a_microns_to_microsteps)
             elif m == 2:
-                microns = float(rawCnt) / float(self.b_microns_to_microsteps)
+                microns = float(zeroedCnt) / float(self.b_microns_to_microsteps)
             else:
-                microns = float(rawCnt) / float(self.c_microns_to_microsteps)
+                microns = float(zeroedCnt) / float(self.c_microns_to_microsteps)
             cmd.inform('Motor_Axis_%d = %s, %s, %s, %s, %f' % (m, rawLim, binLim0, binLim1, stepCnt, microns))      
 
         if doFinish:
