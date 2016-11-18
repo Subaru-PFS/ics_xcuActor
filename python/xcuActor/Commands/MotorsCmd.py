@@ -130,15 +130,19 @@ class MotorsCmd(object):
 
         if doFinish:
             cmd.finish()    
+
+    def _getInitString(self, axis):
+        initCmd = "aM%dn2f0F0V%dh%dm%dR" # F1 reverses the home direction
+
+        return initCmd % (axis, self.velocity, self.holdCurrent, self.runCurrent)
     
     def initCcd(self, cmd):
         """ Initialize all CCD motor axes: set scales and limits, etc. """
 
-        initCmd = "aM%dn2f0V%dh%dm%dR" # F1 reverses the home direction
         initCmd2 = ""
         for m in 1,2,3:
-            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(initCmd % (m, self.velocity,
-                                                                                     self.holdCurrent, self.runCurrent),
+            initCmd = self._getInitString(m)
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(initCmd,
                                                                           cmd=cmd)
             if errCode != "OK":
                 cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
@@ -152,7 +156,7 @@ class MotorsCmd(object):
 
     def storePowerOnParameters(self, cmd):
         s0instruction = "s0e1M500e2M500e3R" # contoller executes stored programs 1,2 & 3
-        motorParams = "s%daM%dn2f0V%dh%dm%dR"
+        motorParams = "s%d%s"
         
         errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(s0instruction, cmd=cmd) 
         if errCode != "OK":
@@ -160,8 +164,8 @@ class MotorsCmd(object):
             return
             
         for m in 1,2,3:
-            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(motorParams % (m, m, self.velocity,
-                                                                                         self.holdCurrent, self.runCurrent),
+            initCmd = self._getInitString(m)
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(motorParams % (m, initCmd),
                                                                           cmd=cmd)
             if errCode != "OK":
                 cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
