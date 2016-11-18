@@ -113,7 +113,7 @@ class MotorsCmd(object):
                     cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
                     return
             rawCnt = int(rawCnt)
-            rawCnt -= self.zeroOffset
+            zeroedCnt = rawCnt - self.zeroOffset
             
             stepCnt = rawCnt // self.microstepping
             if stepCnt * self.microstepping != rawCnt:
