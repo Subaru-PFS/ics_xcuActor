@@ -127,7 +127,7 @@ class PCM(object):
             ok = self.waitForIdle(maxTime=maxTime, cmd=cmd)
         
 
-        fullCmd = "~@,T2000,/1%s" % (cmdStr)
+        fullCmd = "~@,T2500,/1%s" % (cmdStr)
         
         ret = self.sendOneCommand(fullCmd, cmd=cmd)
         errCode, status, busy, rest = self.parseMotorResponse(ret)
