@@ -73,7 +73,7 @@ class MotorsCmd(object):
         else:
             cmd.finish('text="returned %s"' % (rest))
 
-    def motorStatus(self, cmd):
+    def motorStatus(self, cmd, doFinish=True):
         """ Initialize all CCD motor axes: set scales and limits, etc. """
 
         getLimitCmd = "?aa%d" # F1 reverses the home direction
@@ -178,7 +178,7 @@ class MotorsCmd(object):
                 cmd.fail('text="home of axis %d failed with code=%s"' % (m, errCode))
                 return
 
-        cmd.finish()
+        self.motorStatus(cmd)
 
     def moveCcd(self, cmd):
         """ Adjust the position of the detector motors. 
@@ -242,9 +242,10 @@ class MotorsCmd(object):
                                                                       cmd=cmd)
 
         if errCode != "OK":
+            self.motorStatus(cmd, doFinish=False)
             cmd.fail('text="move failed with code=%s"' % (errCode))
         else:
-            cmd.finish()
+            self.motorStatus(cmd)
 
     def haltMotors(self, cmd):
         errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd('T', cmd=cmd)
