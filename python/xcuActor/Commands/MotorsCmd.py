@@ -9,16 +9,24 @@ from opscore.utility.qstr import qstr
 class MotorsCmd(object):
     
     # MOTOR PARAMETERS FOR INITIALIZATION used by initCcd    
-    velocity=7400   # microSteps per second
-    runCurrent=54   # percentage of controller peak current 
-    holdCurrent=0   
-    homeDistance=100000 # max steps for homing
+    velocity = 7400   # microSteps per second
+    runCurrent = 54   # percentage of controller peak current 
+    holdCurrent = 0   
+    homeDistance = 100000 # max steps for homing
+    microstepping = 16   # Fixed 
+    stepsPerRev = 200
+    microstepsPerRev = microstepping * stepsPerRev
+    stepsOffHome = 2
+    zeroOffset = 100 * microstepping
     
-    #CONVERSION FACTORS TO CONVERT MICRONS TO MOTOR STEPS
+    # CONVERSION FACTORS TO CONVERT MICRONS TO MOTOR STEPS
     # microsteps per rev * pivot ratio / screw pitch
-    a_microns_to_steps = 3600.0 * 36.02 / 317.5
-    b_microns_to_steps = 3600.0 * 36.02 / 317.5
-    c_microns_to_steps = 3600.0 * 36.77 / 317.5 
+    a_microns_to_steps = stepsPerRev * 36.02 / 317.5
+    b_microns_to_steps = stepsPerRev * 36.02 / 317.5
+    c_microns_to_steps = stepsPerRev * 36.77 / 317.5 
+    a_microns_to_microsteps = a_microns_to_steps * microstepping
+    b_microns_to_microsteps = b_microns_to_steps * microstepping
+    c_microns_to_microsteps = c_microns_to_steps * microstepping
 
     def __init__(self, actor):
         # This lets us access the rest of the actor.
@@ -103,16 +111,25 @@ class MotorsCmd(object):
                 errCode, busy, rawCnt = self.actor.controllers['PCM'].motorsCmd(getCountsCmd, cmd=cmd)
                 if errCode != "OK":
                     cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
-                    return            
+                    return
+            rawCnt = int(rawCnt)
+            rawCnt -= self.zeroOffset
+            
+            stepCnt = rawCnt // self.microstepping
+            if stepCnt * self.microstepping != rawCnt:
+                cmd.warn('text="motor %s is not at a full step: %d microsteps"' % (m, rawCnt))
+                
             # convert steps to microns
             if m == 1:           
-                microns = float(rawCnt) / float(self.a_microns_to_steps)
+                microns = float(rawCnt) / float(self.a_microns_to_microsteps)
             elif m == 2:
-                microns = float(rawCnt) / float(self.b_microns_to_steps)
+                microns = float(rawCnt) / float(self.b_microns_to_microsteps)
             else:
-                microns = float(rawCnt) / float(self.c_microns_to_steps)
-            cmd.inform('Motor_Axis_%d = %s, %s, %s, %s, %f' % (m, rawLim, binLim0, binLim1, rawCnt, microns))      
-        cmd.finish()    
+                microns = float(rawCnt) / float(self.c_microns_to_microsteps)
+            cmd.inform('Motor_Axis_%d = %s, %s, %s, %s, %f' % (m, rawLim, binLim0, binLim1, stepCnt, microns))      
+
+        if doFinish:
+            cmd.finish()    
     
     def initCcd(self, cmd):
         """ Initialize all CCD motor axes: set scales and limits, etc. """
@@ -156,7 +173,8 @@ class MotorsCmd(object):
         The timeouts are currently too short.
         """
 
-        homeCmd = "aM%dZ%dR"
+        homeCmd = "aM%dZ%d" + "A%dz%dR" % (self.stepsOffHome * self.microstepping,
+                                           self.zeroOffset)
         
         cmdKeys = cmd.cmd.keywords
         _axes = cmdKeys['axes'].values if 'axes' in cmdKeys else [1,2,3]
@@ -213,20 +231,24 @@ class MotorsCmd(object):
             a = b = c = piston
         if moveMicrons:
             if a is not None:
-                a = int(float(a) *self.a_microns_to_steps)
+                a = int(float(a) * self.a_microns_to_steps) * self.microstepping
             if b is not None:
-                b = int(float(b) *self.b_microns_to_steps)
+                b = int(float(b) * self.b_microns_to_steps) * self.microstepping
             if c is not None:
-                c = int(float(c) *self.c_microns_to_steps)
+                c = int(float(c) * self.c_microns_to_steps) * self.microstepping
         else:
             if a is not None:
-                a *= 16
+                a *= self.microstepping
             if b is not None:
-                b *= 16
+                b *= self.microstepping
             if c is not None:
-                c *= 16
+                c *= self.microstepping
 
         if absMove:
+            a += self.zeroOffset
+            b += self.zeroOffset
+            c += self.zeroOffset
+            
             cmdStr = "A%s,%s,%s,R" % (a if a is not None else '',
                                       b if b is not None else '',
                                       c if c is not None else '')
