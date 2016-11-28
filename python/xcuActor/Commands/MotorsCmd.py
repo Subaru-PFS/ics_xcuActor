@@ -252,9 +252,12 @@ class MotorsCmd(object):
                 c *= self.microstepping
 
         if absMove:
-            a += self.zeroOffset
-            b += self.zeroOffset
-            c += self.zeroOffset
+            if a is not None:
+                a += self.zeroOffset
+            if b is not None:
+                b += self.zeroOffset
+            if c is not None:
+                c += self.zeroOffset
             
             cmdStr = "A%s,%s,%s,R" % (a if a is not None else '',
                                       b if b is not None else '',
