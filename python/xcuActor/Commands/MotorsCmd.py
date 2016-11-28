@@ -82,7 +82,7 @@ class MotorsCmd(object):
             cmd.finish('text="returned %s"' % (rest))
 
     def motorStatus(self, cmd, doFinish=True):
-        """ Initialize all CCD motor axes: set scales and limits, etc. """
+        """ query all CCD motor axes """
 
         getLimitCmd = "?aa%d" # F1 reverses the home direction
         getCountsCmd = "?0"
@@ -90,11 +90,11 @@ class MotorsCmd(object):
             # added this to select axis
             errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd('aM%dR' % (m), cmd=cmd)
             if errCode != "OK":
-                cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
+                cmd.fail('text="selection of axis %d failed with code=%s"' % (m, errCode))
     
             errCode, busy, rawLim = self.actor.controllers['PCM'].motorsCmd((getLimitCmd % (m)), cmd=cmd)
             if errCode != "OK":
-                cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
+                cmd.fail('text="query of axis %d limits failed with code=%s"' % (m, errCode))
                 return
                 # rawLimit data  is ADC values from 0 to 16384... binary based on threshold
             
@@ -110,7 +110,7 @@ class MotorsCmd(object):
             if getCountsCmd:
                 errCode, busy, rawCnt = self.actor.controllers['PCM'].motorsCmd(getCountsCmd, cmd=cmd)
                 if errCode != "OK":
-                    cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
+                    cmd.fail('text="query of axis %d counts failed with code=%s"' % (m, errCode))
                     return
             rawCnt = int(rawCnt)
             zeroedCnt = rawCnt - self.zeroOffset
@@ -132,7 +132,17 @@ class MotorsCmd(object):
             cmd.finish()    
 
     def _getInitString(self, axis):
-        initCmd = "aM%dn2f0F0V%dh%dm%dR" # F1 reverses the home direction
+        """ Get the per-axis motor controller initialization string. """
+        
+        # aM%d   - select motor %d
+        # n2     - enable limit switches
+        # f0     - limit switches are normally closed
+        # F0     - positive steps move away from home
+        # V%d    - set velocity
+        # h%d    - set hold current
+        # m%d    - set drive current
+        #
+        initCmd = "aM%dn2f0F0V%dh%dm%dR"
 
         return initCmd % (axis, self.velocity, self.holdCurrent, self.runCurrent)
     
