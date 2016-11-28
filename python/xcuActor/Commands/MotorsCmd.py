@@ -10,7 +10,7 @@ class MotorsCmd(object):
     
     # MOTOR PARAMETERS FOR INITIALIZATION used by initCcd    
     velocity = 7400   # microSteps per second
-    runCurrent = 54   # percentage of controller peak current 
+    runCurrent = 70   # percentage of controller peak current 
     holdCurrent = 0   
     homeDistance = 100000 # max steps for homing
     microstepping = 16   # Fixed 
