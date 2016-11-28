@@ -181,7 +181,7 @@ class MotorsCmd(object):
         The timeouts are currently too short.
         """
 
-        homeCmd = "aM%dZ%d" + "gS03P1G100z%dR" % (self.zeroOffset)
+        homeCmd = "aM%dZ%d" + "gS03P1G200z%dR" % (self.zeroOffset)
         
         cmdKeys = cmd.cmd.keywords
         _axes = cmdKeys['axes'].values if 'axes' in cmdKeys else [1,2,3]
