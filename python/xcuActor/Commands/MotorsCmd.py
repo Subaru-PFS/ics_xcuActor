@@ -214,7 +214,7 @@ class MotorsCmd(object):
             errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(homeCmd % (m, self.homeDistance), 
                                                                           waitForIdle=True,
                                                                           returnAfterIdle=True,
-                                                                          maxTime=10.0,
+                                                                          maxTime=self.homeDistance/self.velocity + 3,
                                                                           cmd=cmd)
             if errCode != "OK":
                 cmd.fail('text="home of axis %d failed with code=%s"' % (m, errCode))
