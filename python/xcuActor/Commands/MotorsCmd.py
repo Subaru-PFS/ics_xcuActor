@@ -62,6 +62,9 @@ class MotorsCmd(object):
                                                  help='the number of ticks to move actuators A,B, and C'),
                                         )
 
+        self.status = ["Unknown", "Unknown", "Unknown"]
+        self.motorStatus(self.actor.bcast)
+        
     def motorID(self, motorName):
         """ Translate from all plausible motor/axis IDs to the controller IDs. """
 
@@ -99,14 +102,14 @@ class MotorsCmd(object):
                 return
                 # rawLimit data  is ADC values from 0 to 16384... binary based on threshold
             
-            binLim0 = 0
-            binLim1 = 0            
+            farSwitch = 0
+            homeSwitch = 0            
             rl = rawLim.split(',')    
             if int(rl[0]) > 8000:
-                binLim0 = 1    
+                farSwitch = 1    
 
             if int(rl[1]) > 8000:
-                binLim1 = 1
+                homeSwitch = 1
                 
             if getCountsCmd:
                 errCode, busy, rawCnt = self.actor.controllers['PCM'].motorsCmd(getCountsCmd, cmd=cmd)
@@ -127,7 +130,10 @@ class MotorsCmd(object):
                 microns = float(zeroedCnt) / float(self.b_microns_to_microsteps)
             else:
                 microns = float(zeroedCnt) / float(self.c_microns_to_microsteps)
-            cmd.inform('Motor_Axis_%d = %s, %s, %s, %s, %f' % (m, rawLim, binLim0, binLim1, stepCnt, microns))      
+
+            status = "OK" if stepCnt >= 100 and not farSwitch else "Unknown"
+            self.motorStatus[m-1] = status
+            cmd.inform('ccdMotor%d=%s,%s,%s,%s,%0.2f' % (status, m, homeSwitch, farSwitch, stepCnt, microns))
 
         if doFinish:
             cmd.finish()    
