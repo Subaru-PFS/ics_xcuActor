@@ -8,10 +8,11 @@ import rtdADIO.ADIO
 
 class gatevalve(object):
     def __init__(self, actor, name,
+                 logger=None,
                  loglevel=logging.DEBUG):
 
         self.actor = actor
-        self.logger = logging.getLogger('gatevalve')
+        self.logger = logger if logger else logging.getLogger('gatevalve')
         self.logger.setLevel(loglevel)
 
         self.bits = dict(enabled=0x8,
@@ -30,8 +31,8 @@ class gatevalve(object):
                              0:'closed',
                              self.requestBits:'open'}
 
-        self.dev = rtdADIO.ADIO(self.bits['enabled'],
-                                logger=self.logger)
+        self.dev = rtdADIO.ADIO(self.bits['enabled'])
+                                # logger=self.logger)
 
     def __del__(self):
         self.dev.disconnect()
