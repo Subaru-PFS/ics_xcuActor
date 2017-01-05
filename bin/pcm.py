@@ -22,6 +22,8 @@ def main(argv=None):
                         help='the IP address/name of the PCM board')
     parser.add_argument('--cam', type=str, action='store', default=None,
                         help='the name of the PCM board\'s camera')
+    parser.add_argument('--raw', type=str, action='store', default=None,
+                        help='a raw command to send')
     parser.add_argument('--debug', action='store_true')
 
     args = parser.parse_args(argv)
@@ -43,7 +45,11 @@ def main(argv=None):
     for p in args.on:
         print("turning %s %s on" % (host, p))
         pcm.powerOn(p)
-    
+
+    if args.raw is not None:
+        print("sending %s raw command: %s" % (host, args.raw))
+        print(" returned: %s" % (pcm.pcmCmd(args.raw)))
+        
 if __name__ == "__main__":
     main()
     
