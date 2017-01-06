@@ -1,6 +1,5 @@
 setupRequired(tron_actorcore)
-setupRequired(ics_xcu_fpga)
-setupOptional(ics_xcu_rtdADIO)
+setupRequired(ics_xcu_rtdADIO)
 
 pathPrepend(PATH, ${PRODUCT_DIR}/bin)
 pathPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)
