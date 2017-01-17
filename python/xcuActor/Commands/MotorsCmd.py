@@ -240,10 +240,10 @@ class MotorsCmd(object):
         b = cmdKeys['b'].values[0] if 'b' in cmdKeys else None
         c = cmdKeys['c'].values[0] if 'c' in cmdKeys else None
 
-        if not (piston is not None and
-                a is not None and
-                b is not None and
-                c is not None): 
+        if (piston is None and
+                a is None and
+                b is None and
+                c is None): 
             cmd.fail('text="No motion specified"')
             return
 
