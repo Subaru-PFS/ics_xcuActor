@@ -23,7 +23,14 @@ page.
 the restart. ]
 
 Hit Save/Restart and (quickly) plug in the normal Ethernet. It should
-appear at the DHCP-given address in a few seconds.
+appear at the DHCP-given address in a few seconds. If you want to
+configure more, connect to the web server at the new address.
+
+One other change applies to all ports on all MOXAs: they must be set
+to listen for incoming raw TCP connections. Open the left panel's
+Operating Settings and select Port 1. Set the Operation mode to TCP
+Server. Also confirm that it only allows one connection and that the
+Local TCP Port is 400x, x={1..4}.
 
 PFS per-spectrograph configuration
 ----------------------------------
@@ -36,6 +43,10 @@ do not Save/Restart.
 
 In the left panel's Serial Settings, choose Port 4. Set it to
 9600,8,1,None,None, RS-485 2-wire. Submit.
+Then in the Operating Settngs Port 4 page, set Delimiter 1 to 03 and
+enable it. And set the Delimiter process to Delimiter+2. [The ionpump
+controller replies all end with 0x03 and a two-byte CRC. If the MOXA
+can recognize this it can manage bus contention better.]
 
 PFS roughing pump configuration
 -------------------------------
