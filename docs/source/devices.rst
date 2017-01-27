@@ -1,5 +1,5 @@
-XCU Devices
------------
+XCU/piepan devices
+------------------
 
 The ``xcuActor`` controls all the non-readout devices at the dewar pie pan. Specifically:
 
@@ -21,8 +21,8 @@ The ``xcuActor`` controls all the non-readout devices at the dewar pie pan. Spec
 
  - the gatevalve, via onboard DIO pins and a kernel module.
 
-By default the program runs on the ``BEE``, but can run anywhere
-unless you want to control the turbo or the gate valve.
+By default the program runs on the ``BEE``, but can run on any
+reachable host unless you want to control the turbo or the gate valve.
 
 
  

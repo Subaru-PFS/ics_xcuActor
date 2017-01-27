@@ -1,35 +1,37 @@
-BIOS Configuration
-==================
+BEE BIOS Configuration
+======================
 
 Before a new BEE is commisioned, the BIOS must be configured and the
 disk image loaded.
 
- 0. Requirement: the per-spectrograph MOXA must be configured and
-    the BEE's serial console line connected. The address will be
-    moxa-spN for N in 1..4 (the spectrograph number), port 400X for X
-    in 1..3 (the dewar number: Blue=1, Red=2, NIR=3). Since it is a
-    network device you should not need to specify a baud rate, but it
-    will be 38400n8.
+ 0. Requirement: the per-spectrograph :doc:`MOXA must be configured
+    <MOXA>` and the BEE's serial console line connected. The address
+    will be ``moxa-spN.pfs`` for N in 1..4 (the spectrograph number),
+    port 400X for X in 1..3 (the dewar number: Blue=1, Red=2,
+    NIR=3). Since it is a network device you should not need to
+    specify a baud rate, but it will be 38400 baud.
 
-    On a linux host, connect with something like `miniterm.py --lf
-    socket://moxa-sp3:4001`. That would be for b3; adjust to taste.
+    On a linux host, connect with something like ``miniterm.py --cr
+    socket://moxa-sp3:4001``. That would be for b3; adjust to taste.
     
- 1. enable the serial console. We try to do this without requiring a monitor.
+ 1. enable the serial console. We try to do this without requiring a
+    monitor, but you do need to connect a USB keyboard. As it stands
+    that requires a standard motherboard-to-USB adapter.
 
-    On powerup, hold down the DEL key for ~15s
-    3*Right (to Boot)
-    7*Down RET (into Console Redirection)
-    RET Down RET (enable Console Redirection)
-    2*Down RET (to speed selection)
-    2*Down RET (38400 8,n,1)
-    ESC 4*Right RET RET (Save config and exit)
+    - On powerup, hold down the DEL key for ~15s
+    - 3*Right (to Boot)
+    - 7*Down RET (into Console Redirection)
+    - RET Down RET (enable Console Redirection)
+    - 2*Down RET (to speed selection)
+    - 2*Down RET (38400 8,n,1)
+    - ESC 4*Right RET RET (Save config and exit)
     
+    **NOTE**: This sequence only works for BIOSes where the serial console
+    has _not_ been configured.
+
     When booting using the serial console, F4 (and not DEL) brings you
     to the BIOS, and F3 (not F11) brings you to the boot device
     chooser.
-
-    NOTE: This sequence only works for BIOSes where the serial console
-    has _not_ been configured.
 
  2. check serial console.
 
@@ -38,7 +40,7 @@ disk image loaded.
     power up to break into the BIOS.
 
     If you need/want to power-cycle the BEE, from the PFS server
-    invoke `pcm.py --cam=b3 --off=bee --on=bee`.
+    invoke ``pcm.py --cam=b3 --off=bee --on=bee``.
     
  2. reboot to install disk image.
 
