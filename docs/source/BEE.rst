@@ -37,7 +37,9 @@ disk image loaded.
 
     The last step of the BIOS work rebooted the BEE: you should see
     booting stuff in the miniterm.py session. Again, hold down F4 from
-    power up to break into the BIOS.
+    power up to break into the BIOS. Do that now, and note the MAC address 
+    of the board for the DHCP/DNS server. 
+ .. todo: CPL document ics_dnasmasq
 
     If you need/want to power-cycle the BEE, from the PFS server
     invoke ``pcm.py --cam=b3 --off=bee --on=bee``.
