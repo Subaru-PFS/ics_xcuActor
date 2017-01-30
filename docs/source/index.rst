@@ -9,12 +9,12 @@ Welcome to XCU Actor's documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
 
-   device configuration
-   BEE BIOS <BEE>
+   Piepan networking <piepan>
    New MOXAs <MOXA>
-   startup
+   BEE BIOS <BEE>
+   XCU Actor startup <startup>
    devices
    cooldown
    

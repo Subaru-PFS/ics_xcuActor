@@ -19,12 +19,9 @@ In the panel on the left, go to Network Settings and change the IP
 configuration pulldown to DHCP. Click Submit at the bottom of the
 page.
 
-[ Optionally perform other configuration now, or do that later after
-the restart. ]
-
 Hit Save/Restart and (quickly) plug the MOXA into the normal
 Ethernet. It should appear at the DHCP-given address in a few
-seconds. If you want to configure more, connect to the web server at
+seconds. To continue with configuration, connect to the web server at
 the new address.
 
 One other change applies to all ports on all MOXAs: they must be set
@@ -40,16 +37,17 @@ The per-spectrograph rack MOXAs serve the three BEE serial consoles on
 ports 1-3, and the ion pump controllers on Port 4.
 
 1. Open the left panel's Serial Settings, then choose Port 1. Set it to
-38400,8,1,None,None,RS-232, and select P1, P2, P3. Again, Submit but
-do not Save/Restart.
+38400,8,1,None,None,RS-232, and select P1, P2, P3. Submit but
+do not then Save/Restart.
 
 2. In the left panel's Serial Settings, choose Port 4. Set it to
 9600,8,1,None,None, RS-485 2-wire. Submit.
 
-3. Then in the Operating Settngs Port 4 page, set Delimiter 1 to 03 and
-enable it. And set the Delimiter process to Delimiter+2. [The ionpump
-controller replies all end with 0x03 and a two-byte CRC. If the MOXA
-can recognize this it can manage bus contention better.]
+3. Then in the Operating Settngs Port 4 page, set Delimiter 1 to 03
+and enable it. And set the Delimiter process to Delimiter+2. Submit
+and Restart. [The ionpump controller replies all end with ``0x03`` and
+a two-byte CRC. If the MOXA can recognize this it can manage bus
+contention better.]
 
 PFS roughing pump configuration
 -------------------------------
