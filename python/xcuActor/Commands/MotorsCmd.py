@@ -63,7 +63,6 @@ class MotorsCmd(object):
                                         )
 
         self.status = ["Unknown", "Unknown", "Unknown"]
-        self.motorStatus(self.actor.bcast)
         
     def motorID(self, motorName):
         """ Translate from all plausible motor/axis IDs to the controller IDs. """
