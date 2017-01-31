@@ -131,8 +131,8 @@ class MotorsCmd(object):
                 microns = float(zeroedCnt) / float(self.c_microns_to_microsteps)
 
             status = "OK" if stepCnt >= 100 and not farSwitch else "Unknown"
-            self.motorStatus[m-1] = status
-            cmd.inform('ccdMotor%d=%s,%s,%s,%s,%0.2f' % (status, m, homeSwitch, farSwitch, stepCnt, microns))
+            self.status[m-1] = status
+            cmd.inform('ccdMotor%d=%s,%s,%s,%s,%0.2f' % (m, status, homeSwitch, farSwitch, stepCnt, microns))
 
         if doFinish:
             cmd.finish()    
