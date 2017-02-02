@@ -287,14 +287,14 @@ class MotorsCmd(object):
                 b += self.zeroOffset
             if c is not None:
                 c += self.zeroOffset
-            
-            cmdStr = "A%s,%s,%s,R" % (a if a is not None else '',
-                                      b if b is not None else '',
-                                      c if c is not None else '')
+
+            cmdStr = "A%s,%s,%s,R" % (int(a) if a is not None else '',
+                                      int(b) if b is not None else '',
+                                      int(c) if c is not None else '')
         else:
-            cmdStr = "P%s,%s,%s,R" % (a if a is not None else '',
-                                      b if b is not None else '',
-                                      c if c is not None else '')
+            cmdStr = "P%s,%s,%s,R" % (int(a) if a is not None else '',
+                                      int(b) if b is not None else '',
+                                      int(c) if c is not None else '')
 
         errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(cmdStr,
                                                                       waitForIdle=True,
