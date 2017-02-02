@@ -9,6 +9,8 @@ import os.path
 import sys
 import time
 
+import netifaces
+
 class PCM_Bootloader(object):
     #------------------------------------------------------------------------------#
     # BOOTLOADER CONSTANTS
@@ -467,8 +469,23 @@ def hexIP2asciiIP(hexStr, reverse=False):
 
     return ip
     
-
 def fetchNetInfo(hostname):
+    """ Resolve any/all network addresses we might need.
+
+    Args
+    ----
+    hostname : str
+       A hostname or IP address as string.
+
+    Returns
+    -------
+    ip, mac : string
+       The IP and MAC addresses of the given hostname
+    interface, ourIp : str
+       The name and IP address of the interface that the 
+       given hostname is on.
+    """
+    
     hostname = skt.gethostbyname(hostname)
     with open('/proc/net/arp', 'r') as arp:
         allArps = arp.readlines()
@@ -483,23 +500,14 @@ def fetchNetInfo(hostname):
     if not found:
         return False
 
-    # Now get the interface address. No good way right now, sorry.
-    with open('/proc/net/rt_cache', 'r') as rt:
-        allRoutes = rt.readlines()
+    netAddrs = netifaces.ifaddresses(iface)[netifaces.AF_INET]
+    if len(netAddrs) != 1:
+        raise RuntimeError("Can only deal with interfaces with exactly one network.")
+    netAddr = netAddrs[0]
+    ourIp = netAddr['addr']
 
-    found = False
-    for rt in allRoutes[1:]:
-        parts = rt.split()
-        if parts[0] == iface:
-            found = True
-            break
+    return ip, mac, iface, ourIp
 
-    if not found:
-        return False
-
-    return ip, mac, iface, hexIP2asciiIP(parts[7], reverse=True)
-
-    
 def burnBabyBurn(args):
     print args
     hostname = args.host
