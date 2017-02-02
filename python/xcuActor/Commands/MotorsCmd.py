@@ -52,14 +52,14 @@ class MotorsCmd(object):
         self.keys = keys.KeysDictionary("xcu_motors", (1, 1),
                                         keys.Key("axes", types.String()*(1,3),
                                                  help='list of motor names'),
-                                        keys.Key("a", types.Int(),
-                                                 help='the number of ticks to move actuator A'),
-                                        keys.Key("b", types.Int(),
-                                                 help='the number of ticks to move actuator B'),
-                                        keys.Key("c", types.Int(),
-                                                 help='the number of ticks to move actuator C'),
-                                        keys.Key("piston", types.Int(),
-                                                 help='the number of ticks to move actuators A,B, and C'),
+                                        keys.Key("a", types.Float(),
+                                                 help='the number of ticks/microns to move actuator A'),
+                                        keys.Key("b", types.Float(),
+                                                 help='the number of ticks/microns to move actuator B'),
+                                        keys.Key("c", types.Float(),
+                                                 help='the number of ticks/microns to move actuator C'),
+                                        keys.Key("piston", types.Float(),
+                                                 help='the number of ticks/microns to move actuators A,B, and C'),
                                         )
 
         self.status = ["Unknown", "Unknown", "Unknown"]
@@ -251,6 +251,18 @@ class MotorsCmd(object):
             cmd.fail('text="Either piston or one or more of a,b,c must be specified."')
             return
 
+        if piston is not None:
+            a = b = c = piston
+
+        if not moveMicrons:
+            # Only allow integer steps
+            if int(a) != a or int(b) != b or int(c) != c:
+                cmd.fail('text="steps must be integral"')
+                return
+            a = int(a)
+            b = int(b)
+            c = int(c)
+            
         if piston is not None:
             a = b = c = piston
         if moveMicrons:
