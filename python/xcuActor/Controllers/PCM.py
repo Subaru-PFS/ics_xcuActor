@@ -29,9 +29,9 @@ class PCM(object):
 
     def sendOneCommand(self, cmdStr, cmd=None):
         fullCmd = "%s%s" % (cmdStr, self.EOL)
-        self.logger.debug('sending %r', fullCmd)
+        self.logger.debug('sending %r', cmdStr)
         if cmd is not None:
-            cmd.diag('text="sending %r"' % (fullCmd))
+            cmd.diag('text="sending %r"' % (cmdStr))
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -53,7 +53,7 @@ class PCM(object):
             self.logger.error('text="failed to read response from PCM: %s"' % (e))
             raise
 
-        self.logger.debug('received: %s' % (ret))
+        self.logger.debug('received: %r', ret)
         s.close()
 
         if cmd is not None:
