@@ -92,6 +92,9 @@ class PCM(object):
         if len(ret) < 3:
             raise RuntimeError("command response is too short!")
 
+        if ret.startswith('NO RESPONSE'):
+            raise RuntimeError("no response to command: %s" % (ret))
+        
         if ret[:2] != '/0':
             raise RuntimeError("command response header is wrong: %s" % (ret))
 
@@ -107,27 +110,42 @@ class PCM(object):
                           ret, status, errCode, busy)
         return errCode, status, busy, rest
 
-    def waitForIdle(self, maxTime=15.0, cmd=None):
+    def _waitForIdle(self, maxTime=15.0, cmd=None):
+        if cmd is not None:
+            cmd.diag('text="waiting %0.3fs for for idle"' % (maxTime))
         t0 = time.time()
         t1 = time.time()
         while True:
-            ret = self.sendOneCommand("~@,,/1Q", cmd=cmd)
+            ret = self.sendOneCommand("~@,T1000,/1Q")
             _, _, busy, _ = self.parseMotorResponse(ret)
             if not busy:
+                if cmd is not None:
+                    cmd.diag('text="not busy after %0.2fs"' % (t1-t0))
                 return True
             if maxTime is not None and t1-t0 >= maxTime:
+                if cmd is not None:
+                    cmd.diag('text="still busy after %0.2fs"' % (t1-t0))
                 return False
             time.sleep(0.1)
             t1 = time.time()
 
         return False
 
-    def motorsCmd(self, cmdStr, waitForIdle=False, returnAfterIdle=False, maxTime=10.0, cmd=None):
-        if waitForIdle:
-            ok = self.waitForIdle(maxTime=maxTime, cmd=cmd)
-        
+    def waitForIdle(self, maxTime=15.0, cmd=None):
+        try:
+            return self._waitForIdle(maxTime=maxTime, cmd=cmd)
+        except RuntimeError as e:
+            if not e.message.startswith('no response to command:'):
+                raise
+            cmd.warn('text="restarting idle wait: %s"' % (e))
+            time.sleep(1.0)
+            return self._waitForIdle(maxTime=1.0, cmd=cmd)
 
-        fullCmd = "~@,T2500,/1%s" % (cmdStr)
+    def motorsCmd(self, cmdStr, waitForIdle=False, returnAfterIdle=False, maxTime=10.0, waitTime=1.0, cmd=None):
+        if waitForIdle:
+            ok = self.waitForIdle(maxTime=waitTime, cmd=cmd)
+
+        fullCmd = "~@,T%d,/1%s" % (int(maxTime*1000), cmdStr)
         
         ret = self.sendOneCommand(fullCmd, cmd=cmd)
         errCode, status, busy, rest = self.parseMotorResponse(ret)
@@ -152,11 +170,16 @@ class PCM(object):
                           "Code#13",
                           "Code#14",
                           "Controller Busy"]
-            errStr = errStrings[errCode]
+            try:
+                errStr = errStrings[errCode]
+            except IndexError:
+                errStr = errCode
+                
             return errStr, busy, rest
 
         if returnAfterIdle:
-            idle = self.waitForIdle(maxTime=maxTime)
+            idle = self.waitForIdle(maxTime=maxTime, cmd=cmd)
+                
             busy = not idle
             if not idle:
                 self.logger.warn('text="motor controller busy for %s after motor command"' % (maxTime))
