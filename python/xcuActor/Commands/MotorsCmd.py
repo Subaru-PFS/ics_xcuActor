@@ -62,7 +62,11 @@ class MotorsCmd(object):
                                                  help='the number of ticks/microns to move actuators A,B, and C'),
                                         )
 
+        self._clearStatus()
+
+    def _clearStatus(self):
         self.status = ["Unknown", "Unknown", "Unknown"]
+        self.positions = [0, 0, 0]
         
     def motorID(self, motorName):
         """ Translate from all plausible motor/axis IDs to the controller IDs. """
@@ -87,6 +91,8 @@ class MotorsCmd(object):
     def motorStatus(self, cmd, doFinish=True):
         """ query all CCD motor axes """
 
+        self.actor.controllers['PCM'].waitForIdle(maxTime=2.0, cmd=cmd)
+        
         getLimitCmd = "?aa%d" # F1 reverses the home direction
         getCountsCmd = "?0"
         for m in 1,2,3:
@@ -130,8 +136,13 @@ class MotorsCmd(object):
             else:
                 microns = float(zeroedCnt) / float(self.c_microns_to_microsteps)
 
-            status = "OK" if stepCnt >= 100 and not farSwitch else "Unknown"
+            # Declare axis good unless at/beyond any limit or previous suspect.
+            status = "OK" if (self.status[m-1] != 'Unknown' and
+                              stepCnt >= 100 and
+                              not farSwitch and
+                              not homeSwitch) else "Unknown"
             self.status[m-1] = status
+            self.positions[m-1] = stepCnt
             cmd.inform('ccdMotor%d=%s,%s,%s,%s,%0.2f' % (m, status, homeSwitch, farSwitch, stepCnt, microns))
 
         if doFinish:
@@ -155,6 +166,8 @@ class MotorsCmd(object):
     def initCcd(self, cmd):
         """ Initialize all CCD motor axes: set scales and limits, etc. """
 
+        self._clearStatus()
+        
         initCmd2 = ""
         for m in 1,2,3:
             initCmd = self._getInitString(m)
@@ -171,24 +184,43 @@ class MotorsCmd(object):
         cmd.finish()
 
     def storePowerOnParameters(self, cmd):
+        """ Initialize the boot all CCD motor axes: set scales and limits, etc. """
+
         s0instruction = "s0e1M500e2M500e3R" # contoller executes stored programs 1,2 & 3
         motorParams = "s%d%s"
         
-        errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(s0instruction, cmd=cmd) 
+        cmd.inform('text="burning in init commands register 0"')
+        errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(s0instruction,
+                                                                      waitForIdle=True, returnAfterIdle=True,
+                                                                      maxTime=3.0, waitTime=1.0,
+                                                                      cmd=cmd) 
         if errCode != "OK":
             cmd.fail('text="init of s0 instruction failed with code=%s"' % (errCode))
             return
             
         for m in 1,2,3:
             initCmd = self._getInitString(m)
-            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(motorParams % (m, initCmd),
-                                                                          cmd=cmd)
+            cmd.inform('text="burning in init commands for axis %d"' % (m))
+            try:
+                errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(motorParams % (m, initCmd),
+                                                                              waitForIdle=True, returnAfterIdle=True,
+                                                                              maxTime=3.0, waitTime=1.0,
+                                                                              cmd=cmd)
+            except RuntimeError as e:
+                if not e.message.startswith('no response'):
+                    raise
+                else:
+                    cmd.warn('text="blowing through expected glitch: %s"' % (e))
+                    
             if errCode != "OK":
                 cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
                 return
         
         cmd.finish()
 
+    def _calcMoveTime(self, distance):
+        return distance/self.velocity
+        
     def homeCcd(self, cmd):
         """ Home CCD motor axes.
 
@@ -208,16 +240,21 @@ class MotorsCmd(object):
             cmd.fail('txt="unknown axis name in %r: %s"' % (_axes, e))
             return
 
-        cmd.inform('text="homing axes: %s"' % (axes))
+        maxTime = self._calcMoveTime(self.homeDistance) + 5.0
         for m in axes:
+            self.status[m-1] = "Homing"
+            self.positions[m-1] = 0
+            
+            cmd.inform('text="homing axis %s: maxTime=%0.2f"' % (m, maxTime))
             errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(homeCmd % (m, self.homeDistance), 
                                                                           waitForIdle=True,
                                                                           returnAfterIdle=True,
-                                                                          maxTime=self.homeDistance/self.velocity + 3,
+                                                                          maxTime=maxTime,
                                                                           cmd=cmd)
             if errCode != "OK":
                 cmd.fail('text="home of axis %d failed with code=%s"' % (m, errCode))
                 return
+        cmd.inform('text="axes homed: %s"' % (axes))
 
         self.motorStatus(cmd)
 
@@ -280,28 +317,42 @@ class MotorsCmd(object):
             if c is not None:
                 c *= self.microstepping
 
+        maxDistance = 0
         if absMove:
             if a is not None:
                 a += self.zeroOffset
+                maxDistance = max(maxDistance, abs(a - self.positions[0]))
             if b is not None:
                 b += self.zeroOffset
+                maxDistance = max(maxDistance, abs(b - self.positions[1]))
             if c is not None:
                 c += self.zeroOffset
-
+                maxDistance = max(maxDistance, abs(c - self.positions[2]))
+            
             cmdStr = "A%s,%s,%s,R" % (int(a) if a is not None else '',
                                       int(b) if b is not None else '',
                                       int(c) if c is not None else '')
         else:
+            if a is not None:
+                maxDistance = abs(a)
+            if b is not None:
+                maxDistance = max(maxDistance, abs(b))
+            if c is not None:
+                maxDistance = max(maxDistance, abs(c))
+                
             cmdStr = "P%s,%s,%s,R" % (int(a) if a is not None else '',
                                       int(b) if b is not None else '',
                                       int(c) if c is not None else '')
 
-        errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(cmdStr,
-                                                                      waitForIdle=True,
-                                                                      returnAfterIdle=True,
-                                                                      maxTime=5.0,
-                                                                      cmd=cmd)
-
+        try:
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(cmdStr,
+                                                                          waitForIdle=True,
+                                                                          returnAfterIdle=True,
+                                                                          maxTime=self._calcMoveTime(maxDistance) + 3.0,
+                                                                          cmd=cmd)
+        except Exception as e:
+            errCode = "uncaught error: %s" % (e)
+            
         if errCode != "OK":
             self.motorStatus(cmd, doFinish=False)
             cmd.fail('text="move failed with code=%s"' % (errCode))
