@@ -22,9 +22,9 @@ class MotorsCmd(object):
     
     # CONVERSION FACTORS TO CONVERT MICRONS TO MOTOR STEPS
     # microsteps per rev * pivot ratio / screw pitch
-    a_microns_to_steps = stepsPerRev * 36.77 / 317.5
-    b_microns_to_steps = stepsPerRev * 36.02 / 317.5
-    c_microns_to_steps = stepsPerRev * 36.02 / 317.5 
+    a_microns_to_steps = stepsPerRev * 36.77 / 635.0
+    b_microns_to_steps = stepsPerRev * 36.02 / 635.0
+    c_microns_to_steps = stepsPerRev * 36.02 / 635.0 
     a_microns_to_microsteps = a_microns_to_steps * microstepping
     b_microns_to_microsteps = b_microns_to_steps * microstepping
     c_microns_to_microsteps = c_microns_to_steps * microstepping
