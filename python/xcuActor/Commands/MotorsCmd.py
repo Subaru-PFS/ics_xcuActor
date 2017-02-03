@@ -52,14 +52,14 @@ class MotorsCmd(object):
         self.keys = keys.KeysDictionary("xcu_motors", (1, 1),
                                         keys.Key("axes", types.String()*(1,3),
                                                  help='list of motor names'),
-                                        keys.Key("a", types.Int(),
-                                                 help='the number of ticks to move actuator A'),
-                                        keys.Key("b", types.Int(),
-                                                 help='the number of ticks to move actuator B'),
-                                        keys.Key("c", types.Int(),
-                                                 help='the number of ticks to move actuator C'),
-                                        keys.Key("piston", types.Int(),
-                                                 help='the number of ticks to move actuators A,B, and C'),
+                                        keys.Key("a", types.Float(),
+                                                 help='the number of ticks/microns to move actuator A'),
+                                        keys.Key("b", types.Float(),
+                                                 help='the number of ticks/microns to move actuator B'),
+                                        keys.Key("c", types.Float(),
+                                                 help='the number of ticks/microns to move actuator C'),
+                                        keys.Key("piston", types.Float(),
+                                                 help='the number of ticks/microns to move actuators A,B, and C'),
                                         )
 
         self.status = ["Unknown", "Unknown", "Unknown"]
@@ -253,6 +253,18 @@ class MotorsCmd(object):
 
         if piston is not None:
             a = b = c = piston
+
+        if not moveMicrons:
+            # Only allow integer steps
+            if int(a) != a or int(b) != b or int(c) != c:
+                cmd.fail('text="steps must be integral"')
+                return
+            a = int(a)
+            b = int(b)
+            c = int(c)
+            
+        if piston is not None:
+            a = b = c = piston
         if moveMicrons:
             if a is not None:
                 a = int(float(a) * self.a_microns_to_steps) * self.microstepping
@@ -275,14 +287,14 @@ class MotorsCmd(object):
                 b += self.zeroOffset
             if c is not None:
                 c += self.zeroOffset
-            
-            cmdStr = "A%s,%s,%s,R" % (a if a is not None else '',
-                                      b if b is not None else '',
-                                      c if c is not None else '')
+
+            cmdStr = "A%s,%s,%s,R" % (int(a) if a is not None else '',
+                                      int(b) if b is not None else '',
+                                      int(c) if c is not None else '')
         else:
-            cmdStr = "P%s,%s,%s,R" % (a if a is not None else '',
-                                      b if b is not None else '',
-                                      c if c is not None else '')
+            cmdStr = "P%s,%s,%s,R" % (int(a) if a is not None else '',
+                                      int(b) if b is not None else '',
+                                      int(c) if c is not None else '')
 
         errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(cmdStr,
                                                                       waitForIdle=True,
