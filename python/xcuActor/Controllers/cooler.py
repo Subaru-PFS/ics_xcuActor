@@ -167,13 +167,54 @@ class cooler(object):
 
         self.status(cmd=cmd)
 
+    def errorFlags(self, errorMask):
+        """ Return a string describing the error state
+
+        The documentation describes the following, but I suspect that there
+        may be more...
+
+        00000001 - High Reject Temperature
+        00000010 - Low Reject Temperature 
+        10000000 - Over Current Error 
+        11111111 - Invalid Configuration
+        """
+
+        bits = ('high reject temperature',
+                'low reject temperature',
+                'bit 2', 'bit 3', 'bit 4', 'bit 5', 'bit 6',
+                'over current')
+
+        if errorMask == 0:
+            return "OK"
+        if errorMask == 0b11111111:
+            return "invalid configuration"
+
+        elist = []
+        for i in range(8):
+            if errorMask & (1 << i):
+                elist.append(bits[i])
+
+        return ', '.join(elist)
+        
     def getTemps(self, cmd=None):
-        power = float(self.sendOneCommand('P', doClose=False))
-        tipTemp = float(self.sendOneCommand('TC', doClose=False))
-        rejectTemp = float(self.sendOneCommand('TEMP2', doClose=False))
-        setTemp = float(self.sendOneCommand('TTARGET'))
+        mode = self.sendOneCommand('COOLER', doClose=False, cmd=cmd)
+        errorMask = int(self.sendOneCommand('ERROR', doClose=False, cmd=cmd))
+        maxPower = float(self.sendOneCommand('E', doClose=False, cmd=cmd))
+        minPower = float(self.getOneResponse(cmd=cmd))
+        power = float(self.getOneResponse(cmd=cmd))
+        tipTemp = float(self.sendOneCommand('TC', doClose=False, cmd=cmd))
+        rejectTemp = float(self.sendOneCommand('TEMP2', doClose=False, cmd=cmd))
+        setTemp = float(self.sendOneCommand('TTARGET', cmd=cmd))
 
         if cmd is not None:
+            errorString = self.errorFlags(errorMask)
+            if errorString == 'OK':
+                call = cmd.inform
+            else:
+                call = cmd.warn
+            call('coolerStatus=%s,0x%02x, %s, %g,%g,%g' % (mode,
+                                                           errorMask, errorString,
+                                                           minPower, maxPower, power))
             cmd.inform('coolerTemps=%g,%g,%g, %g' % (setTemp,
                                                      rejectTemp, tipTemp,
                                                      power))
