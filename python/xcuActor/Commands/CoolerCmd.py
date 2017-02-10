@@ -46,7 +46,7 @@ class CoolerCmd(object):
         """ Send a raw command to the cryocooler controller. """
 
         cmdKeys = cmd.cmd.keywords
-        timeout = cmdKeys['timeout'].values[0] if 'timeout' in cmdKeys else None
+        timeout = cmdKeys['timeout'].values[0] if 'timeout' in cmdKeys else 1.0
         cmd_txt = cmd.cmd.keywords['raw'].values[0]
 
         retLines = self.controller.rawCmd(cmd_txt, timeout=timeout, cmd=cmd)
