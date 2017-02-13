@@ -13,7 +13,8 @@ disk image loaded.
 
  1. enable the serial console. We try to do this without requiring a
     monitor, but you do need to connect a USB keyboard. As it stands
-    that requires a standard motherboard-to-USB adapter.
+    that requires a special feedthrough from the back of the piepan
+    which wives a female USB, and then an externally powered USB hub.
 
     - On powerup, hold down the DEL key for ~15s
     - 3*Right (to Boot)
