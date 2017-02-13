@@ -11,9 +11,6 @@ disk image loaded.
     NIR=3). Since it is a network device you should not need to
     specify a baud rate, but it will be 38400 baud.
 
-    On a linux host, connect with something like ``miniterm.py --cr
-    socket://moxa-sp3:4001``. That would be for b3; adjust to taste.
-    
  1. enable the serial console. We try to do this without requiring a
     monitor, but you do need to connect a USB keyboard. As it stands
     that requires a standard motherboard-to-USB adapter.
@@ -35,6 +32,9 @@ disk image loaded.
 
  2. check serial console.
 
+    On a linux host, connect with something like ``miniterm.py --cr
+    socket://moxa-sp3:4001``. That would be for b3; adjust to taste.
+    
     The last step of the BIOS work rebooted the BEE: you should see
     booting stuff in the miniterm.py session. Again, hold down F4 from
     power up to break into the BIOS. Do that now, and note the MAC address 
