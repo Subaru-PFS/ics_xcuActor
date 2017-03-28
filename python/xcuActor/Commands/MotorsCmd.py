@@ -13,7 +13,7 @@ class MotorsCmd(object):
     runCurrent = 70   # percentage of controller peak current 
     holdCurrent = 0   
     microstepping = 16   # Fixed
-    homeDistance = 5000 * microstepping # max steps for homing
+    homeDistance = 4000 * microstepping # max steps for homing
 
     stepsPerRev = 200
     microstepsPerRev = microstepping * stepsPerRev
@@ -44,7 +44,7 @@ class MotorsCmd(object):
             ('motors', 'initDefaults', self.storePowerOnParameters),
             ('motors', 'initCcd', self.initCcd),
             ('motors', 'homeCcd [<axes>]', self.homeCcd),
-            ('motors', 'moveCcd [<a>] [<b>] [<c>] [<piston>] [@(microns)] [@(abs)]', self.moveCcd),
+            ('motors', 'moveCcd [<a>] [<b>] [<c>] [<piston>] [@(microns)] [@(abs)] [@(force)]', self.moveCcd),
             ('motors', 'halt', self.haltMotors),
         ]
 
