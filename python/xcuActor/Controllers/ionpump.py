@@ -161,9 +161,13 @@ class ionpump(object):
         
         ret = []
         for c_i, c in enumerate(self.pumpIDs):
-            retCmd = self.sendWriteCommand(10+c, '%s' % (int(newState)))
-            self.readOnePump(c_i, cmd=cmd)
+            retCmd = self.sendWriteCommand(10+c, '%s' % (int(newState)), cmd=cmd)
             ret.append(retCmd)
+            time.sleep(0.1)
+        time.sleep(1)
+        
+        for c_i, c in enumerate(self.pumpIDs):
+            self.readOnePump(c_i, cmd=cmd)
 
         return ret
     
