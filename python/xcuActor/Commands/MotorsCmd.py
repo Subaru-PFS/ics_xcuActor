@@ -271,6 +271,7 @@ class MotorsCmd(object):
         moveMicrons = 'microns' in cmdKeys
         absMove = 'abs' in cmdKeys 
         piston = cmdKeys['piston'].values[0] if 'piston' in cmdKeys else None
+        force = 'force' in cmdKeys
         
         a = cmdKeys['a'].values[0] if 'a' in cmdKeys else None
         b = cmdKeys['b'].values[0] if 'b' in cmdKeys else None
@@ -293,12 +294,21 @@ class MotorsCmd(object):
 
         if not moveMicrons:
             # Only allow integer steps
-            if int(a) != a or int(b) != b or int(c) != c:
+            if ((a is not None and int(a) != a) or
+                (b is not None and int(b) != b) or
+                (c is not None and int(c) != c)):
                 cmd.fail('text="steps must be integral"')
                 return
-            a = int(a)
-            b = int(b)
-            c = int(c)
+
+        self.motorStatus(cmd, doFinish=False)
+        
+        if force:
+            cmd.warn('text="YOU ARE FORCING A MOVE!!!"')
+        else:
+            for i, ax in enumerate([a,b,c]):
+                if ax is not None and self.status[i] != 'OK':
+                    cmd.fail('text="axis %s (at least) needs to be homed"' % chr((i + ord('a'))))
+                    return
             
         if piston is not None:
             a = b = c = piston
