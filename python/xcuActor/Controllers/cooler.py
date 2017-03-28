@@ -4,6 +4,8 @@ import time
 
 import numpy as np
 
+from opscore.utility.qstr import qstr
+
 import xcuActor.Controllers.bufferedSocket as bufferedSocket
 reload(bufferedSocket)
 
@@ -213,7 +215,7 @@ class cooler(object):
             else:
                 call = cmd.warn
             call('coolerStatus=%s,0x%02x, %s, %g,%g,%g' % (mode,
-                                                           errorMask, errorString,
+                                                           errorMask, qstr(errorString),
                                                            minPower, maxPower, power))
             cmd.inform('coolerTemps=%g,%g,%g, %g' % (setTemp,
                                                      rejectTemp, tipTemp,
