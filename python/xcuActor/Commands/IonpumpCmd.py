@@ -24,13 +24,15 @@ class IonpumpCmd(object):
             ('ionpump', 'monitor <period>', self.monitor),
             ('ionpump', 'status', self.status),
             ('ionpump', 'off', self.off),
-            ('ionpump', 'on', self.on),
+            ('ionpump', 'on [<spam>]', self.on),
         ]
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("xcu_ionpump", (1, 1),
                                         keys.Key("period", types.Int(),
                                                  help='how often to poll for status'),
+                                        keys.Key("spam", types.Int(),
+                                                 help='how many times to poll for status'),
 
                                         )
 
@@ -84,13 +86,16 @@ class IonpumpCmd(object):
         cmd.finish()
         
     def on(self, cmd=None):
+        cmdArgs = cmd.cmd.keywords
+        
         npumps = self.actor.controllers['ionpump'].npumps
         ret = self.actor.controllers['ionpump'].on(cmd)
         if '5' in ret:
             cmd.fail('text="ion pump controller is in LOCAL mode!"')
             return
         
-        for ii in range(100):
+        spam = cmdArgs['spam'].values[0] if 'spam' in cmdArgs else 0
+        for ii in range(spam):
             for i in range(npumps):
                 self.actor.controllers['ionpump'].readOnePump(i, cmd=cmd)
         cmd.finish()
