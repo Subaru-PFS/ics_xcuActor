@@ -13,7 +13,7 @@ class MotorsCmd(object):
     runCurrent = 70   # percentage of controller peak current 
     holdCurrent = 0   
     microstepping = 16   # Fixed
-    homeDistance = 5000 * microstepping # max steps for homing
+    homeDistance = 4000 * microstepping # max steps for homing
 
     stepsPerRev = 200
     microstepsPerRev = microstepping * stepsPerRev
