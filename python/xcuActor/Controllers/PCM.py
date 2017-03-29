@@ -138,7 +138,7 @@ class PCM(object):
             if not e.message.startswith('no response to command:'):
                 raise
             cmd.warn('text="restarting idle wait: %s"' % (e))
-            time.sleep(1.0)
+            time.sleep(2.0)
             return self._waitForIdle(maxTime=1.0, cmd=cmd)
 
     def motorsCmd(self, cmdStr, waitForIdle=False, returnAfterIdle=False, maxTime=10.0, waitTime=1.0, cmd=None):
