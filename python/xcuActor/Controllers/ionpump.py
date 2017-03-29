@@ -184,6 +184,12 @@ class ionpump(object):
     def readEnabled(self, channel):
         reply = self.sendReadCommand(10 + channel)
         return int(reply)
+
+    
+    def readError(self, channel):
+        retCmd = self.sendWriteCommand(505, '%d' % (channel))
+        reply = self.sendReadCommand(206)
+        return int(reply)
     
     def readOnePump(self, channelNum, cmd=None):
         channel = self.pumpIDs[channelNum]
@@ -193,11 +199,17 @@ class ionpump(object):
         A = self.readCurrent(channel)
         p = self.readPressure(channel)
         t = self.readTemp(channel)
-            
+
+        err = self.readError(0)
+        
         if cmd is not None:
             cmd.inform('ionPump%d=%d,%g,%g,%g, %g' % (channelNum+1,
                                                       enabled,
                                                       V,A,t,p))
-
+            if err > 0:
+                cmd.warn('ionPump%dErrors=0x%02x,%s' % (channelNum+1, err, 'ERROR'))
+            else:
+                cmd.inform('ionPump%dErrors=0x%02x,%s' % (channelNum+1, err, 'OK'))
+                
         return enabled,V,A,p
             
