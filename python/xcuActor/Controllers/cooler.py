@@ -4,6 +4,8 @@ import time
 
 import numpy as np
 
+from opscore.utility.qstr import qstr
+
 import xcuActor.Controllers.bufferedSocket as bufferedSocket
 reload(bufferedSocket)
 
@@ -105,11 +107,11 @@ class cooler(object):
 
         return reply
 
-    def getOneResponse(self, sock=None, cmd=None):
+    def getOneResponse(self, sock=None, cmd=None, timeout=None):
         if sock is None:
             sock = self.connectSock(cmd)
             
-        ret = self.ioBuffer.getOneResponse(sock=sock, cmd=cmd)
+        ret = self.ioBuffer.getOneResponse(sock=sock, timeout=timeout, cmd=cmd)
         reply = ret.strip()
         
         self.logger.debug('received %r', reply)
@@ -215,7 +217,7 @@ class cooler(object):
             s = self.connectSock(cmd)
 
             while True:
-                ret = self.getOneResponse(sock=s, cmd=None)
+                ret = self.getOneResponse(sock=s, timeout=timeout, cmd=None)
                 if not ret:
                     break
                 retLines.append(ret)
