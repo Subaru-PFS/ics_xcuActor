@@ -64,6 +64,11 @@ class MotorsCmd(object):
 
         self._clearStatus()
 
+        try:
+            self.brokenLAMr1A = self.actor.config.getboolean('hacks', 'brokenLAMr1A')
+        except:
+            self.brokenLAMr1A = False
+
     def _clearStatus(self):
         self.status = ["Unknown", "Unknown", "Unknown"]
         self.positions = [0, 0, 0]
@@ -137,7 +142,7 @@ class MotorsCmd(object):
                 microns = float(zeroedCnt) / float(self.c_microns_to_microsteps)
 
             # Declare axis good unless at/beyond any limit or previous suspect.
-            status = "OK" if (self.status[m-1] != 'Unknown' and
+            status = "OK" if ((self.brokenLAMr1A and m == 1 or self.status[m-1] != 'Unknown') and
                               stepCnt >= 100 and
                               not farSwitch and
                               not homeSwitch) else "Unknown"
@@ -305,7 +310,11 @@ class MotorsCmd(object):
         if force:
             cmd.warn('text="YOU ARE FORCING A MOVE!!!"')
         else:
-            for i, ax in enumerate([a,b,c]):
+            if self.brokenLAMr1A:
+                axesToTest = [b,c] 
+            else:
+                axesToTest = [a,b,c] 
+            for i, ax in enumerate(axesToTest):
                 if ax is not None and self.status[i] != 'OK':
                     cmd.fail('text="axis %s (at least) needs to be homed"' % chr((i + ord('a'))))
                     return
