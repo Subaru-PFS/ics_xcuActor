@@ -201,9 +201,14 @@ class cooler(object):
     def getTemps(self, cmd=None):
         mode = self.sendOneCommand('COOLER', doClose=False, cmd=cmd)
         errorMask = int(self.sendOneCommand('ERROR', doClose=False, cmd=cmd))
-        maxPower = float(self.sendOneCommand('E', doClose=False, cmd=cmd))
-        minPower = float(self.getOneResponse(cmd=cmd))
-        power = float(self.getOneResponse(cmd=cmd))
+        try:
+            maxPower = float(self.sendOneCommand('E', doClose=False, cmd=cmd))
+            minPower = float(self.getOneResponse(cmd=cmd))
+            power = float(self.getOneResponse(cmd=cmd))
+        except ValueError:
+            maxPower = np.nan
+            minPower = np.nan
+            power = np.nan
         tipTemp = float(self.sendOneCommand('TC', doClose=False, cmd=cmd))
         rejectTemp = float(self.sendOneCommand('TEMP2', doClose=False, cmd=cmd))
         setTemp = float(self.sendOneCommand('TTARGET', cmd=cmd))
