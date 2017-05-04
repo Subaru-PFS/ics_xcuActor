@@ -218,31 +218,44 @@ class MotorsCmd(object):
         initCmd = "aM%dn2f0F0V%dh%dm%dR"
 
         return initCmd % (axis, self.velocity, self.holdCurrent, self.runCurrent)
-    
+
+    def initOneAxis(self, axis, cmd, doClear=True):
+        """ Re-initialize the given axis.
+
+        Args
+        ----
+          axis : 1..3, a..c
+            axis ID
+          doClear : bool
+            if set, mark the position as unknown.
+        """
+        
+        m = self.motorID(axis)
+        if doClear:
+            self.status[m-1] = "Unknown"
+            self.positions[m-1] = 0
+
+        initCmd = self._getInitString(m)
+        errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(initCmd,
+                                                                      cmd=cmd)
+        if errCode != "OK":
+            raise RuntimeError("Failed to initialize axis %d: %s" % (m, errCode))
+
     def initCcd(self, cmd):
         """ Initialize all CCD motor axes: set scales and limits, etc. """
 
         self._clearStatus()
-        
-        initCmd2 = ""
-        for m in 1,2,3:
-            initCmd = self._getInitString(m)
-            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(initCmd,
-                                                                          cmd=cmd)
-            if errCode != "OK":
-                cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
-                return
-            if initCmd2:
-                errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(initCmd2 % (m), cmd=cmd)
-                if errCode != "OK":
-                    cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
-                    return
-        cmd.finish()
+
+        try:
+            for m in 1,2,3:
+                self.initOneAxis(m, cmd)
+        finally:
+            self.motorStatus(cmd)
 
     def storePowerOnParameters(self, cmd):
         """ Initialize the boot all CCD motor axes: set scales and limits, etc. """
 
-        s0instruction = "s0e1M500e2M500e3R" # contoller executes stored programs 1,2 & 3
+        s0instruction = "s0e1M500e2M500e3M500R" # contoller executes stored programs 1,2, and 3
         motorParams = "s%d%s"
         
         cmd.inform('text="burning in init commands register 0"')
