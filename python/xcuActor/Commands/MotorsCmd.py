@@ -554,11 +554,14 @@ class MotorsCmd(object):
                                       int(b) if b is not None else '',
                                       int(c) if c is not None else '')
 
+
+        maxTime = self._calcMoveTime(maxDistance) + 2.0
+        cmd.diag('text="maxDistance=%d maxTime=%0.1f"' % (maxDistance, maxTime))
         try:
             errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(cmdStr,
                                                                           waitForIdle=True,
                                                                           returnAfterIdle=True,
-                                                                          maxTime=self._calcMoveTime(maxDistance) + 3.0,
+                                                                          maxTime=maxTime,
                                                                           cmd=cmd)
         except Exception as e:
             errCode = "uncaught error: %s" % (e)
