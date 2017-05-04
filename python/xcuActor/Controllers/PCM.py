@@ -27,7 +27,7 @@ class PCM(object):
     def stop(self, cmd=None):
         pass
 
-    def sendOneCommand(self, cmdStr, cmd=None):
+    def sendOneCommand(self, cmdStr, timeout=2.0, cmd=None):
         fullCmd = "%s%s" % (cmdStr, self.EOL)
         self.logger.debug('sending %r', cmdStr)
         if cmd is not None:
@@ -35,7 +35,7 @@ class PCM(object):
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(1.0)
+            s.settimeout(timeout)
         except socket.error as e:
             self.logger.error('text="failed to create socket to PCM: %s"' % (e))
             raise
@@ -68,8 +68,8 @@ class PCM(object):
         if cmd is not None:
             cmd.inform('powerNames=%s' % (self.powerPorts))
             
-    def pcmCmd(self, cmdStr, cmd=None):
-        return self.sendOneCommand(cmdStr, cmd=cmd)
+    def pcmCmd(self, cmdStr, timeout=None, cmd=None):
+        return self.sendOneCommand(cmdStr, timeout=timeout, cmd=cmd)
     
     def powerCmd(self, system, turnOn=True, cmd=None):
         try:
@@ -112,7 +112,7 @@ class PCM(object):
 
     def _waitForIdle(self, maxTime=15.0, cmd=None):
         if cmd is not None:
-            cmd.diag('text="waiting %0.3fs for for idle"' % (maxTime))
+            cmd.diag('text="waiting %0.3fs for idle"' % (maxTime))
         t0 = time.time()
         t1 = time.time()
         while True:
@@ -137,44 +137,45 @@ class PCM(object):
         except RuntimeError as e:
             if not e.message.startswith('no response to command:'):
                 raise
-            cmd.warn('text="restarting idle wait: %s"' % (e))
-            time.sleep(2.0)
+            cmd.diag('text="restarting idle wait: %s"' % (e))
+            time.sleep(0.25)
             return self._waitForIdle(maxTime=1.0, cmd=cmd)
 
-    def motorsCmd(self, cmdStr, waitForIdle=False, returnAfterIdle=False, maxTime=10.0, waitTime=1.0, cmd=None):
+    def motorsCmd(self, cmdStr,
+                  waitForIdle=False, returnAfterIdle=False,
+                  maxTime=10.0, waitTime=1.0, cmd=None):
         if waitForIdle:
             ok = self.waitForIdle(maxTime=waitTime, cmd=cmd)
-
+            if not ok:
+                return "timed out when waiting for idle controller", True, ''
+            
         fullCmd = "~@,T%d,/1%s" % (int(maxTime*1000), cmdStr)
         
         ret = self.sendOneCommand(fullCmd, cmd=cmd)
         errCode, status, busy, rest = self.parseMotorResponse(ret)
-        ok = errCode == 0
 
-        if ok:
-            errStr = "OK"
-        else:
-            errStrings = ["OK",
-                          "Init Error",
-                          "Bad Command",
-                          "Bad Operand",
-                          "Code#4",
-                          "Communications Error",
-                          "Code#6",
-                          "Not Initialized",
-                          "Code#8",
-                          "Overload",
-                          "Code#10",
-                          "Move Not Allowed",
-                          "Code#12",
-                          "Code#13",
-                          "Code#14",
-                          "Controller Busy"]
-            try:
-                errStr = errStrings[errCode]
-            except IndexError:
-                errStr = errCode
-                
+        errStrings = ["OK",
+                      "Init Error",
+                      "Bad Command",
+                      "Bad Operand",
+                      "Code#4",
+                      "Communications Error",
+                      "Code#6",
+                      "Not Initialized",
+                      "Code#8",
+                      "Overload",
+                      "Code#10",
+                      "Move Not Allowed",
+                      "Code#12",
+                      "Code#13",
+                      "Code#14",
+                      "Controller Busy"]
+        try:
+            errStr = errStrings[errCode]
+        except IndexError:
+            errStr = errCode
+
+        if errStr != 'OK':
             return errStr, busy, rest
 
         if returnAfterIdle:
@@ -183,7 +184,8 @@ class PCM(object):
             busy = not idle
             if not idle:
                 self.logger.warn('text="motor controller busy for %s after motor command"' % (maxTime))
-
+                errStr = "timed out while waiting for idle controller"
+                
         return errStr, busy, rest
 
     def gaugeCrc(self, s):
