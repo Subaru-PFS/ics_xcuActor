@@ -531,20 +531,20 @@ class MotorsCmd(object):
         if absMove:
             if a is not None:
                 a += self.zeroOffset
-                maxDistance = max(maxDistance, abs(a - self.positions[0]))
+                maxDistance = max(maxDistance, abs(a - self.positions[0]*self.microstepping))
             if b is not None:
                 b += self.zeroOffset
-                maxDistance = max(maxDistance, abs(b - self.positions[1]))
+                maxDistance = max(maxDistance, abs(b - self.positions[1]*self.microstepping))
             if c is not None:
                 c += self.zeroOffset
-                maxDistance = max(maxDistance, abs(c - self.positions[2]))
+                maxDistance = max(maxDistance, abs(c - self.positions[2]*self.microstepping))
             
             cmdStr = "A%s,%s,%s,R" % (int(a) if a is not None else '',
                                       int(b) if b is not None else '',
                                       int(c) if c is not None else '')
         else:
             if a is not None:
-                maxDistance = abs(a)
+                maxDistance = max(maxDistance, abs(a))
             if b is not None:
                 maxDistance = max(maxDistance, abs(b))
             if c is not None:
