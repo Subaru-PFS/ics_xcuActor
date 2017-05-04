@@ -9,11 +9,10 @@ from opscore.utility.qstr import qstr
 class MotorsCmd(object):
     
     # MOTOR PARAMETERS FOR INITIALIZATION used by initCcd    
-    velocity = 7400   # microSteps per second
-    runCurrent = 70   # percentage of controller peak current 
+    velocity = 7400             # microSteps per second
+    runCurrent = 70             # percentage of controller peak current 
     holdCurrent = 0   
-    microstepping = 16   # Fixed
-    homeDistance = 4000 * microstepping # max steps for homing
+    microstepping = 16          # Fixed with our controller.
 
     stepsPerRev = 200
     microstepsPerRev = microstepping * stepsPerRev
@@ -29,6 +28,8 @@ class MotorsCmd(object):
     b_microns_to_microsteps = b_microns_to_steps * microstepping
     c_microns_to_microsteps = c_microns_to_steps * microstepping
 
+    homeDistance = 400 * a_microns_to_microsteps # max steps for homing
+    
     def __init__(self, actor):
         # This lets us access the rest of the actor.
         self.actor = actor
