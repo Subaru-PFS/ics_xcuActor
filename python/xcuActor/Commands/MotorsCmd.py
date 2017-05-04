@@ -98,9 +98,6 @@ class MotorsCmd(object):
         else:
             cmd.finish('text="returned %s"' % (rest))
 
-    def motorStatus(self, cmd, doFinish=True):
-        """ query all CCD motor axes """
-
     def _getSwitches(self, axis, cmd):
         """ Fetch the switch positions for the given axis
 
@@ -456,10 +453,11 @@ class MotorsCmd(object):
     def moveCcd(self, cmd):
         """ Adjust the position of the detector motors. 
         Arguments:
-            a=ticks b=ticks c=ticks    - one or more motor commands, in ticks.
+            a=num b=num c=num     - one or more motor commands, in ticks.
               or
-            piston=ticks
+            piston=num
             abs           - if set, go to absolute position.
+            microns       - if set, move in microns (at the FPA) instead of steps.
         """
 
         cmdKeys = cmd.cmd.keywords
