@@ -564,13 +564,16 @@ class MotorsCmd(object):
             errCode = "uncaught error: %s" % (e)
             
         if errCode != "OK":
+            self.haltMotors(cmd, doFinish=False)
             self.motorStatus(cmd, doFinish=False)
             cmd.fail('text="move failed with code=%s"' % (errCode))
         else:
             self.motorStatus(cmd)
 
-    def haltMotors(self, cmd):
+    def haltMotors(self, cmd, doFinish=True):
         errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd('T', cmd=cmd)
-        cmd.finish()
+        cmd.warn('text="halted motors!"')
+        if doFinish:
+            cmd.finish()
         
         
