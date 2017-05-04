@@ -153,32 +153,29 @@ class PCM(object):
         
         ret = self.sendOneCommand(fullCmd, cmd=cmd)
         errCode, status, busy, rest = self.parseMotorResponse(ret)
-        ok = errCode == 0
 
-        if ok:
-            errStr = "OK"
-        else:
-            errStrings = ["OK",
-                          "Init Error",
-                          "Bad Command",
-                          "Bad Operand",
-                          "Code#4",
-                          "Communications Error",
-                          "Code#6",
-                          "Not Initialized",
-                          "Code#8",
-                          "Overload",
-                          "Code#10",
-                          "Move Not Allowed",
-                          "Code#12",
-                          "Code#13",
-                          "Code#14",
-                          "Controller Busy"]
-            try:
-                errStr = errStrings[errCode]
-            except IndexError:
-                errStr = errCode
-                
+        errStrings = ["OK",
+                      "Init Error",
+                      "Bad Command",
+                      "Bad Operand",
+                      "Code#4",
+                      "Communications Error",
+                      "Code#6",
+                      "Not Initialized",
+                      "Code#8",
+                      "Overload",
+                      "Code#10",
+                      "Move Not Allowed",
+                      "Code#12",
+                      "Code#13",
+                      "Code#14",
+                      "Controller Busy"]
+        try:
+            errStr = errStrings[errCode]
+        except IndexError:
+            errStr = errCode
+
+        if errStr != 'OK':
             return errStr, busy, rest
 
         if returnAfterIdle:
