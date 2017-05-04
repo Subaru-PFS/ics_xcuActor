@@ -96,37 +96,72 @@ class MotorsCmd(object):
     def motorStatus(self, cmd, doFinish=True):
         """ query all CCD motor axes """
 
-        self.actor.controllers['PCM'].waitForIdle(maxTime=2.0, cmd=cmd)
-        
-        getLimitCmd = "?aa%d" # F1 reverses the home direction
-        getCountsCmd = "?0"
-        for m in 1,2,3:
-            # added this to select axis
-            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd('aM%dR' % (m), cmd=cmd)
-            if errCode != "OK":
-                cmd.fail('text="selection of axis %d failed with code=%s"' % (m, errCode))
-    
-            errCode, busy, rawLim = self.actor.controllers['PCM'].motorsCmd((getLimitCmd % (m)), cmd=cmd)
-            if errCode != "OK":
-                cmd.fail('text="query of axis %d limits failed with code=%s"' % (m, errCode))
-                return
-                # rawLimit data  is ADC values from 0 to 16384... binary based on threshold
-            
-            farSwitch = 0
-            homeSwitch = 0            
-            rl = rawLim.split(',')    
-            if int(rl[0]) > 8000:
-                farSwitch = 1    
+    def _getSwitches(self, axis, cmd):
+        """ Fetch the switch positions for the given axis
 
-            if int(rl[1]) > 8000:
-                homeSwitch = 1
+        Args
+        ----
+        axis - {a,b,c,1,2,3}
+
+
+        Returns
+        -------
+        low, high - int
+          The states of the given switches. 0=clear, 1=set
+
+        """
+        getLimitCmd = "?aa%d"
+
+        m = self.motorID(axis)
+        
+        errCode, busy, rawLim = self.actor.controllers['PCM'].motorsCmd((getLimitCmd % (m)),
+                                                                        maxTime=2.0,
+                                                                        cmd=cmd)
+        if errCode != "OK":
+            raise RuntimeError("query of axis %d limits failed with code=%s and result=%s" %
+                               (m, errCode, rawLim))
+            
+        farSwitch = 0
+        homeSwitch = 0            
+        rl = rawLim.split(',')    
+        if int(rl[0]) > 8000:
+            farSwitch = 1    
+
+        if int(rl[1]) > 8000:
+            homeSwitch = 1
                 
-            if getCountsCmd:
-                errCode, busy, rawCnt = self.actor.controllers['PCM'].motorsCmd(getCountsCmd, cmd=cmd)
-                if errCode != "OK":
-                    cmd.fail('text="query of axis %d counts failed with code=%s"' % (m, errCode))
-                    return
-            rawCnt = int(rawCnt)
+        return homeSwitch, farSwitch
+        
+    def _getPositions(self, cmd):
+        """ Fetch all axis positions
+
+        Returns
+        -------
+        
+        The states of the three axis positions.
+
+        """
+        
+        getPosCmd = "?aA"
+
+        errCode, busy, rawPos = self.actor.controllers['PCM'].motorsCmd((getPosCmd), cmd=cmd)
+        if errCode != "OK":
+            raise RuntimeError("query of axis positions failed with code=%s" % (errCode))
+            
+        allPos = [int(p) for p in rawPos.split(',')]
+        return allPos[:3]
+    
+    def motorStatus(self, cmd, doFinish=True):
+        """ query all CCD motor axes """
+
+        self.actor.controllers['PCM'].waitForIdle(maxTime=1.0, cmd=cmd)
+        
+        positions = self._getPositions(cmd)
+        for m_i in range(3):
+            m = m_i + 1
+            
+            homeSwitch, farSwitch = self._getSwitches(m, cmd)
+            rawCnt = positions[m_i]
             zeroedCnt = rawCnt - self.zeroOffset
             
             stepCnt = rawCnt // self.microstepping
