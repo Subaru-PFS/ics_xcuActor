@@ -44,8 +44,11 @@ class MotorsCmd(object):
             ('motors', 'status', self.motorStatus),
             ('motors', 'initDefaults', self.storePowerOnParameters),
             ('motors', 'initCcd', self.initCcd),
+            ('motors', 'init', self.initCcd),
             ('motors', 'homeCcd [<axes>]', self.homeCcd),
+            ('motors', 'home [<axes>]', self.homeCcd),
             ('motors', 'moveCcd [<a>] [<b>] [<c>] [<piston>] [@(microns)] [@(abs)] [@(force)]', self.moveCcd),
+            ('motors', 'move [<a>] [<b>] [<c>] [<piston>] [@(microns)] [@(abs)] [@(force)]', self.moveCcd),
             ('motors', 'halt', self.haltMotors),
         ]
 
