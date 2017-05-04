@@ -419,20 +419,36 @@ class MotorsCmd(object):
             cmd.fail('txt="unknown axis name in %r: %s"' % (_axes, e))
             return
 
-        maxTime = self._calcMoveTime(self.homeDistance) + 5.0
+        maxTime = self._calcMoveTime(self.homeDistance) + 2.0
         for m in axes:
             self.status[m-1] = "Homing"
             self.positions[m-1] = 0
             
             cmd.inform('text="homing axis %s: maxTime=%0.2f"' % (m, maxTime))
-            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(homeCmd % (m, self.homeDistance), 
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(homeCmd1 % (m),
                                                                           waitForIdle=True,
                                                                           returnAfterIdle=True,
                                                                           maxTime=maxTime,
                                                                           cmd=cmd)
             if errCode != "OK":
+                self.haltMotors(cmd, doFinish=False)
+                self.status[m-1] = "Unknown"
+                self.motorStatus(cmd, doFinish=False)
                 cmd.fail('text="home of axis %d failed with code=%s"' % (m, errCode))
                 return
+            homeSwitch, _ = self._getSwitches(m, cmd)
+            if not homeSwitch:
+                cmd.fail('text="home of axis %d did not leave home switch in."' % (m))
+                return
+                
+            cmd.diag('text="home switch for motor %d hit"' % (m))
+
+        for m in axes:
+            ok = self._moveToSwitch(m, cmd)
+            if ok:
+                self.status[m-1] = "OK"
+                self._setPosition(m, cmd, 100)
+                
         cmd.inform('text="axes homed: %s"' % (axes))
 
         self.motorStatus(cmd)
