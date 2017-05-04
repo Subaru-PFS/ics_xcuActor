@@ -50,6 +50,7 @@ class MotorsCmd(object):
             ('motors', 'moveCcd [<a>] [<b>] [<c>] [<piston>] [@(microns)] [@(abs)] [@(force)]', self.moveCcd),
             ('motors', 'move [<a>] [<b>] [<c>] [<piston>] [@(microns)] [@(abs)] [@(force)]', self.moveCcd),
             ('motors', 'halt', self.haltMotors),
+            ('motors', '@(toSwitch) @(a|b|c) @(home|far) @(set|clear)', self.toSwitch),
         ]
 
         # Define typed command arguments for the above commands.
@@ -270,21 +271,131 @@ class MotorsCmd(object):
             if errCode != "OK":
                 cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
                 return
-        
+
         cmd.finish()
 
     def _calcMoveTime(self, distance):
         return distance/self.velocity
+
+    def _moveToSwitch(self, axis, cmd, switch=1, untilClear=True, maxDistance=50,
+                      velocity=None, stepping=None):
+        """ Move until an axis's switch changes state.
+
+        Args
+        ----
+          axis : 1..3 or a..c
+             The axis ID
+          switch : 1 or 2
+             Home or far limit switch.
+          untilClear : bool
+             whether to stop when switch clears or sets.
+          maxDistance : int 
+             how far to move, in full steps.
+          velocity : int
+             microsteps/sec (default = 10 full steps/s)
+          stepping : int
+             microsteps (default = 1 full step)
+        """
+
+        m = self.motorID(axis)
+        toSet = not untilClear
+
+        if stepping is None:
+            stepping = self.microstepping
+        if velocity is None:
+            velocity = self.microstepping * 10
+            
+        motionCmd = "P%d" % stepping if stepping > 0 else "D%d" % -stepping
+        moveCmd = "aM%dV%dgS%d%d%d%sG%dR" % (m, velocity,
+                                             m, toSet, switch,
+                                             motionCmd,
+                                             maxDistance)
+        try:
+            maxTime = self._calcMoveTime(maxDistance) + 0.1*maxDistance + 5.0
+            cmd.inform('text="taking axis %s %s %s switch: maxTime=%0.2f"' %
+                       (m,
+                        "off" if untilClear else "onto",
+                        "home" if switch is 1 else "far limit",
+                        maxTime))
+
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(moveCmd,
+                                                                          waitForIdle=True,
+                                                                          returnAfterIdle=True,
+                                                                          maxTime=maxTime,
+                                                                          cmd=cmd)
+            if errCode != "OK":
+                self.haltMotors(cmd, doFinish=False)
+                self.status[m-1] = "Unknown"
+                self.motorStatus(cmd, doFinish=False)
+                cmd.warn('text="axis %d failed with code=%s"' % (m, errCode))
+                return False
+
+            switches = self._getSwitches(m, cmd)
+            if switches[switch-1] != toSet:
+                cmd.warn('text="axis %d did not %s %s switch"' % (m,
+                                                                  "clear" if untilClear else "set",
+                                                                  "home" if switch is 1 else "far limit"))
+                return False
+                
+        finally:
+            self.initOneAxis(m, cmd, doClear=False)
+            return True
         
+        return True
+    
+    def _setPosition(self, axis, cmd, position):
+        """ Define the axis's current position as being at a given step.
+
+        Args
+        ----
+          axis : 1..3 or a..c
+             The axis ID
+          position : int
+             Full steps for the current position.
+        """
+
+        m = self.motorID(axis)
+        moveCmd = "aM%dz%dR" % (m, position*self.microstepping)
+        
+        errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(moveCmd,
+                                                                      waitForIdle=True,
+                                                                      returnAfterIdle=True,
+                                                                      maxTime=1.0,
+                                                                      cmd=cmd)
+        if errCode != "OK":
+            raise RuntimeError("WTF - could not set current position")
+
+    def toSwitch(self, cmd):
+        """ Move until a switch state change
+        """
+
+        cmdKeys = cmd.cmd.keywords
+        cmd.diag('text="keys: %s"' % (cmdKeys))
+        for ax in 'a','b','c':
+            if ax in cmdKeys:
+                axis = ax
+        axis = self.motorID(axis)
+        switch = 1 if 'home' in cmdKeys else 2
+        untilClear = 'clear' in cmdKeys
+        stepping = self.microstepping
+
+        if (('home' in cmdKeys and 'set' in cmdKeys or
+             'far' in cmdKeys and 'clear' in cmdKeys)):
+            stepping *= -1
+        
+        self._moveToSwitch(axis, cmd, untilClear=untilClear,
+                           switch=switch, stepping=stepping)
+        self.motorStatus(cmd)
+                           
     def homeCcd(self, cmd):
         """ Home CCD motor axes.
 
-        Individual axes can be specified with axes=A,B
+        The axes are homed one after the other, after which they are
+        pulled off the home switch. That position is defined to be 100 steps.
 
-        The timeouts are currently too short.
         """
 
-        homeCmd = "aM%dZ%d" + "gS03P1G200z%dR" % (self.zeroOffset)
+        homeCmd1 = "aM%d" + "Z%dR" % (self.homeDistance)
         
         cmdKeys = cmd.cmd.keywords
         _axes = cmdKeys['axes'].values if 'axes' in cmdKeys else [1,2,3]
