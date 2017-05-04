@@ -178,14 +178,25 @@ class MotorsCmd(object):
                 microns = float(zeroedCnt) / float(self.c_microns_to_microsteps)
 
             # Declare axis good unless at/beyond any limit or previous suspect.
-            status = "OK" if ((self.brokenLAMr1A and m == 1 or self.status[m-1] != 'Unknown') and
-                              stepCnt >= 100 and
-                              not farSwitch and
-                              not homeSwitch) else "Unknown"
+            if (self.brokenLAMr1A and m == 1):
+                status = 'OK' if self.status[m-1] != 'Unknown' else 'Unknown'
+            elif (self.status[m-1] != 'Unknown' and
+                  stepCnt >= 100 and
+                  not farSwitch and
+                  not homeSwitch):
+                status = "OK"
+            else:
+                status = "Unknown"
+                
             self.status[m-1] = status
             self.positions[m-1] = stepCnt
-            cmd.inform('ccdMotor%d=%s,%s,%s,%s,%0.2f' % (m, status, homeSwitch, farSwitch, stepCnt, microns))
-
+            if status != 'OK':
+                report = cmd.warn
+            else:
+                report = cmd.inform
+            report('ccdMotor%d=%s,%s,%s,%s,%0.2f' % (m, status,
+                                                     homeSwitch, farSwitch,
+                                                     stepCnt, microns))
         if doFinish:
             cmd.finish()    
 
@@ -338,11 +349,12 @@ class MotorsCmd(object):
             if ((a is not None and int(a) != a) or
                 (b is not None and int(b) != b) or
                 (c is not None and int(c) != c)):
+                
                 cmd.fail('text="steps must be integral"')
                 return
 
         self.motorStatus(cmd, doFinish=False)
-        
+
         if force:
             cmd.warn('text="YOU ARE FORCING A MOVE!!!"')
         else:
@@ -354,7 +366,7 @@ class MotorsCmd(object):
                 if ax is not None and self.status[i] != 'OK':
                     cmd.fail('text="axis %s (at least) needs to be homed"' % chr((i + ord('a'))))
                     return
-            
+
         if piston is not None:
             a = b = c = piston
         if moveMicrons:
