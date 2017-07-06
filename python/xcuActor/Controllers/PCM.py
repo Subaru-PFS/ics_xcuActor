@@ -1,14 +1,20 @@
+from __future__ import absolute_import
+
 import logging
 import socket
 import time
 
-class PCM(object):
+from xcuActor.Controllers import pfeiffer
+reload(pfeiffer)
+
+class PCM(pfeiffer.Pfeiffer):
     powerPorts = ('motors', 'gauge', 'cooler', 'temps',
                   'bee', 'fee', 'interlock', 'heaters')
     
-    def __init__(self, actor=None, name='unknown',
+    def __init__(self, actor=None, name='PCM',
                  loglevel=logging.INFO, host='10.1.1.4', port=1000):
 
+        self.name = name
         self.logger = logging.getLogger()
         self.logger.setLevel(loglevel)
         self.EOL = '\r\n'
@@ -21,6 +27,8 @@ class PCM(object):
             self.host = host
             self.port = port
 
+        pfeiffer.Pfeiffer.__init__(self)
+        
     def start(self):
         pass
 
@@ -188,26 +196,16 @@ class PCM(object):
                 
         return errStr, busy, rest
 
-    def gaugeCrc(self, s):
-        return sum([ord(c) for c in s]) % 256
-
     def gaugeRawCmd(self, cmdStr, cmd=None):
-        crc = self.gaugeCrc(cmdStr)
-        pcmCmd = '~@,T1500,'
-        cmdStr = '%s%s%03d' % (pcmCmd, cmdStr, crc)
+        if True:
+            gaugeStr = pfeiffer.Pfeiffer.gaugeMakeRawCmd(self, cmdStr, cmd=cmd)
+            pcmCmd = '~@,T1500,'
+            cmdStr = pcmCmd + gaugeStr
+        else:
+            crc = self.gaugeCrc(cmdStr)
+            pcmCmd = '~@,T1500,'
+            cmdStr = '%s%s%03d' % (pcmCmd, cmdStr, crc)
 
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
 
         return ret
-
-    def gaugeStatus(self, cmd=None):
-        data_out = self.gaugeRawCmd('0010074002=?', cmd=cmd)
-        
-        mantissa = int(data_out[10:14]) * 10 ** -3 
-        exponent = int(data_out[14:16]) - 20
-
-        # convert to torr
-        reading = 0.750061683 * (mantissa * 10**exponent) 
-
-        return reading
-        

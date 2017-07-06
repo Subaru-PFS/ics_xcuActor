@@ -1,8 +1,13 @@
+from __future__ import absolute_import
+
 import logging
 import socket
 import time
 
-class gauge(object):
+from xcuActor.Controllers import pfeiffer
+reload(pfeiffer)
+
+class gauge(pfeiffer.Pfeiffer):
     def __init__(self, actor, name,
                  loglevel=logging.INFO):
 
@@ -15,7 +20,8 @@ class gauge(object):
         
         self.host = self.actor.config.get(self.name, 'host')
         self.port = int(self.actor.config.get(self.name, 'port'))
-        self.busID = 1
+
+        pfeiffer.Pfeiffer.__init__(self)
         
     def start(self):
         pass
@@ -56,34 +62,12 @@ class gauge(object):
         s.close()
 
         return ret
-    
-    def gaugeCrc(self, s):
-        return sum([ord(c) for c in s]) % 256
 
     def gaugeRawCmd(self, cmdStr, cmd=None):
-        cmdStr = '%03d%s' % (self.busID, cmdStr)
-        crc = self.gaugeCrc(cmdStr)
-        cmdStr = '%s%03d' % (cmdStr, crc)
-
-        ret = self.sendOneCommand(cmdStr, cmd=cmd)
+        gaugeStr = pfeiffer.Pfeiffer.gaugeMakeRawCmd(self, cmdStr, cmd=cmd)
+        ret = self.sendOneCommand(gaugeStr, cmd=cmd)
 
         return ret
-
-    def gaugeRawQuery(self, code, cmd=None):
-        cmdStr = '00%03d02=?' % (code)
-        return self.gaugeRawCmd(cmdStr, cmd=None)
-    
-    def pressure(self, cmd=None):
-        data_out = self.gaugeRawQuery(740)
-
-        # 001 10 740 06 430022 030
-        mantissa = int(data_out[10:14]) * 10.0 ** -3 
-        exponent = int(data_out[14:16]) - 20
-
-        # convert to torr
-        reading = 0.750061683 * (mantissa * 10**exponent) 
-
-        return reading
 
     def gaugeCmd(self, cmdStr, cmd=None):
         if cmd is None:
