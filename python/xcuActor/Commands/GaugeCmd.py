@@ -19,59 +19,52 @@ class GaugeCmd(object):
         #
         self.vocab = [
             ('gauge', '@raw', self.pcmGaugeRaw),
+            ('gauge', '<setRaw>', self.setRaw),
+            ('gauge', '<getRaw>', self.getRaw),
+            
             ('gauge', 'status', self.pcmPressure),
 
         ]
 
         # Define typed command arguments for the above commands.
-        self.keys = keys.KeysDictionary("xcu_roughgauge", (1, 1),
-                                        keys.Key("query", types.Int(),
+        self.keys = keys.KeysDictionary("xcu_gauge", (1, 1),
+                                        keys.Key("getRaw", types.Int(),
                                                  help='the MPT200 query'),
+                                        keys.Key("setRaw",
+                                                 types.CompoundValueType(types.Int(help='the MPT200 code'),
+                                                                         types.String(help='the MPT200 value'))),
                                         )
         
-    def gaugeRaw(self, cmd):
-        """ Send a raw command to the roughGauge controller. """
-
-        cmd_txt = cmd.cmd.keywords['raw'].values[0]
-        ctrlr = cmd.cmd.name
-        
-        ret = self.actor.controllers[ctrlr].gaugeCmd(cmd_txt, cmd=cmd)
-        cmd.finish('text="returned %s"' % (qstr(ret)))
-
-    def gaugeQuery(self, cmd):
-        """ Send a raw query to the roughGauge controller. """
-
-        code = cmd.cmd.keywords['query'].values[0]
-        ctrlr = cmd.cmd.name
-        
-        ret = self.actor.controllers[ctrlr].gaugeRawQuery(code, cmd=cmd)
-        cmd.finish('text=%s' % (qstr("returned %s" % ret[10:-4])))
-
-    def pressure(self, cmd):
-        """ Fetch the latest pressure reading from a rough-side ion gauge. """
-        
-        ctrlr = cmd.cmd.name
-        ret = self.actor.controllers[ctrlr].pressure(cmd=cmd)
-        cmd.finish('roughPressure%s=%g' % (ctrlr[-1], ret))
-
     def pcmPressure(self, cmd):
         """ Fetch the latest pressure reading from the cryostat ion gauge. """
 
-        ret = self.actor.controllers['PCM'].gaugeStatus(cmd=cmd)
+        ret = self.actor.controllers['PCM'].pressure(cmd=cmd)
         cmd.finish('pressure=%g' % (ret))
         
+    def getRaw(self, cmd):
+        """ Send a direct query command to the PCM's gauge controller. """
+
+        cmdCode = cmd.cmd.keywords['getRaw'].values[0]
+        
+        ret = self.actor.controllers['PCM'].gaugeRawQuery(cmdCode, cmd=cmd)
+        cmd.finish('text=%s' % (qstr("returned %r" % ret)))
+
+    def setRaw(self, cmd):
+        """ Send a direct control command to the PCM's gauge controller. """
+
+        parts = cmd.cmd.keywords['setRaw'].values[0]
+        cmdCode, cmdValue = parts
+
+        cmd.diag('text="code=%r, value=%r"' % (cmdCode, cmdValue))
+    
+        ret = self.actor.controllers['PCM'].gaugeRawSet(cmdCode, cmdValue, cmd=cmd)
+        cmd.finish('text=%s' % (qstr("returned %r" % ret)))
+
     def pcmGaugeRaw(self, cmd):
-        """ Send a raw command to the PCM's gauge controller. """
+        """ Send a raw text command to the PCM's gauge controller. """
 
         cmd_txt = cmd.cmd.keywords['raw'].values[0]
         
         ret = self.actor.controllers['PCM'].gaugeRawCmd(cmd_txt, cmd=cmd)
         cmd.finish('text="returned %s"' % (qstr(ret)))
 
-    def pcmGaugeQuery(self, cmd):
-        """ Send a raw query to the PCM's gauge controller. """
-
-        code = cmd.cmd.keywords['code'].values[0]
-        
-        ret = self.actor.controllers['PCM'].gaugeCmd(cmd_txt, cmd=cmd)
-        cmd.finish('text="returned %s"' % (qstr(ret)))
