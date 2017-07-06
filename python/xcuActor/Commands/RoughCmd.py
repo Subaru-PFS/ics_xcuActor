@@ -33,6 +33,12 @@ class RoughCmd(object):
             ('rough2 stop', '', self.stopRough),
             ('rough2 standby', '<percent>', self.standby),
             ('rough2 standby', 'off', self.standbyOff),
+
+            ('roughGauge1', '@raw', self.gaugeRaw),
+            ('roughGauge1', 'status', self.pressure),
+
+            ('roughGauge2', '@raw', self.gaugeRaw),
+            ('roughGauge2', 'status', self.pressure),
         ]
 
         # Define typed command arguments for the above commands.
@@ -98,3 +104,21 @@ class RoughCmd(object):
         ctrlr = cmd.cmd.name
         ret = self.actor.controllers[ctrlr].stopPump(cmd=cmd)
         cmd.finish('text=%s' % (','.join(ret)))
+
+    def gaugeRaw(self, cmd):
+        """ Send a raw command to a rough-side pressure gauge. """
+
+        cmd_txt = cmd.cmd.keywords['raw'].values[0]
+        ctrlr = cmd.cmd.name
+        
+        ret = self.actor.controllers[ctrlr].gaugeCmd(cmd_txt, cmd=cmd)
+        cmd.finish('text="returned %s"' % (qstr(ret)))
+
+    def pressure(self, cmd):
+        """ Fetch the latest pressure reading from a rough-side pressure gauge. """
+        
+        ctrlr = cmd.cmd.name
+        ret = self.actor.controllers[ctrlr].pressure(cmd=cmd)
+        cmd.finish('roughPressure%s=%g' % (ctrlr[-1], ret))
+
+        
