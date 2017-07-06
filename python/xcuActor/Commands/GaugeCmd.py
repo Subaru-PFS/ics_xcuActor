@@ -21,12 +21,6 @@ class GaugeCmd(object):
             ('gauge', '@raw', self.pcmGaugeRaw),
             ('gauge', 'status', self.pcmPressure),
 
-            ('roughGauge1', '@raw', self.gaugeRaw),
-            ('roughGauge1', '<query>', self.gaugeQuery),
-            ('roughGauge1', 'status', self.pressure),
-
-            ('roughGauge2', '@raw', self.gaugeRaw),
-            ('roughGauge2 status', '', self.pressure),
         ]
 
         # Define typed command arguments for the above commands.
