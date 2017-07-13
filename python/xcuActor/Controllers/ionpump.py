@@ -16,11 +16,12 @@ class ionpump(object):
         self.logger.setLevel(loglevel)
 
         self.EOL = '\r'
-        
-        self.host = self.actor.config.get(self.name, 'host')
-        self.port = int(self.actor.config.get(self.name, 'port'))
-        self.busID = int(self.actor.config.get(self.name, 'busID'))
-        self.pumpIDs = [int(ID) for ID in self.actor.config.get('ionpump', 'pumpids').split(',')]
+
+        connections = self.actor.config.get('$cam.connections.ionpump')
+        self.host = connections['host']
+        self.port = connections['port']
+        self.busID = connections['busID']
+        self.pumpIDs = connections['pumpIds']
 
     @property
     def npumps(self):
