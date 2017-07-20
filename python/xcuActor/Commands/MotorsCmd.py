@@ -287,7 +287,7 @@ class MotorsCmd(object):
     def _calcMoveTime(self, distance):
         return distance/self.velocity
 
-    def _moveToSwitch(self, axis, cmd, switch=1, untilClear=True, maxDistance=50,
+    def _moveToSwitch(self, axis, cmd, switch=1, untilClear=True, maxDistance=200,
                       velocity=None, stepping=None):
         """ Move until an axis's switch changes state.
 
