@@ -20,7 +20,9 @@ class Pfeiffer(object):
           The unconverted, but otherwise valid, value string.
 
         """
-        
+
+        resp = resp.strip()
+                        
         if len(resp) < 10:
             raise ValueError('response from %s is not long enough: %r' % (self.name,
                                                                           resp))
