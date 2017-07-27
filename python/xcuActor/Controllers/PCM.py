@@ -198,7 +198,7 @@ class PCM(pfeiffer.Pfeiffer):
 
     def gaugeRawCmd(self, cmdStr, cmd=None):
         if True:
-            gaugeStr = pfeiffer.Pfeiffer.gaugeMakeRawCmd(self, cmdStr, cmd=cmd)
+            gaugeStr = self.gaugeMakeRawCmd(cmdStr, cmd=cmd)
             pcmCmd = '~@,T1500,'
             cmdStr = pcmCmd + gaugeStr
         else:

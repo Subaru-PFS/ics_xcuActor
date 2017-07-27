@@ -64,7 +64,7 @@ class gauge(pfeiffer.Pfeiffer):
         return ret
 
     def gaugeRawCmd(self, cmdStr, cmd=None):
-        gaugeStr = pfeiffer.Pfeiffer.gaugeMakeRawCmd(self, cmdStr, cmd=cmd)
+        gaugeStr = self.gaugeMakeRawCmd(cmdStr, cmd=cmd)
         ret = self.sendOneCommand(gaugeStr, cmd=cmd)
 
         return ret
