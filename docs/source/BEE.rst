@@ -13,8 +13,9 @@ disk image loaded.
 
  1. enable the serial console. We try to do this without requiring a
     monitor, but you do need to connect a USB keyboard. As it stands
-    that requires a special feedthrough from the back of the piepan
-    which wives a female USB, and then an externally powered USB hub.
+    that requires a special P8 connector on the back of the piepan
+    which feeds a female USB for a keyboard. There is one at
+    IDG.
 
     - On powerup, hold down the DEL key for ~15s
     - 3*Right (to Boot)
@@ -35,7 +36,7 @@ disk image loaded.
 
     On a linux host, connect with something like ``miniterm.py --eol cr
     --raw socket://moxa-sp3:4001``. That would be for b3; adjust to taste.
-    
+
     The last step of the BIOS work rebooted the BEE: you should see
     booting stuff in the miniterm.py session. Again, hold down F4 from
     power up to break into the BIOS. Do that now, and note the MAC address 
@@ -103,3 +104,5 @@ disk image loaded.
     
  4. At some point, tune the BIOS settingts a bit:
 
+    - Advanced/Miscellaneous Config: Disable the second (CN30) Ethernet
+    - Advanced/Serial Port Config: Set CN8 to 2 ports
