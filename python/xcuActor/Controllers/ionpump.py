@@ -5,6 +5,7 @@ import time
 import numpy as np
 
 from opscore.utility.qstr import qstr
+from functools import reduce
 
 class ionpump(object):
     def __init__(self, actor, name,

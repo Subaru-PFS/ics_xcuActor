@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys
 import logging
 import socket
@@ -21,13 +22,13 @@ class PcmListener(DatagramProtocol):
         
     def startProtocol(self):
         # self.transport.connect(self.pcmHost, self.pcmPort)
-        print "startProtocol!"
+        print("startProtocol!")
 
     def stopProtocol(self):
-        print "stopProtocol!"
+        print("stopProtocol!")
         
     def connectionLost(self):
-        print "connectionLost!"
+        print("connectionLost!")
 
 class pcmUdp(object):
     def __init__(self, actor, name,
@@ -221,7 +222,7 @@ class pcmUdp(object):
         self.logger.info('text="wiring in listener"')
         try:
             reactor.listenUDP(self.port, pcm)
-        except Exception, e:
+        except Exception as e:
             raise RuntimeError("Failed reactor.listenUdp: %s" % (e))
 
         self.logger.info('text="wired in listener"')

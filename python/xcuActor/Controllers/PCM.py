@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from __future__ import print_function
 
 import logging
 import socket
@@ -91,10 +92,10 @@ class PCM(pfeiffer.Pfeiffer):
         return ret
 
     def powerOn(self, system):
-        print self.powerCmd(system, turnOn=True)
+        print(self.powerCmd(system, turnOn=True))
 
     def powerOff(self, system):
-        print self.powerCmd(system, turnOn=False)
+        print(self.powerCmd(system, turnOn=False))
 
     def parseMotorResponse(self, ret):
         if len(ret) < 3:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import argparse
 import logging
 import shlex
@@ -27,8 +28,8 @@ def main(argv=None):
     parser.add_argument('--debug', action='store_true')
 
     args = parser.parse_args(argv)
-    print argv
-    print args
+    print(argv)
+    print(args)
 
     if args.cam is not None:
         host = 'pcm-%s.pfs' % (args.cam)

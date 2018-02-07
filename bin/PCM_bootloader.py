@@ -2,6 +2,7 @@
 
 # Bootloader
 
+from __future__ import print_function
 import socket as skt
 import binascii
 import logging
@@ -153,7 +154,7 @@ class PCM_Bootloader(object):
                 ret = self.parseLIAResponse(raw)
 
             ret['dump'] = dump
-        except Exception, e:
+        except Exception as e:
             self.logger.warn('recv: no response. e=%s, ret=%s', e, ret)
             if ret is None:
                 ret = self.newResponse()
@@ -203,7 +204,7 @@ class PCM_Bootloader(object):
                 ret['messages'].append('%s%s' % (self.cLIA_error, msg))
                 self.errorFlag = True
 
-        except Exception, e:
+        except Exception as e:
             if LIAdata is not None:
                 msg = 'Invalid LIA response'
             else:
@@ -307,7 +308,7 @@ class PCM_Bootloader(object):
             r = self.sendUDPData(LIA_CMD, LIA_ID, hexIP)
             if r['errorFlag'] is False:
                 self.LIA_IP = IPAddress
-        except Exception, e:
+        except Exception as e:
             self.logger.error('%s%s: %s' % (self.cLIA_error, 'Invalid Address Format: %s', e))
             raise
         finally:
@@ -365,7 +366,7 @@ class PCM_Bootloader(object):
                         else:
                             attempts += 1
                     if not success:
-                        print'UPLOAD FAILED'
+                        print('UPLOAD FAILED')
                         break
             if success:
                 self.logger.info('UPLOAD COMPLETED')
@@ -512,7 +513,7 @@ def fetchNetInfo(hostname):
     return ip, mac, iface, ourIp
 
 def burnBabyBurn(args):
-    print args
+    print(args)
     hostname = args.host
     hexfile = args.hexfile
     if hexfile is None:

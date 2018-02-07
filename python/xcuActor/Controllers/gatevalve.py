@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import logging
 import sys
 import time
@@ -122,8 +123,8 @@ def main(argv=None):
         stat0 = gv.status()
         pos, request = gv.describeStatus(stat0)
     
-        print "status=0x%02x,%s,%s" % (stat0,
-                                       pos, request)
+        print("status=0x%02x,%s,%s" % (stat0,
+                                       pos, request))
 
     _status(gv)
     if args.open:
