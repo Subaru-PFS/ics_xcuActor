@@ -3,6 +3,10 @@
 # Bootloader
 
 from __future__ import print_function
+from builtins import str
+from builtins import range
+from past.builtins import basestring
+from builtins import object
 import socket as skt
 import binascii
 import logging

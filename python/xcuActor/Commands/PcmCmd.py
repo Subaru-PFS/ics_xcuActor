@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+from __future__ import division
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import time
 
 import opscore.protocols.keys as keys
@@ -328,7 +332,7 @@ class PcmCmd(object):
         if dx==0 or dy==0:
             cmd.fail('text="invalid calibration data, check m1,m2,r1,r2 values"')
             return
-        m=dy/dx # m is the slope (y=mx+c) --- rise/run
+        m=old_div(dy,dx) # m is the slope (y=mx+c) --- rise/run
         c=(m*r1)-m1 # c is the offset
         
         if measurementType == 'voltage':

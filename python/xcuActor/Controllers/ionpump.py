@@ -1,3 +1,5 @@
+from builtins import chr
+from builtins import object
 import logging
 import socket
 import time

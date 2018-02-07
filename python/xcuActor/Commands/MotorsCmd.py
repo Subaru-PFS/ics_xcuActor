@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+from __future__ import division
+from builtins import chr
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import time
 
 import opscore.protocols.keys as keys
@@ -172,11 +177,11 @@ class MotorsCmd(object):
                 
             # convert steps to microns
             if m == 1:           
-                microns = float(zeroedCnt) / float(self.a_microns_to_microsteps)
+                microns = old_div(float(zeroedCnt), float(self.a_microns_to_microsteps))
             elif m == 2:
-                microns = float(zeroedCnt) / float(self.b_microns_to_microsteps)
+                microns = old_div(float(zeroedCnt), float(self.b_microns_to_microsteps))
             else:
-                microns = float(zeroedCnt) / float(self.c_microns_to_microsteps)
+                microns = old_div(float(zeroedCnt), float(self.c_microns_to_microsteps))
 
             # Declare axis good unless at/beyond any limit or previous suspect.
             if (self.brokenLAMr1A and m == 1):
@@ -285,7 +290,7 @@ class MotorsCmd(object):
         cmd.finish()
 
     def _calcMoveTime(self, distance):
-        return distance/self.velocity
+        return old_div(distance,self.velocity)
 
     def _moveToSwitch(self, axis, cmd, switch=1, untilClear=True, maxDistance=200,
                       velocity=None, stepping=None):

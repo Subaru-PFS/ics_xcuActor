@@ -1,4 +1,8 @@
 from __future__ import print_function
+from __future__ import division
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import sys
 import logging
 import socket
@@ -107,7 +111,7 @@ class pcmUdp(object):
                 (key in {'IL', 'IH'} and abs(val - lastVal) < 0.15) or
                 (key[0] == 'V' and abs(val - lastVal) < 0.2) or
                 (key == 'T' and abs(val - lastVal) < 0.4) or
-                (key == 'P') and (abs((val - lastVal)/lastVal) < 0.005)):
+                (key == 'P') and (abs(old_div((val - lastVal),lastVal)) < 0.005)):
 
                 keep = False
 

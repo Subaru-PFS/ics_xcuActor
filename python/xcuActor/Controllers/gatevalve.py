@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+from past.builtins import basestring
+from builtins import object
 import logging
 import sys
 import time
@@ -20,7 +22,7 @@ class gatevalve(object):
                          active=0x4,
                          closed=0x2,
                          open=0x1)
-        self.bitnames = {v:k for k, v in self.bits.iteritems()}
+        self.bitnames = {v:k for k, v in self.bits.items()}
         self.posBits = self.bits['open'] | self.bits['closed']
         self.positionNames = {self.bits['open']:'open',
                               self.bits['closed']:'closed',

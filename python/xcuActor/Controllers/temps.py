@@ -1,3 +1,8 @@
+from __future__ import division
+from builtins import chr
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import numpy as np
 
 import logging
@@ -206,8 +211,8 @@ class temps(object):
                 sdata_s = l[4:]
 
                 slen = int(slen_s, base=16)
-                if slen != len(sdata_s)/2:
-                    raise RuntimeError("wrong length: %d vs %d" % (slen, len(sdata_s)/2))
+                if slen != old_div(len(sdata_s),2):
+                    raise RuntimeError("wrong length: %d vs %d" % (slen, old_div(len(sdata_s),2)))
 
                 self.logger.info('text="srec %d: %s"' % (lineNumber, l))
                 # cmd.diag('text="srec %d: %s"' % (lineNumber, l))
@@ -261,7 +266,7 @@ class temps(object):
             heaterNum = self.heaters[heater]
         except KeyError:
             raise RuntimeError('heater name (%s) is not %s' % (heater,
-                                                               self.heaters.keys()))
+                                                               list(self.heaters.keys())))
 
         power = int(power) if turnOn else 0
         if power < 0 or power > 100:
@@ -296,13 +301,13 @@ class temps(object):
         if cmd is not None:
             cmd.inform('heaters=%d,%d,%0.3f,%0.3f' % (enabled[0],
                                                       enabled[1],
-                                                      atLevel[0]/maxLevel,
-                                                      atLevel[1]/maxLevel))
+                                                      old_div(atLevel[0],maxLevel),
+                                                      old_div(atLevel[1],maxLevel)))
         return enabled + atLevel
         
     def fetchTemps(self, sensors=None, cmd=None):
         if sensors is None:
-            sensors = range(12)
+            sensors = list(range(12))
 
         replies = ["nan"]*12
         for s_i in sensors:

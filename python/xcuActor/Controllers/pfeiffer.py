@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from builtins import object
 class Pfeiffer(object):
     def __init__(self):
         self.busID = 1
