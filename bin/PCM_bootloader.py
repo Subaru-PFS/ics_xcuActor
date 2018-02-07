@@ -343,6 +343,8 @@ class PCM_Bootloader(object):
     def uploadHEXfile(self, fileName, LIA_ID=None):
         self.logger.info('starting upload of %s', fileName)
 
+        r = None
+        
         # uplaods a new hex file (app) to the PCM
         LIA_CMD = int(self.cLIA_Upload)
         try:
@@ -370,6 +372,7 @@ class PCM_Bootloader(object):
             self.logger.debug(r['messages'])
         except:
             self.logger.warn('Error opening file')
+            r = 'Error opening file'
         finally:
             self.incLIASequence()
 
