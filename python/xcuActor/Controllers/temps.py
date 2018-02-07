@@ -1,7 +1,6 @@
 from __future__ import division
 from builtins import chr
 from builtins import range
-from past.utils import old_div
 from builtins import object
 import numpy as np
 
@@ -211,8 +210,8 @@ class temps(object):
                 sdata_s = l[4:]
 
                 slen = int(slen_s, base=16)
-                if slen != old_div(len(sdata_s),2):
-                    raise RuntimeError("wrong length: %d vs %d" % (slen, old_div(len(sdata_s),2)))
+                if slen != len(sdata_s)//2:
+                    raise RuntimeError("wrong length: %d vs %d" % (slen, len(sdata_s)//2))
 
                 self.logger.info('text="srec %d: %s"' % (lineNumber, l))
                 # cmd.diag('text="srec %d: %s"' % (lineNumber, l))
@@ -301,8 +300,8 @@ class temps(object):
         if cmd is not None:
             cmd.inform('heaters=%d,%d,%0.3f,%0.3f' % (enabled[0],
                                                       enabled[1],
-                                                      old_div(atLevel[0],maxLevel),
-                                                      old_div(atLevel[1],maxLevel)))
+                                                      atLevel[0]/maxLevel,
+                                                      atLevel[1]/maxLevel))
         return enabled + atLevel
         
     def fetchTemps(self, sensors=None, cmd=None):
