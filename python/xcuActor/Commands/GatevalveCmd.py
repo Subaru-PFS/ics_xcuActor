@@ -22,6 +22,8 @@ class GatevalveCmd(object):
             ('gatevalve', 'status', self.status),
             ('gatevalve', 'open', self.open),
             ('gatevalve', 'close', self.close),
+            ('sam', 'off', self.samOff),
+            ('sam', 'on', self.samOn),
         ]
 
         # Define typed command arguments for the above commands.
@@ -44,5 +46,17 @@ class GatevalveCmd(object):
         """ Disable gatevalve to be opened. """
 
         self.actor.controllers['gatevalve'].close(cmd=cmd)
+        cmd.finish()
+        
+    def samOff(self, cmd):
+        """ Turn off SAM power. """
+
+        self.actor.controllers['gatevalve'].powerOffSam(cmd=cmd)
+        cmd.finish()
+        
+    def samOn(self, cmd):
+        """ Turn off SAM power. """
+
+        self.actor.controllers['gatevalve'].powerOnSam(cmd=cmd)
         cmd.finish()
         

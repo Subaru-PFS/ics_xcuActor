@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-from past.builtins import basestring
+from past.builtins import basestring, reload
 from builtins import object
 import logging
 import sys
 import time
 
 import rtdADIO.ADIO
+reload(rtdADIO.ADIO)
 
 class gatevalve(object):
     def __init__(self, actor, name,
@@ -18,7 +19,9 @@ class gatevalve(object):
         self.logger = logger if logger else logging.getLogger('gatevalve')
         self.logger.setLevel(loglevel)
 
-        self.bits = dict(enabled=0x8,
+        self.bits = dict(sam_off=0x20,
+                         sam_return=0x10,
+                         enabled=0x8,
                          active=0x4,
                          closed=0x2,
                          open=0x1)
@@ -34,17 +37,22 @@ class gatevalve(object):
                              0:'closed',
                              self.requestBits:'open'}
 
-        self.dev = rtdADIO.ADIO(self.bits['enabled'])
-                                # logger=self.logger)
+        self.dev = rtdADIO.ADIO.ADIO(self.bits['enabled'] |
+                                     self.bits['sam_off'] |
+                                     self.bits['sam_return'])
+        # logger=self.logger)
 
-    def __del__(self):
-        self.dev.disconnect()
+    #def __del__(self):
+    #    self.dev.disconnect()
         
     def start(self):
         pass
 
     def stop(self, cmd=None):
-        self.dev.disconnect()
+        try:
+            self.dev.disconnect()
+        except:
+            pass
 
     def spinUntil(self, testFunc, starting=None, wait=5.0, cmd=None):
         """ """
@@ -84,6 +92,28 @@ class gatevalve(object):
         ret = self.spinUntil(isClosed, starting=starting, wait=wait, cmd=cmd)
         return ret
 
+    def powerOffSam(self, wait=1, cmd=None):
+        """ Assert SAM power off. """
+        starting = self.status(cmd=cmd)
+        self.dev.set(self.bits['sam_off'])
+
+        def isSamOff(status):
+            return bool(status & self.bits['sam_off'])
+            
+        ret = self.spinUntil(isSamOff, starting=starting, wait=wait, cmd=cmd)
+        return ret
+        
+    def powerOnSam(self, wait=1, cmd=None):
+        """ Deassert SAM power line, turning it on. """
+        starting = self.status(cmd=cmd)
+        self.dev.clear(self.bits['sam_off'])
+
+        def isSamOn(status):
+            return not bool(status & self.bits['sam_off'])
+            
+        ret = self.spinUntil(isSamOn, starting=starting, wait=wait, cmd=cmd)
+        return ret
+        
     def getStatus(self):
         return self.dev.status()
 
@@ -94,14 +124,16 @@ class gatevalve(object):
         pos = self.positionNames[rawPos]
         rawRequest = bits & self.requestBits
         request = self.requestNames[rawRequest]
+        samPower = not bool(self.bits['sam_off'] & bits)
 
-        return pos, request
+        return pos, request, samPower
         
     def status(self, silentIf=None, cmd=None):
         ret = self.getStatus()
-        pos, request = self.describeStatus(ret)
+        pos, request, samPower = self.describeStatus(ret)
         if cmd and ret != silentIf:
             cmd.inform('gatevalve=0x%02x,%s,%s' % (ret, pos, request))
+            cmd.inform('samPower=%d' % (samPower))
 
         return ret
 
