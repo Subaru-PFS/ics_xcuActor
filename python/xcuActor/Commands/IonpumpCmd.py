@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-import time
+from builtins import range
+from builtins import object
 
 import opscore.protocols.keys as keys
 import opscore.protocols.types as types
-from opscore.utility.qstr import qstr
 
 class IonpumpCmd(object):
 
@@ -21,7 +21,7 @@ class IonpumpCmd(object):
             ('ionpump', '@raw', self.ionpumpRaw),
             ('ionpumpRead', '@raw', self.ionpumpReadRaw),
             ('ionpumpWrite', '@raw', self.ionpumpWriteRaw),
-            ('ionpump', 'monitor <period>', self.monitor),
+            ('ionpump', 'ident', self.ident),
             ('ionpump', 'status', self.status),
             ('ionpump', 'off', self.off),
             ('ionpump', 'on [<spam>]', self.on),
@@ -29,8 +29,6 @@ class IonpumpCmd(object):
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("xcu_ionpump", (1, 1),
-                                        keys.Key("period", types.Int(),
-                                                 help='how often to poll for status'),
                                         keys.Key("spam", types.Int(),
                                                  help='how many times to poll for status'),
 
@@ -71,7 +69,7 @@ class IonpumpCmd(object):
          - full speed in RPM
          
         """
-        reply = self.actor.controllers['ionpump'].ident(cmd=cmd)
+        ret = self.actor.controllers['ionpump'].ident(cmd=cmd)
         cmd.finish('ident=%s' % (','.join(ret)))
 
     def status(self, cmd):
@@ -80,11 +78,6 @@ class IonpumpCmd(object):
             self.actor.controllers['ionpump'].readOnePump(i, cmd=cmd)
         cmd.finish()
 
-    def monitor(self, cmd):
-        period = cmd.cmd.keywords['period'].values[0]
-        self.actor.monitorIonpump(period)
-        cmd.finish()
-        
     def on(self, cmd=None):
         cmdArgs = cmd.cmd.keywords
         

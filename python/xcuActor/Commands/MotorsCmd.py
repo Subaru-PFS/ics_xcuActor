@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+from __future__ import division
+from builtins import chr
+from builtins import range
+from builtins import object
 import time
 
 import opscore.protocols.keys as keys
@@ -172,11 +176,11 @@ class MotorsCmd(object):
                 
             # convert steps to microns
             if m == 1:           
-                microns = float(zeroedCnt) / float(self.a_microns_to_microsteps)
+                microns = zeroedCnt/self.a_microns_to_microsteps
             elif m == 2:
-                microns = float(zeroedCnt) / float(self.b_microns_to_microsteps)
+                microns = zeroedCnt/self.b_microns_to_microsteps
             else:
-                microns = float(zeroedCnt) / float(self.c_microns_to_microsteps)
+                microns = zeroedCnt/self.c_microns_to_microsteps
 
             # Declare axis good unless at/beyond any limit or previous suspect.
             if (self.brokenLAMr1A and m == 1):
