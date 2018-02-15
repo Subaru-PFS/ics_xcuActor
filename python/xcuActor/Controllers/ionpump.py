@@ -18,7 +18,7 @@ class ionpump(object):
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(loglevel)
 
-        self.EOL = '\r'
+        self.EOL = b'\r'
         
         self.host = self.actor.config.get(self.name, 'host')
         self.port = int(self.actor.config.get(self.name, 'port'))
@@ -36,20 +36,24 @@ class ionpump(object):
         pass
 
     def calcCrc(self, s):
-        crc = reduce(int.__xor__, [ord(c) for c in s])
+        crc = reduce(int.__xor__, [c for c in s])
         return crc
         
     def sendOneCommand(self, cmdStr, cmd=None):
         if cmd is None:
             cmd = self.actor.bcast
 
-        busID = chr(128 + int(self.busID))
-        coreCmd = "%s%s\x03" % (busID, cmdStr)
+        try:
+            cmdStr = cmdStr.encode('latin-1')
+        except AttributeError:
+            pass
+        
+        busID = bytes([128 + int(self.busID)])
+        coreCmd = b"%s%s\x03" % (busID, cmdStr)
         crc = self.calcCrc(coreCmd)
-        fullCmd = "\x02%s%02X" % (coreCmd, crc)
+        fullCmd = b"\x02%s%02X" % (coreCmd, crc)
         self.logger.info('sending %r to %s:%s', fullCmd, self.host, self.port)
-        cmd.diag('text="sending %r to %s:%s"' % (fullCmd, self.host, self.port))
-        cmd.diag('text="ionpump sending %r"' % fullCmd)
+        cmd.diag('text="%s sending %s"' % (self.name, fullCmd))
 
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -86,10 +90,10 @@ class ionpump(object):
         head = raw[:2]
         tail = raw[-3:]
         
-        if head[0] != '\x02':
+        if head[:1] != b'\x02':
             raise RuntimeError("reply header is not x02: %r" % (raw))
         crc = self.calcCrc(raw[1:-2])
-        wantTail = '\x03%02X' % (crc)
+        wantTail = b'\x03%02X' % (crc)
         if tail != wantTail:
             raise RuntimeError("reply tail/crc is not %r: %r" % (wantTail,
                                                                  raw))
@@ -98,25 +102,25 @@ class ionpump(object):
     
     def sendReadCommand(self, win, cmd=None):
         if not isinstance(win, str):
-            win = "%03d" % (win)
-        reply = self.sendOneCommand(win+'0', cmd=cmd)
+            win = b"%03d" % (win)
+        reply = self.sendOneCommand(win+b'0', cmd=cmd)
 
         if reply[:3] != win:
             raise RuntimeError("win in reply is not %s: %r" % (win,
                                                                reply))
-        if reply[3] != '0':
+        if reply[3:4] != b'0':
             raise RuntimeError("reply is not for a read: %r" % (reply))
 
         return reply[4:]
             
     def sendWriteCommand(self, win, value, cmd=None):
         if not isinstance(win, str):
-            win = "%03d" % (win)
-        reply = self.sendOneCommand(win+'1'+value, cmd=cmd)
+            win = b"%03d" % (win)
+        reply = self.sendOneCommand(win+b'1'+value.encode('latin-1'), cmd=cmd)
 
         return reply
 
-    def readTemp(self, channel):
+    def readTemp(self, channel, cmd=None):
         if channel == 1:
             win = 801
         elif channel == 2:
@@ -129,31 +133,31 @@ class ionpump(object):
             raise RuntimeError("unknown channel %s" % (channel))
         
         try:
-            reply = self.sendReadCommand(win)
+            reply = self.sendReadCommand(win, cmd=cmd)
         except:
             reply = np.nan
             
         return float(reply)
         
-    def readVoltage(self, channel):
+    def readVoltage(self, channel, cmd=None):
         try:
-            reply = self.sendReadCommand(800 + 10*channel)
+            reply = self.sendReadCommand(800 + 10*channel, cmd=cmd)
         except:
             reply = np.nan
             
         return float(reply)
         
-    def readCurrent(self, channel):
+    def readCurrent(self, channel, cmd=None):
         try:
-            reply = self.sendReadCommand(801 + 10*channel)
+            reply = self.sendReadCommand(801 + 10*channel, cmd=cmd)
         except:
             reply = np.nan
 
         return float(reply)
         
-    def readPressure(self, channel):
+    def readPressure(self, channel, cmd=None):
         try:
-            reply = self.sendReadCommand(802 + 10*channel)
+            reply = self.sendReadCommand(802 + 10*channel, cmd=cmd)
         except:
             reply = np.nan
 
@@ -184,26 +188,26 @@ class ionpump(object):
 
         return self._onOff(True, cmd=cmd)
 
-    def readEnabled(self, channel):
-        reply = self.sendReadCommand(10 + channel)
+    def readEnabled(self, channel, cmd=None):
+        reply = self.sendReadCommand(10 + channel, cmd=cmd)
         return int(reply)
 
     
-    def readError(self, channel):
-        retCmd = self.sendWriteCommand(505, '%d' % (channel))
-        reply = self.sendReadCommand(206)
+    def readError(self, channel, cmd=None):
+        retCmd = self.sendWriteCommand(505, '%d' % (channel), cmd=cmd)
+        reply = self.sendReadCommand(206, cmd=cmd)
         return int(reply)
     
     def readOnePump(self, channelNum, cmd=None):
         channel = self.pumpIDs[channelNum]
         enabled = self.readEnabled(channel)
 
-        V = self.readVoltage(channel)
-        A = self.readCurrent(channel)
-        p = self.readPressure(channel)
-        t = self.readTemp(channel)
+        V = self.readVoltage(channel, cmd=cmd)
+        A = self.readCurrent(channel, cmd=cmd)
+        p = self.readPressure(channel, cmd=cmd)
+        t = self.readTemp(channel, cmd=cmd)
 
-        err = self.readError(0)
+        err = self.readError(0, cmd=cmd)
         
         if cmd is not None:
             cmd.inform('ionPump%d=%d,%g,%g,%g, %g' % (channelNum+1,
@@ -215,4 +219,3 @@ class ionpump(object):
                 cmd.inform('ionPump%dErrors=0x%02x,%s' % (channelNum+1, err, 'OK'))
                 
         return enabled,V,A,p
-            
