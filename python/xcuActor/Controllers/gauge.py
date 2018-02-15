@@ -1,8 +1,9 @@
 from __future__ import absolute_import
 
+from importlib import reload
+
 import logging
 import socket
-import time
 
 from xcuActor.Controllers import pfeiffer
 reload(pfeiffer)
@@ -16,7 +17,7 @@ class gauge(pfeiffer.Pfeiffer):
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(loglevel)
 
-        self.EOL = '\r'
+        self.EOL = b'\r'
         
         self.host = self.actor.config.get(self.name, 'host')
         self.port = int(self.actor.config.get(self.name, 'port'))
@@ -30,10 +31,27 @@ class gauge(pfeiffer.Pfeiffer):
         pass
 
     def sendOneCommand(self, cmdStr, cmd=None):
+        """ Send a single line command and return response. 
+
+        Args
+        ----
+        cmdStr : str/bytes
+           The string to send. bytes are OK and EOL is appended.
+
+        Returns
+        -------
+        response : bytes
+
+        """
         if cmd is None:
             cmd = self.actor.bcast
 
-        fullCmd = "%s%s" % (cmdStr, self.EOL)
+        try:
+            cmdStr = cmdStr.encode('latin-1')
+        except AttributeError:
+            pass
+        
+        fullCmd = b"%s%s" % (cmdStr, self.EOL)
         self.logger.debug('sending %r', fullCmd)
         cmd.diag('text="sending %r"' % fullCmd)
 

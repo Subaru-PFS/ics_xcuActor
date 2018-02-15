@@ -23,7 +23,11 @@ class Pfeiffer(object):
         """
 
         resp = resp.strip()
-                        
+        try:
+            resp = resp.decode('latin-1')
+        except AttributeError:
+            pass
+        
         if len(resp) < 10:
             raise ValueError('response from %s is not long enough: %r' % (self.name,
                                                                           resp))
@@ -61,7 +65,12 @@ class Pfeiffer(object):
         return valStr
     
     def gaugeCrc(self, s):
-        return sum([ord(c) for c in s]) % 256
+        try:
+            s = s.encode('latin-1')
+        except AttributeError:
+            pass
+        
+        return sum([c for c in s]) % 256
 
     def gaugeMakeRawCmd(self, cmdStr, cmd=None):
         """ Send set or query string.
@@ -79,9 +88,9 @@ class Pfeiffer(object):
           The full, unmodified, response from the device. 
         """
         
-        cmdStr = '%03d%s' % (self.busID, cmdStr)
+        cmdStr = b'%03d%s' % (self.busID, cmdStr)
         crc = self.gaugeCrc(cmdStr)
-        cmdStr = '%s%03d' % (cmdStr, crc)
+        cmdStr = b'%s%03d' % (cmdStr, crc)
 
         return cmdStr
 
@@ -101,7 +110,7 @@ class Pfeiffer(object):
            We strip off all but the actual value.
         """
         
-        cmdStr = '00%03d02=?' % (code)
+        cmdStr = b'00%03d02=?' % (code)
         rawRet = self.gaugeRawCmd(cmdStr, cmd=cmd)
         val = self.parseResponse(rawRet, cmdCode=code, cmd=cmd)
 
@@ -126,10 +135,15 @@ class Pfeiffer(object):
 
         """
 
-        if not isinstance(value, str):
-            raise TypeError('value must be a string')
+        #if not isinstance(value, str):
+        #    raise TypeError('value must be a string')
+
+        try:
+            value = value.encode('latin-1')
+        except AttributeError:
+            pass
         
-        cmdStr = '10%03d%02d%s' % (code, len(value), value)
+        cmdStr = b'10%03d%02d%s' % (code, len(value), value)
         rawRet = self.gaugeRawCmd(cmdStr, cmd=cmd)
         val = self.parseResponse(rawRet, cmdCode=code, cmd=cmd)
 

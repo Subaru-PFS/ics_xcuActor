@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+from importlib import reload
+
 import logging
 import socket
 import time
@@ -18,7 +20,7 @@ class PCM(pfeiffer.Pfeiffer):
         self.name = name
         self.logger = logging.getLogger()
         self.logger.setLevel(loglevel)
-        self.EOL = '\r\n'
+        self.EOL = b'\r\n'
 
         self.actor = actor
         if actor is not None:
@@ -37,7 +39,12 @@ class PCM(pfeiffer.Pfeiffer):
         pass
 
     def sendOneCommand(self, cmdStr, timeout=2.0, cmd=None):
-        fullCmd = "%s%s" % (cmdStr, self.EOL)
+        try:
+            cmdStr = cmdStr.encode('latin-1')
+        except AttributeError:
+            pass
+        
+        fullCmd = b"%s%s" % (cmdStr, self.EOL)
         self.logger.debug('sending %r', cmdStr)
         if cmd is not None:
             cmd.diag('text="sending %r"' % (cmdStr))
@@ -68,7 +75,7 @@ class PCM(pfeiffer.Pfeiffer):
         if cmd is not None:
             cmd.diag('text="received %r"' % (ret))
             
-        if ret.startswith('Error:'):
+        if ret.startswith(b'Error:'):
             raise RuntimeError('Error reading or writing: %s' % (ret))
 
         return ret
@@ -87,7 +94,7 @@ class PCM(pfeiffer.Pfeiffer):
             self.logger.error('text="not a known power port: %s"' % (system))
             return False
 
-        cmdStr = "~se,ch%d,%s" % (i+1, 'on' if turnOn else 'off')
+        cmdStr = b"~se,ch%d,%s" % (i+1, 'on' if turnOn else 'off')
         ret = self.sendOneCommand(cmdStr)
         return ret
 
@@ -101,13 +108,13 @@ class PCM(pfeiffer.Pfeiffer):
         if len(ret) < 3:
             raise RuntimeError("command response is too short!")
 
-        if ret.startswith('NO RESPONSE'):
+        if ret.startswith(b'NO RESPONSE'):
             raise RuntimeError("no response to command: %s" % (ret))
         
-        if ret[:2] != '/0':
+        if ret[:2] != b'/0':
             raise RuntimeError("command response header is wrong: %s" % (ret))
 
-        status = ord(ret[2])
+        status = ret[2]
         rest = ret[3:]
 
         errCode = status & 0x0f
@@ -125,7 +132,7 @@ class PCM(pfeiffer.Pfeiffer):
         t0 = time.time()
         t1 = time.time()
         while True:
-            ret = self.sendOneCommand("~@,T1000,/1Q")
+            ret = self.sendOneCommand(b"~@,T1000,/1Q")
             _, _, busy, _ = self.parseMotorResponse(ret)
             if not busy:
                 if cmd is not None:
@@ -158,7 +165,7 @@ class PCM(pfeiffer.Pfeiffer):
             if not ok:
                 return "timed out when waiting for idle controller", True, ''
             
-        fullCmd = "~@,T%d,/1%s" % (int(maxTime*1000), cmdStr)
+        fullCmd = b"~@,T%d,/1%s" % (int(maxTime*1000), cmdStr)
         
         ret = self.sendOneCommand(fullCmd, cmd=cmd)
         errCode, status, busy, rest = self.parseMotorResponse(ret)
@@ -200,12 +207,12 @@ class PCM(pfeiffer.Pfeiffer):
     def gaugeRawCmd(self, cmdStr, cmd=None):
         if True:
             gaugeStr = self.gaugeMakeRawCmd(cmdStr, cmd=cmd)
-            pcmCmd = '~@,T1500,'
+            pcmCmd = b'~@,T1500,'
             cmdStr = pcmCmd + gaugeStr
         else:
             crc = self.gaugeCrc(cmdStr)
-            pcmCmd = '~@,T1500,'
-            cmdStr = '%s%s%03d' % (pcmCmd, cmdStr, crc)
+            pcmCmd = b'~@,T1500,'
+            cmdStr = b'%s%s%03d' % (pcmCmd, cmdStr, crc)
 
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
 

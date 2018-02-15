@@ -15,7 +15,7 @@ class rough(object):
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(loglevel)
 
-        self.EOL = '\r'
+        self.EOL = b'\r'
         
         self.host = self.actor.config.get(self.name, 'host')
         self.port = int(self.actor.config.get(self.name, 'port'))
@@ -30,7 +30,12 @@ class rough(object):
         if cmd is None:
             cmd = self.actor.bcast
 
-        fullCmd = "%s%s" % (cmdStr, self.EOL)
+        try:
+            cmdStr = cmdStr.encode('latin-1')
+        except AttributeError:
+            pass
+        
+        fullCmd = b"%s%s" % (cmdStr, self.EOL)
         self.logger.info('sending %r', fullCmd)
         cmd.diag('text="sending %r"' % fullCmd)
 
@@ -61,12 +66,12 @@ class rough(object):
         return ret
 
     def parseReply(self, cmdStr, reply, cmd=None):
-        cmdType = cmdStr[0]
+        cmdType = cmdStr[:1]
 
-        if cmdType == '?':
-            replyFlag = '='
-        elif cmdType == '!':
-            replyFlag = '*'
+        if cmdType == b'?':
+            replyFlag = b'='
+        elif cmdType == b'!':
+            replyFlag = b'*'
 
         replyStart = reply[:5]
         replyCheck = replyFlag + cmdStr[1:5]
@@ -75,10 +80,10 @@ class rough(object):
                                                                                             replyStart,
                                                                                             replyCheck)))
         
-        return reply[5:].strip().split(';')
+        return reply[5:].strip().split(b';')
     
     def ident(self, cmd=None):
-        cmdStr = '?S801'
+        cmdStr = b'?S801'
 
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
         reply = self.parseReply(cmdStr, ret, cmd=cmd)
@@ -86,7 +91,7 @@ class rough(object):
         return reply
 
     def startPump(self, cmd=None):
-        cmdStr = '!C802 1'
+        cmdStr = b'!C802 1'
 
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
         reply = self.parseReply(cmdStr, ret, cmd=cmd)
@@ -94,7 +99,7 @@ class rough(object):
         return reply
 
     def stopPump(self, cmd=None):
-        cmdStr = '!C802 0'
+        cmdStr = b'!C802 0'
 
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
         reply = self.parseReply(cmdStr, ret, cmd=cmd)
@@ -102,15 +107,15 @@ class rough(object):
         return reply
 
     def startStandby(self, percent=90, cmd=None):
-        cmdStr = "!S805 %d" % (percent)
+        cmdStr = b"!S805 %d" % (percent)
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
 
-        cmdStr = "!C803 1"
+        cmdStr = b"!C803 1"
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
         return ret
     
     def stopStandby(self, cmd=None):
-        cmdStr = "!C803 0"
+        cmdStr = b"!C803 0"
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
         return ret
 
@@ -158,7 +163,7 @@ class rough(object):
         return allFlags
                  
     def speed(self, cmd=None):
-        cmdStr = '?V802'
+        cmdStr = b'?V802'
 
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
         status = self.parseReply(cmdStr, ret, cmd=cmd)
@@ -172,7 +177,7 @@ class rough(object):
         return rpm, status
         
     def pumpTemps(self, cmd=None):
-        cmdStr = '?V808'
+        cmdStr = b'?V808'
 
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
         speeds = self.parseReply(cmdStr, ret, cmd=cmd)

@@ -46,7 +46,6 @@ class GaugeCmd(object):
         """ Send a direct query command to the PCM's gauge controller. """
 
         cmdCode = cmd.cmd.keywords['getRaw'].values[0]
-        
         ret = self.actor.controllers['PCM'].gaugeRawQuery(cmdCode, cmd=cmd)
         cmd.finish('text=%s' % (qstr("returned %r" % ret)))
 

@@ -190,9 +190,9 @@ class PcmCmd(object):
         cmdStr = "~rdC,%s,%d,%s" % ('all',n,r)
         rawAmps = self.actor.controllers['PCM'].pcmCmd(cmdStr, cmd=cmd)
 
-        volts = [float(v) for v in rawVolts.split(',')]
-        amps = [float(a) for a in rawAmps.split(',')]
-        states = [c for c in self.actor.controllers['PCM'].pcmCmd('~ge', cmd=cmd)]
+        volts = [float(v) for v in rawVolts.split(b',')]
+        amps = [float(a) for a in rawAmps.split(b',')]
+        states = [c for c in self.actor.controllers['PCM'].pcmCmd('~ge', cmd=cmd).decode('latin-1')]
 
         cmd.diag('text="states: %s"' % (states))
         try:

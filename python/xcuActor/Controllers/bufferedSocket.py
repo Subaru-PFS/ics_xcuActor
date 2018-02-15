@@ -7,7 +7,7 @@ from opscore.utility.qstr import qstr
 class BufferedSocket(object):
     """ Buffer the input from a socket and block it into lines. """
 
-    def __init__(self, name, sock=None, loggerName=None, EOL='\n', timeout=1.0,
+    def __init__(self, name, sock=None, loggerName=None, EOL=b'\n', timeout=1.0,
                  logLevel=logging.INFO):
         self.EOL = EOL
         self.sock = sock
