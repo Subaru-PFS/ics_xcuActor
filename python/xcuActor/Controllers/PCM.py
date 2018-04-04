@@ -94,7 +94,7 @@ class PCM(pfeiffer.Pfeiffer):
             self.logger.error('text="not a known power port: %s"' % (system))
             return False
 
-        cmdStr = b"~se,ch%d,%s" % (i+1, 'on' if turnOn else 'off')
+        cmdStr = b"~se,ch%d,%s" % (i+1, b'on' if turnOn else b'off')
         ret = self.sendOneCommand(cmdStr)
         return ret
 
