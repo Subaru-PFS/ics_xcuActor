@@ -32,7 +32,7 @@ class PCM(pfeiffer.Pfeiffer):
 
         pfeiffer.Pfeiffer.__init__(self)
         
-    def start(self):
+    def start(self, cmd=None):
         pass
 
     def stop(self, cmd=None):
