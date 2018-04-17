@@ -29,7 +29,7 @@ class ionpump(object):
     def npumps(self):
         return len(self.pumpIDs)
     
-    def start(self):
+    def start(self, cmd=None):
         pass
 
     def stop(self, cmd=None):

@@ -135,7 +135,7 @@ class temps(object):
 
         self.heaters = dict(spider=1, ccd=2)
         
-    def start(self):
+    def start(self, cmd=None):
         pass
 
     def stop(self, cmd=None):

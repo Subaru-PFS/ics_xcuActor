@@ -45,7 +45,7 @@ class gatevalve(object):
     #def __del__(self):
     #    self.dev.disconnect()
         
-    def start(self):
+    def start(self, cmd=None):
         pass
 
     def stop(self, cmd=None):

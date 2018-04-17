@@ -19,7 +19,7 @@ class turbo(object):
         self.host = self.actor.config.get('turbo', 'host')
         self.port = int(self.actor.config.get('turbo', 'port'))
 
-    def start(self):
+    def start(self, cmd=None):
         pass
 
     def stop(self, cmd=None):

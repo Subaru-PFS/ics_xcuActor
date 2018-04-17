@@ -30,7 +30,7 @@ class cooler(object):
         self.keepUnlocked = False
         self.sock = None
         
-    def start(self):
+    def start(self, cmd=None):
         pass
 
     def stop(self, cmd=None):
