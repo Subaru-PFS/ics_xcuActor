@@ -14,7 +14,7 @@ class turbo(object):
         self.logger = logging.getLogger('turbo')
         self.logger.setLevel(loglevel)
 
-        self.EOL = '\r'
+        self.EOL = b'\r'
         
         self.host = self.actor.config.get('turbo', 'host')
         self.port = int(self.actor.config.get('turbo', 'port'))
@@ -29,6 +29,9 @@ class turbo(object):
         if cmd is None:
             cmd = self.actor.bcast
 
+        if isinstance(cmdStr, str):
+            cmdStr = cmdStr.encode('latin-1')
+            
         fullCmd = "%s%s" % (cmdStr, self.EOL)
         self.logger.info('sending %r', fullCmd)
         cmd.diag('text="sending %r"' % fullCmd)
@@ -65,12 +68,15 @@ class turbo(object):
         return ret
 
     def parseReply(self, cmdStr, reply, cmd=None):
+        if isinstance(cmdStr, str):
+            cmdStr = cmdStr.encode('latin-1')
+            
         cmdType = cmdStr[0]
 
-        if cmdType == '?':
-            replyFlag = '='
-        elif cmdType == '!':
-            replyFlag = '*'
+        if cmdType == b'?':
+            replyFlag = b'='
+        elif cmdType == b'!':
+            replyFlag = b'*'
 
         replyStart = reply[:5]
         replyCheck = replyFlag + cmdStr[1:5]
@@ -79,7 +85,8 @@ class turbo(object):
                                                                                             replyStart,
                                                                                             replyCheck)))
         
-        return reply[5:].strip().split(';')
+        replyStr = reply[5:].strip().split(';')
+        return replyStr.decode('latin-1')
     
     def ident(self, cmd=None):
         cmdStr = '?S851'
