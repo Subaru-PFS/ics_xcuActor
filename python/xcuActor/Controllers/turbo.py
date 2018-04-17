@@ -32,7 +32,7 @@ class turbo(object):
         if isinstance(cmdStr, str):
             cmdStr = cmdStr.encode('latin-1')
             
-        fullCmd = "%s%s" % (cmdStr, self.EOL)
+        fullCmd = b"%s%s" % (cmdStr, self.EOL)
         self.logger.info('sending %r', fullCmd)
         cmd.diag('text="sending %r"' % fullCmd)
 
@@ -57,8 +57,8 @@ class turbo(object):
             except socket.error as e:
                 cmd.warn('text="failed to read response from turbo: %s"' % (e))
                 raise
-            ret = ret + ret1
-            if ret1[-1] in '\r\n':
+            ret = ret + ret1.decode('latin-1')
+            if ret[-1] in '\r\n':
                 break
 
         self.logger.info('received %r', ret)
@@ -68,15 +68,15 @@ class turbo(object):
         return ret
 
     def parseReply(self, cmdStr, reply, cmd=None):
-        if isinstance(cmdStr, str):
-            cmdStr = cmdStr.encode('latin-1')
+        if not isinstance(cmdStr, str):
+            cmdStr = cmdStr.decode('latin-1')
             
         cmdType = cmdStr[0]
 
-        if cmdType == b'?':
-            replyFlag = b'='
-        elif cmdType == b'!':
-            replyFlag = b'*'
+        if cmdType == '?':
+            replyFlag = '='
+        elif cmdType == '!':
+            replyFlag = '*'
 
         replyStart = reply[:5]
         replyCheck = replyFlag + cmdStr[1:5]
@@ -86,7 +86,7 @@ class turbo(object):
                                                                                             replyCheck)))
         
         replyStr = reply[5:].strip().split(';')
-        return replyStr.decode('latin-1')
+        return replyStr
     
     def ident(self, cmd=None):
         cmdStr = '?S851'
