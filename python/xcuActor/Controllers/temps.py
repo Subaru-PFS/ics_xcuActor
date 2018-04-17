@@ -1,4 +1,3 @@
-from __future__ import division
 from builtins import chr
 from builtins import range
 from builtins import object
@@ -24,7 +23,7 @@ class NonClosingSocket(object):
         
 class DeviceIO(object):
     def __init__(self, name,
-                 EOL='\n',
+                 EOL=b'\n',
                  keepOpen=False,
                  loglevel=logging.DEBUG):
 
@@ -96,7 +95,10 @@ class SocketIO(DeviceIO):
         if cmd is None:
             cmd = self.actor.bcast
 
-        fullCmd = "%s%s" % (cmdStr, self.EOL)
+        if isinstance(cmdStr, str):
+            cmdStr = cmdStr.encode('latin-1')
+            
+        fullCmd = b"%s%s" % (cmdStr, self.EOL)
         self.logger.debug('sending %r', fullCmd)
         cmd.diag('text="sending %r"' % fullCmd)
 
@@ -124,7 +126,7 @@ class temps(object):
         self.logger = logging.getLogger('temps')
         self.logger.setLevel(loglevel)
 
-        self.EOL = '\n'
+        self.EOL = b'\n'
         
         host = self.actor.config.get('temps', 'host')
         port = int(self.actor.config.get('temps', 'port'))

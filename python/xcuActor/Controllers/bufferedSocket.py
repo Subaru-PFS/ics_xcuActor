@@ -16,7 +16,7 @@ class BufferedSocket(object):
         self.logger.setLevel(logLevel)
         self.timeout = timeout
 
-        self.buffer = ''
+        self.buffer = b''
 
     def getOutput(self, sock=None, timeout=None, cmd=None):
         """ Block/timeout for input, then return all (<=1kB) available input. """
@@ -68,7 +68,7 @@ class BufferedSocket(object):
 
         self.buffer = self.buffer[eolAt+len(self.EOL):]
 
-        return ret
+        return ret.decode('latin-1')
 
 
 

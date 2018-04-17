@@ -1,5 +1,5 @@
 from builtins import range
-from builtins import object
+from importlib import reload
 import logging
 import socket
 import time
@@ -20,12 +20,12 @@ class cooler(object):
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(loglevel)
 
-        self.EOL = '\r'
+        self.EOL = b'\r'
         
         self.host = self.actor.config.get(self.name, 'host')
         self.port = int(self.actor.config.get(self.name, 'port'))
 
-        self.ioBuffer = bufferedSocket.BufferedSocket(self.name + "IO", EOL='\r\n')
+        self.ioBuffer = bufferedSocket.BufferedSocket(self.name + "IO", EOL=b'\r\n')
 
         self.keepUnlocked = False
         self.sock = None
@@ -85,7 +85,10 @@ class cooler(object):
         if cmd is None:
             cmd = self.actor.bcast
 
-        fullCmd = "%s%s" % (cmdStr, self.EOL)
+        if isinstance(cmdStr, str):
+            cmdStr = cmdStr.encode('latin-1')
+
+        fullCmd = b"%s%s" % (cmdStr, self.EOL)
         self.logger.debug('sending %r', fullCmd)
         cmd.diag('text="sending %r"' % fullCmd)
 
@@ -98,7 +101,7 @@ class cooler(object):
             raise
 
         ret = self.ioBuffer.getOneResponse(sock=s, cmd=cmd)
-        if not ret.startswith(cmdStr):
+        if not ret.startswith(cmdStr.decode('latin-1')):
             cmd.warn('text="command to cooler (%r) was not echoed: %r"' % (fullCmd,
                                                                            ret))
             raise
