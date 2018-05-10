@@ -87,7 +87,10 @@ class Pfeiffer(object):
         raw : string
           The full, unmodified, response from the device. 
         """
-        
+
+        if isinstance(cmdStr, str):
+            cmdStr = cmdStr.encode('latin-1')
+            
         cmdStr = b'%03d%s' % (self.busID, cmdStr)
         crc = self.gaugeCrc(cmdStr)
         cmdStr = b'%s%03d' % (cmdStr, crc)

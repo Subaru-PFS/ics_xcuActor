@@ -115,7 +115,7 @@ class PCM(pfeiffer.Pfeiffer):
             raise RuntimeError("command response header is wrong: %s" % (ret))
 
         status = ret[2]
-        rest = ret[3:]
+        rest = ret[3:].decode('latin-1')
 
         errCode = status & 0x0f
         busy = not(status & 0x20)
@@ -160,6 +160,9 @@ class PCM(pfeiffer.Pfeiffer):
     def motorsCmd(self, cmdStr,
                   waitForIdle=False, returnAfterIdle=False,
                   maxTime=10.0, waitTime=1.0, cmd=None):
+
+        if isinstance(cmdStr, str):
+            cmdStr = cmdStr.encode('latin-1')
         if waitForIdle:
             ok = self.waitForIdle(maxTime=waitTime, cmd=cmd)
             if not ok:
