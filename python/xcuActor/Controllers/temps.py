@@ -135,7 +135,7 @@ class temps(object):
                             keepOpen=False,
                             loglevel=loglevel)
 
-        self.heaters = dict(spider=1, ccd=2)
+        self.heaters = dict(asic=1, ccd=2)
         
     def start(self, cmd=None):
         pass
@@ -290,24 +290,29 @@ class temps(object):
         return self.fetchHeaters(cmd=cmd)
     
     def fetchHeaters(self, cmd=None):
-
+        """ Query all the heater states and levels. """
+        
         enabled = []
+        HPenabled = []
         atLevel = []
         for heaterNum in range(2):
+            HPenabled0 = self.dev.sendOneCommand('?F%d' % (heaterNum+1), cmd=cmd)
             enabled0 = self.dev.sendOneCommand('?L%d' % (heaterNum+1), cmd=cmd)
             atLevel0 = self.dev.sendOneCommand('?V%d' % (heaterNum+1), cmd=cmd)
 
+            HPenabled.append(int(HPenabled0))
             enabled.append(int(enabled0))
             atLevel.append(float(atLevel0))
 
         maxLevel = 1.0 # float(0xfff)
         
         if cmd is not None:
+            cmd.inform('HPheaters=%d,%d' % (HPenabled[0], HPenabled[1]))
             cmd.inform('heaters=%d,%d,%0.3f,%0.3f' % (enabled[0],
                                                       enabled[1],
                                                       atLevel[0]/maxLevel,
                                                       atLevel[1]/maxLevel))
-        return enabled + atLevel
+        return enabled + atLevel + HPenabled
         
     def fetchTemps(self, sensors=None, cmd=None):
         if sensors is None:
