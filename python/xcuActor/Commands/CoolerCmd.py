@@ -26,6 +26,13 @@ class CoolerCmd(object):
             ('cooler', 'on <setpoint>', self.tempLoop),
             ('cooler', 'power <setpoint>', self.powerLoop),
             ('cooler', 'off', self.off),
+
+            ('cooler2', '[<timeout>] raw', self.coolerRaw),
+            ('cooler2', 'status', self.status),
+            ('cooler2', 'temps', self.temps),
+            ('cooler2', 'on <setpoint>', self.tempLoop),
+            ('cooler2', 'power <setpoint>', self.powerLoop),
+            ('cooler2', 'off', self.off),
         ]
 
         # Define typed command arguments for the above commands.
@@ -50,7 +57,8 @@ class CoolerCmd(object):
         timeout = cmdKeys['timeout'].values[0] if 'timeout' in cmdKeys else 1.0
         cmd_txt = cmd.cmd.keywords['raw'].values[0]
 
-        retLines = self.controller.rawCmd(cmd_txt, timeout=timeout, cmd=cmd)
+        controller = self.actor.controllers[cmd.cmd.name]
+        retLines = controller.rawCmd(cmd_txt, timeout=timeout, cmd=cmd)
         for line in retLines[:-1]:
             cmd.inform('text="returned %r"' % (line))
         cmd.finish('text="returned %r"' % (retLines[-1]))
@@ -58,13 +66,15 @@ class CoolerCmd(object):
     def status(self, cmd):
         """ Generate all cooler keys."""
 
-        self.controller.status(cmd=cmd)
+        controller = self.actor.controllers[cmd.cmd.name]
+        controller.status(cmd=cmd, name=cmd.cmd.name)
         cmd.finish()
 
     def temps(self, cmd):
         """ Generate temperature keys."""
         
-        self.controller.getTemps(cmd=cmd)
+        controller = self.actor.controllers[cmd.cmd.name]
+        controller.getTemps(cmd=cmd, name=cmd.cmd.name)
         cmd.finish()
 
     def tempLoop(self, cmd):
@@ -72,7 +82,8 @@ class CoolerCmd(object):
 
         setpoint = cmd.cmd.keywords['setpoint'].values[0]
         
-        self.controller.startCooler('temp', setpoint, cmd=cmd)
+        controller = self.actor.controllers[cmd.cmd.name]
+        controller.startCooler('temp', setpoint, cmd=cmd, name=cmd.cmd.name)
         cmd.finish()
         
     def powerLoop(self, cmd):
@@ -80,12 +91,14 @@ class CoolerCmd(object):
 
         setpoint = cmd.cmd.keywords['setpoint'].values[0]
         
-        self.controller.startCooler('power', setpoint, cmd=cmd)
+        controller = self.actor.controllers[cmd.cmd.name]
+        controller.startCooler('power', setpoint, cmd=cmd, name=cmd.cmd.name)
         cmd.finish()
         
     def off(self, cmd):
         """ Turn cryocooler control loop off. """
 
-        self.controller.stopCooler(cmd=cmd)
+        controller = self.actor.controllers[cmd.cmd.name]
+        controller.stopCooler(cmd=cmd, name=cmd.cmd.name)
         cmd.finish()
         

@@ -132,22 +132,23 @@ class cooler(object):
         if not self.keepUnlocked:
             self.sendOneCommand('LOGOUT=STIRLING', cmd=cmd)
         
-    def getPID(self, cmd=None):
+    def getPID(self, cmd=None, name='cooler'):
         KP = float(self.sendOneCommand('KP', doClose=False, cmd=cmd))
         KI = float(self.sendOneCommand('KI', doClose=False, cmd=cmd))
         KD = float(self.sendOneCommand('KD', doClose=False, cmd=cmd))
         mode = self.sendOneCommand('COOLER', doClose=False, cmd=cmd)
 
         if cmd is not None:
-            cmd.inform('coolerLoop=%s, %g,%g,%g' % (mode,
-                                                    KP, KI,KD))
+            cmd.inform('%sLoop=%s, %g,%g,%g' % (name, mode,
+                                                KP, KI,KD))
         return mode, KP, KI, KD
     
-    def startCooler(self, mode, setpoint, cmd=None):
+    def startCooler(self, mode, setpoint, cmd=None, name='cooler'):
         headTemp = float(self.sendOneCommand('TC', cmd=cmd))
 
         if headTemp > 350:
-            cmd.fail('text="the cryocooler temperature is too high (%sK). Check the temperature sense cable."' % (headTemp))
+            cmd.fail('text="the %s cryocooler temperature is too high (%sK). Check the temperature sense cable."'
+                     % (name, headTemp))
             return
 
         self.unlock()
@@ -167,12 +168,12 @@ class cooler(object):
         if cmd:
             cmd.finish()
         
-    def stopCooler(self, cmd=None):
+    def stopCooler(self, cmd=None, name='cooler'):
         ret = self.sendOneCommand('LOGIN=STIRLING', doClose=False)
         ret = self.sendOneCommand('COOLER=OFF', doClose=False)
         self.sendOneCommand('LOGOUT=STIRLING', doClose=False)
 
-        self.status(cmd=cmd)
+        self.status(cmd=cmd, name=name)
 
     def errorFlags(self, errorMask):
         """ Return a string describing the error state
@@ -203,7 +204,7 @@ class cooler(object):
 
         return ', '.join(elist)
         
-    def getTemps(self, cmd=None):
+    def getTemps(self, cmd=None, name='cooler'):
         mode = self.sendOneCommand('COOLER', doClose=False, cmd=cmd)
         errorMask = int(self.sendOneCommand('ERROR', doClose=False, cmd=cmd))
         try:
@@ -224,20 +225,20 @@ class cooler(object):
                 call = cmd.inform
             else:
                 call = cmd.warn
-            call('coolerStatus=%s,0x%02x, %s, %g,%g,%g' % (mode,
-                                                           errorMask, qstr(errorString),
-                                                           minPower, maxPower, power))
-            cmd.inform('coolerTemps=%g,%g,%g, %g' % (setTemp,
-                                                     rejectTemp, tipTemp,
-                                                     power))
+            call('%sStatus=%s,0x%02x, %s, %g,%g,%g' % (name, mode,
+                                                       errorMask, qstr(errorString),
+                                                       minPower, maxPower, power))
+            cmd.inform('%sTemps=%g,%g,%g, %g' % (name, setTemp,
+                                                 rejectTemp, tipTemp,
+                                                 power))
 
         return setTemp, rejectTemp, tipTemp, setTemp
     
-    def status(self, cmd=None):
+    def status(self, cmd=None, name='cooler'):
         ret = []
         
-        ret1 = self.getPID(cmd=cmd)
-        ret2 = self.getTemps(cmd=cmd)
+        ret1 = self.getPID(cmd=cmd, name=name)
+        ret2 = self.getTemps(cmd=cmd, name=name)
 
         ret.extend(ret1)
         ret.extend(ret2)
