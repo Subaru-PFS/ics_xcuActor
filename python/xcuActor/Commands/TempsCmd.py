@@ -26,9 +26,9 @@ class TempsCmd(object):
             ('temps', 'status [<channel>]', self.getTemps),
             ('temps', 'test1', self.test1),
             ('temps', 'test2', self.test2),
-            ('HPheaters', '@(on|off) @(one|two)', self.HPheaters),
-            ('heaters', '@(ccd|spider) <power>', self.heatersOn),
-            ('heaters', '@(ccd|spider) @off', self.heatersOff),
+            ('HPheaters', '@(on|off) @(shield|spreader)', self.HPheaters),
+            ('heaters', '@(ccd|asic) <power>', self.heatersOn),
+            ('heaters', '@(ccd|asic) @off', self.heatersOff),
             ('heaters', 'status', self.heaterStatus),
         ]
 
@@ -84,11 +84,11 @@ class TempsCmd(object):
         power = cmdKeys['power'].values[0]
 
         if 'spider' in cmdKeys:
-            heater = 'spider'
+            heater = 'asic'
         elif 'ccd':
             heater = 'ccd'
         else:
-            cmd.fail('text="no heater (ccd or spider) was specified!"')
+            cmd.fail('text="no heater (ccd or asic) was specified!"')
             return
 
         if power == 0:
@@ -110,12 +110,12 @@ class TempsCmd(object):
 
         cmdKeys = cmd.cmd.keywords
 
-        if 'spider' in cmdKeys:
-            heater = 'spider'
+        if 'asic' in cmdKeys:
+            heater = 'asic'
         elif 'ccd':
             heater = 'ccd'
         else:
-            cmd.fail('text="no heater (ccd or spider) was specified!"')
+            cmd.fail('text="no heater (ccd or asic) was specified!"')
             return
 
         try:
@@ -142,12 +142,12 @@ class TempsCmd(object):
             cmd.fail('text="neither on nor off was specified!"')
             return
 
-        if 'one' in cmdKeys:
+        if 'shield' in cmdKeys:
             heater = 1
-        elif 'two' in cmdKeys:
+        elif 'spider' in cmdKeys:
             heater = 2
         else:
-            cmd.fail('text="no heater (legs or base) was specified!"')
+            cmd.fail('text="no heater (shield or spreader) was specified!"')
             return
 
         try:
