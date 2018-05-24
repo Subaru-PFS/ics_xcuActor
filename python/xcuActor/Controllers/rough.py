@@ -20,7 +20,7 @@ class rough(object):
         self.host = self.actor.config.get(self.name, 'host')
         self.port = int(self.actor.config.get(self.name, 'port'))
 
-    def start(self):
+    def start(self, cmd=None):
         pass
 
     def stop(self, cmd=None):
