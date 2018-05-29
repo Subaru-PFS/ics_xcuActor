@@ -2,11 +2,6 @@
 
 # Bootloader
 
-from __future__ import print_function
-from builtins import str
-from builtins import range
-from past.builtins import basestring
-from builtins import object
 import socket as skt
 import binascii
 import logging
@@ -92,9 +87,9 @@ class PCM_Bootloader(object):
             s.settimeout(2)
             s.connect((HOST, PORT))
             s.settimeout(1)
-            s.sendall('%s\r\n' % (command))
+            s.sendall(b'%s\r\n' % (command.encode('latin-1')))
             data = s.recv(1024)
-            return(data)
+            return(data.decode('latin-1'))
         except:
             return 0
 
@@ -104,11 +99,14 @@ class PCM_Bootloader(object):
 
         return resp
 
-    def sendUDPData(self, LIA_CMD, LIA_ID=None, LIA_DATA='', HOST=None, PORT=None, ttl=1):
+    def sendUDPData(self, LIA_CMD, LIA_ID=None, LIA_DATA=b'', HOST=None, PORT=None, ttl=1):
         # send data over UDP broadcast (unicast optional), and receives unicast response
         # for dump, receive loops until end of dump flag is received
         # returns a dictionary object
 
+        if isinstance(LIA_DATA, str):
+            LIA_DATA = LIA_DATA.encode('latin-1')
+            
         ret = self.newResponse()
         if LIA_ID is None:
             LIA_ID = self.LIA_ID
@@ -118,8 +116,11 @@ class PCM_Bootloader(object):
             PORT = self.cLIA_Port
         header = '%s%s%04x%02x' % (
             self.cLIA_Tag, LIA_ID, self.LIA_SEQ, LIA_CMD)
-        header = bytearray.fromhex(header)
-        command = '%s%s' % (header, LIA_DATA)
+        try:
+            header = bytearray.fromhex(header)
+            command = b'%s%s' % (header, LIA_DATA)
+        except Exception as e:
+            raise RuntimeError('header=%r error:%s' % (header, e))
 
         if self.udp is None:
             s = self.udp = skt.socket(skt.AF_INET, skt.SOCK_DGRAM)
@@ -171,7 +172,7 @@ class PCM_Bootloader(object):
         ret = self.newResponse()
 
         try:
-            sRec = binascii.hexlify(LIAdata)
+            sRec = binascii.hexlify(LIAdata).decode('latin-1')
             ret['tag'] = sRec[0:4]
             ret['ID'] = sRec[4:8]
             ret['seq'] = sRec[8:12]
@@ -185,7 +186,7 @@ class PCM_Bootloader(object):
             ret['dataSeq'] = sRec[36:38]
             ret['data'] = LIAdata[19:]
 
-            status = self.parseStatusWord(str(ret['status']))
+            status = self.parseStatusWord(ret['status'])
 
             ret['messages'].append('%s%s' % (self.cLIA_debug,
                                              status['messages'][0]))
@@ -473,7 +474,35 @@ def hexIP2asciiIP(hexStr, reverse=False):
     return ip
     
 
-def fetchNetInfo(hostname):
+def fetchNetInfo(hostname, ourHostname=None):
+    """Generate all the network info we need for burning. 
+
+    Args
+    ----
+    hostname : str
+      The hostname/IP address of the PCM 
+    ourHostname : str
+      The hostname/IP address of *our* interface when talking to the PCM.
+
+    Returns
+    -------
+    ip : str ("10.1.13.2")
+      the IP address of the PCM
+    mac : str ("00:d0:81:09:04:ed")
+      the mac address of the PCM board
+    iface : str ("eth1")
+      the name of our interface to the PCM board
+    ourIp : str ("10.1.1.1")
+      our IP address, when talking to the PCM board
+
+    Notes
+    -----
+
+    There is no universal method to get all this. In particular,
+    getting our IP address is tricky. That is why we accept it as an
+    optional argument.
+
+    """
     hostname = skt.gethostbyname(hostname)
     with open('/proc/net/arp', 'r') as arp:
         allArps = arp.readlines()
@@ -488,21 +517,24 @@ def fetchNetInfo(hostname):
     if not found:
         return False
 
-    # Now get the interface address. No good way right now, sorry.
-    with open('/proc/net/rt_cache', 'r') as rt:
-        allRoutes = rt.readlines()
+    if ourHostname is None:
+        # Now get the interface address. No good way right now, sorry.
+        with open('/proc/net/rt_cache', 'r') as rt:
+            allRoutes = rt.readlines()
 
-    found = False
-    for rt in allRoutes[1:]:
-        parts = rt.split()
-        if parts[0] == iface:
-            found = True
-            break
+        found = False
+        for rt in allRoutes[1:]:
+            parts = rt.split()
+            if parts[0] == iface:
+                found = True
+                break
+        if not found:
+            raise RuntimeError("could not establish our IP address -- consider adding --ourHostname commandline argument.")
+        ourHostIP = hexIP2asciiIP(parts[7], reverse=True)
+    else:
+        ourHostIP = skt.gethostbyname(ourHostname)
 
-    if not found:
-        return False
-
-    return ip, mac, iface, hexIP2asciiIP(parts[7], reverse=True)
+    return ip, mac, iface, ourHostIP
 
     
 def burnBabyBurn(args):
@@ -514,7 +546,7 @@ def burnBabyBurn(args):
         hexfile = os.path.join(ourPath, '..', 'etc', 'PCM_main.hex')
         hexfile = os.path.normpath(hexfile)
 
-    netParts = fetchNetInfo(hostname)
+    netParts = fetchNetInfo(hostname, args.ourHostname)
     if netParts is False:
         raise RuntimeError("cannot resolve or get info about %s (try pinging it?)" % (hostname))
     
@@ -522,9 +554,9 @@ def burnBabyBurn(args):
     parts = mac.split(':')
     liaID = parts[-2] + parts[-1]
 
-    print("ip, LIA_ID, iface, ourIP, hexfile = %s, %s, %s, %s,%s" % (ip,
-                                                                     liaID, iface, ourIp,
-                                                                     hexfile))
+    print("ip, mac, LIA_ID, iface, ourIP, hexfile = %s, %s, %s, %s, %s,%s" % (ip, mac,
+                                                                              liaID, iface, ourIp,
+                                                                              hexfile))
     pcm = PCM_Bootloader(hostname=ip,
                          logLevel=(logging.DEBUG if args.debug else logging.INFO))
     
@@ -591,7 +623,7 @@ def main(argv=None):
     
     if argv is None:
         argv = sys.argv[1:]
-    if isinstance(argv, basestring):
+    if isinstance(argv, str):
         argv = shlex.split()
 
     parser = argparse.ArgumentParser('PCM bootloader control and burning.')
@@ -603,6 +635,8 @@ def main(argv=None):
                         help='the IP address/name of the PCM board')
     parser.add_argument('--cam', type=str, action='store', default=None,
                         help='the name of the PCM board\'s camera')
+    parser.add_argument('--ourHostname', type=str, action='store', default=None,
+                        help='*our* hostname/IP address, when talking to the PCM.')
     parser.add_argument('--debug', action='store_true')
 
     args = parser.parse_args(argv)
