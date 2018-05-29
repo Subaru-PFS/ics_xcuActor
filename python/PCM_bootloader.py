@@ -474,7 +474,35 @@ def hexIP2asciiIP(hexStr, reverse=False):
     return ip
     
 
-def fetchNetInfo(hostname):
+def fetchNetInfo(hostname, ourHostname=None):
+    """Generate all the network info we need for burning. 
+
+    Args
+    ----
+    hostname : str
+      The hostname/IP address of the PCM 
+    ourHostname : str
+      The hostname/IP address of *our* interface when talking to the PCM.
+
+    Returns
+    -------
+    ip : str ("10.1.13.2")
+      the IP address of the PCM
+    mac : str ("00:d0:81:09:04:ed")
+      the mac address of the PCM board
+    iface : str ("eth1")
+      the name of our interface to the PCM board
+    ourIp : str ("10.1.1.1")
+      our IP address, when talking to the PCM board
+
+    Notes
+    -----
+
+    There is no universal method to get all this. In particular,
+    getting our IP address is tricky. That is why we accept it as an
+    optional argument.
+
+    """
     hostname = skt.gethostbyname(hostname)
     with open('/proc/net/arp', 'r') as arp:
         allArps = arp.readlines()
@@ -489,21 +517,24 @@ def fetchNetInfo(hostname):
     if not found:
         return False
 
-    # Now get the interface address. No good way right now, sorry.
-    with open('/proc/net/rt_cache', 'r') as rt:
-        allRoutes = rt.readlines()
+    if ourHostname is None:
+        # Now get the interface address. No good way right now, sorry.
+        with open('/proc/net/rt_cache', 'r') as rt:
+            allRoutes = rt.readlines()
 
-    found = False
-    for rt in allRoutes[1:]:
-        parts = rt.split()
-        if parts[0] == iface:
-            found = True
-            break
+        found = False
+        for rt in allRoutes[1:]:
+            parts = rt.split()
+            if parts[0] == iface:
+                found = True
+                break
+        if not found:
+            raise RuntimeError("could not establish our IP address -- consider adding --ourHostname commandline argument.")
+        ourHostIP = hexIP2asciiIP(parts[7], reverse=True)
+    else:
+        ourHostIP = skt.gethostbyname(ourHostname)
 
-    if not found:
-        return False
-
-    return ip, mac, iface, hexIP2asciiIP(parts[7], reverse=True)
+    return ip, mac, iface, ourHostIP
 
     
 def burnBabyBurn(args):
@@ -515,7 +546,7 @@ def burnBabyBurn(args):
         hexfile = os.path.join(ourPath, '..', 'etc', 'PCM_main.hex')
         hexfile = os.path.normpath(hexfile)
 
-    netParts = fetchNetInfo(hostname)
+    netParts = fetchNetInfo(hostname, args.ourHostname)
     if netParts is False:
         raise RuntimeError("cannot resolve or get info about %s (try pinging it?)" % (hostname))
     
@@ -604,6 +635,8 @@ def main(argv=None):
                         help='the IP address/name of the PCM board')
     parser.add_argument('--cam', type=str, action='store', default=None,
                         help='the name of the PCM board\'s camera')
+    parser.add_argument('--ourHostname', type=str, action='store', default=None,
+                        help='*our* hostname/IP address, when talking to the PCM.')
     parser.add_argument('--debug', action='store_true')
 
     args = parser.parse_args(argv)
