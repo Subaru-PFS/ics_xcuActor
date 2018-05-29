@@ -35,8 +35,9 @@ disk image loaded.
  2. check serial console.
 
     On a linux host, connect with something like ``miniterm.py --eol cr
-    --raw socket://moxa-sp3:4001``. That would be for b3; adjust to taste.
-
+    --raw socket://moxa-sp3:4001``. That would be for b3; adjust to
+     taste. See step 0.
+    
     The last step of the BIOS work rebooted the BEE: you should see
     booting stuff in the miniterm.py session. Again, hold down F4 from
     power up to break into the BIOS. Do that now, and note the MAC address 

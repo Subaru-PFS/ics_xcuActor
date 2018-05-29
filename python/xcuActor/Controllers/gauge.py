@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from importlib import reload
 
 import logging
@@ -52,7 +50,7 @@ class gauge(pfeiffer.Pfeiffer):
             pass
         
         fullCmd = b"%s%s" % (cmdStr, self.EOL)
-        self.logger.debug('sending %r', fullCmd)
+        self.logger.info('sending %r', fullCmd)
         cmd.diag('text="sending %r"' % fullCmd)
 
         try:
@@ -75,7 +73,7 @@ class gauge(pfeiffer.Pfeiffer):
             cmd.warn('text="failed to read response from %s: %s"' % (self.name, e))
             raise
 
-        self.logger.debug('received %r', ret)
+        self.logger.info('received %r', ret)
         cmd.diag('text="received %r"' % ret)
         s.close()
 
