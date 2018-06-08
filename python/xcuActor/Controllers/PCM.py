@@ -151,7 +151,7 @@ class PCM(pfeiffer.Pfeiffer):
         try:
             return self._waitForIdle(maxTime=maxTime, cmd=cmd)
         except RuntimeError as e:
-            if not e.message.startswith('no response to command:'):
+            if not str(e).startswith('no response to command:'):
                 raise
             cmd.diag('text="restarting idle wait: %s"' % (e))
             time.sleep(0.25)

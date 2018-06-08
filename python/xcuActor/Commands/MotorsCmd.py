@@ -277,7 +277,7 @@ class MotorsCmd(object):
                                                                               maxTime=3.0, waitTime=1.0,
                                                                               cmd=cmd)
             except RuntimeError as e:
-                if not e.message.startswith('no response'):
+                if not str(e).startswith('no response'):
                     raise
                 else:
                     cmd.warn('text="blowing through expected glitch: %s"' % (e))
