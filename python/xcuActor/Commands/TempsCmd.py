@@ -83,7 +83,7 @@ class TempsCmd(object):
 
         power = cmdKeys['power'].values[0]
 
-        if 'spider' in cmdKeys:
+        if 'asic' in cmdKeys:
             heater = 'asic'
         elif 'ccd':
             heater = 'ccd'
@@ -144,7 +144,7 @@ class TempsCmd(object):
 
         if 'shield' in cmdKeys:
             heater = 1
-        elif 'spider' in cmdKeys:
+        elif 'spreader' in cmdKeys:
             heater = 2
         else:
             cmd.fail('text="no heater (shield or spreader) was specified!"')
