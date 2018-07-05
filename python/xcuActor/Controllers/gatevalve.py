@@ -76,8 +76,15 @@ class gatevalve(object):
 
         def isOpen(status):
             return (status & self.posBits) == self.bits['open']
+
+        try:
+            ret = self.spinUntil(isOpen, starting=starting, wait=wait, cmd=cmd)
+        except Exception as e:
+            cmd.warn(f'text="FAILED to open gatevalve: {e}; Trying to set requested state to closed...."')
+            self.dev.clear(self.bits['enabled'])
+            self.status(cmd=cmd)
+            raise e
             
-        ret = self.spinUntil(isOpen, starting=starting, wait=wait, cmd=cmd)
         return ret
         
     def close(self, wait=4, cmd=None):

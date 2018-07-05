@@ -39,7 +39,12 @@ class GatevalveCmd(object):
     def open(self, cmd):
         """ Enable gatevalve to be opened. """
 
-        self.actor.controllers['gatevalve'].open(cmd=cmd)
+        try:
+            self.actor.controllers['gatevalve'].open(cmd=cmd)
+        except Exception as e:
+            cmd.fail('text="FAILED to open gatevalve!!"')
+            return
+        
         cmd.finish()
         
     def close(self, cmd):
