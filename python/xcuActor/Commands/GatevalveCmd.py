@@ -20,7 +20,7 @@ class GatevalveCmd(object):
         #
         self.vocab = [
             ('gatevalve', 'status', self.status),
-            ('gatevalve', 'open', self.open),
+            ('gatevalve', 'open (@force)', self.open),
             ('gatevalve', 'close', self.close),
             ('sam', 'off', self.samOff),
             ('sam', 'on', self.samOn),
@@ -36,9 +36,26 @@ class GatevalveCmd(object):
         self.actor.controllers['gatevalve'].status(cmd=cmd)
         cmd.finish()
 
+    def _checkOpenable(self, cmd):
+        return 'unknown pressure differential'
+    
     def open(self, cmd):
-        """ Enable gatevalve to be opened. """
+        """ Enable gatevalve to be opened. Requires that |rough - dewar| <= 30 mTorr. 
 
+        The hardware interlock might veto the action.
+        """
+        cmdKeys = cmd.cmd.keywords
+
+        # Actively get rough and dewar side pressures
+        status = self._checkOpenable(cmd)
+
+        if status != 'OK':
+            if 'force' in cmdKeys:
+                cmd.warn(f'text="gatevalve status is suspect ({status}), but FORCEing it open"')
+            else:
+                cmd.fail(f'text="gatevalue opening blocked: {status}"')
+                return
+            
         try:
             self.actor.controllers['gatevalve'].open(cmd=cmd)
         except Exception as e:
@@ -48,7 +65,7 @@ class GatevalveCmd(object):
         cmd.finish()
         
     def close(self, cmd):
-        """ Disable gatevalve to be opened. """
+        """ Close gatevalve. """
 
         self.actor.controllers['gatevalve'].close(cmd=cmd)
         cmd.finish()
