@@ -20,7 +20,12 @@ class OurActor(actorcore.ICC.ICC):
         self.monitors = dict()
         
         self.statusLoopCB = self.statusLoop
-        
+
+        if name[-1] in '12':
+            self.rough = 'rough1'
+        else:
+            self.rough = 'rough2'
+            
     def reloadConfiguration(self, cmd):
         cmd.inform('sections=%08x,%r' % (id(self.config),
                                          self.config))
