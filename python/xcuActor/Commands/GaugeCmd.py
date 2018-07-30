@@ -36,12 +36,18 @@ class GaugeCmd(object):
                                                                          types.String(help='the MPT200 value'))),
                                         )
         
-    def pcmPressure(self, cmd):
+    def pcmPressure(self, cmd, doFinish=True):
         """ Fetch the latest pressure reading from the cryostat ion gauge. """
 
         ret = self.actor.controllers['PCM'].pressure(cmd=cmd)
-        cmd.finish('pressure=%g' % (ret))
-        
+
+        if doFinish:
+            cmd.finish('pressure=%g' % (ret))
+        else:
+            cmd.inform('pressure=%g' % (ret))
+
+        return ret
+    
     def getRaw(self, cmd):
         """ Send a direct query command to the PCM's gauge controller. """
 
