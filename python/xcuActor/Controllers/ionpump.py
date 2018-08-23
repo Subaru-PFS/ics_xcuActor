@@ -101,8 +101,11 @@ class ionpump(object):
         return raw[2:-3]
     
     def sendReadCommand(self, win, cmd=None):
-        if not isinstance(win, str):
+        if isinstance(win, int):
             win = b"%03d" % (win)
+        elif isinstance(win, str):
+            win = win.encode('latin-1')
+
         reply = self.sendOneCommand(win+b'0', cmd=cmd)
 
         if reply[:3] != win:
@@ -114,8 +117,11 @@ class ionpump(object):
         return reply[4:]
             
     def sendWriteCommand(self, win, value, cmd=None):
-        if not isinstance(win, str):
+        if isinstance(win, int):
             win = b"%03d" % (win)
+        elif isinstance(win, str):
+            win = win.encode('latin-1')
+
         reply = self.sendOneCommand(win+b'1'+value.encode('latin-1'), cmd=cmd)
 
         return reply
