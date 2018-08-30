@@ -164,9 +164,9 @@ The two sections above cover the gatevalve logic for a single
 cryostat. With six cryostats on a single roughing line, we just need
 to make sure that any pumping actions conform to those two scenarios.
 
-a. Pump one or more cryostats which are all at atmosphere.
+1. Pump one or more cryostats which are all at atmosphere.
 
-   1. *Confirm* that all cryostats **and** the roughing line are actually
+   a. *Confirm* that all cryostats **and** the roughing line are actually
       at atmosphere: backfill per the procedures as
       necessary. **DANGER**: only backfill cryostats which are *known*
       not to be cold.
@@ -188,29 +188,29 @@ a. Pump one or more cryostats which are all at atmosphere.
 
         **JEG**: *need hardware AND procedure*
 
-   2. Open the gatevalves on all cryostats to pump.
-   3. Turn on roughing pump
-   4. Once roughing line gets down to ~1 mbar, turn on turbos on all
+   b. Open the gatevalves on all cryostats to pump.
+   c. Turn on roughing pump
+   d. Once roughing line gets down to ~1 mbar, turn on turbos on all
       cryostats to pump.
-   5. [Not yet decided] turn the rougher to standby ???
+   e. [Not yet decided] turn the rougher to standby ???
 
-b. Pump one or more cryostats which are all at vacuum.
+2. Pump one or more cryostats which are all at vacuum.
 
-   1. Turn on roughing pump
-   2. Once roughing line gets down to ~1 mbar, turn on turbos on all
+   a. Turn on roughing pump
+   b. Once roughing line gets down to ~1 mbar, turn on turbos on all
       cryostats to pump.
-   3. Once roughing line pressure stabilizes and all turbos are at
+   c. Once roughing line pressure stabilizes and all turbos are at
       full speed, open the appropriate gatevalves.
 
-c. Some cryostats are pumping, want to pump more from atmosphere.
+3. Some cryostats are pumping, want to pump more from atmosphere.
 
-   1. close gatevalve on pumping cryostats
-   2. turn off turbos, turn off roughing pump.
-   3. Goto procedure a1 for the new cryostats
-   4. Once Goto procedure b2. once the new cryostats get to ~1 mbar.
+   a. close gatevalve on pumping cryostats
+   b. turn off turbos, turn off roughing pump.
+   c. Goto procedure 1a for the new cryostats
+   d. Once Goto procedure 2b. once the new cryostats get to ~1 mbar.
 
-d. Some cryostats are pumping, want to pump more from vacuum.
+4. Some cryostats are pumping, want to pump more from vacuum.
 
-   1. Goto procedure b2.
+   a. Goto procedure 2b.
 
 .. _PFS-SPS-PRU020100: https://github.com/Subaru-PFS/ics_xcuActor/blob/master/docs/PFS-SPS-PRU020100_Pumping_Control.rst
