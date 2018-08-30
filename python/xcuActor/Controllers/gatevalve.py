@@ -37,13 +37,14 @@ class gatevalve(object):
                              0:'closed',
                              self.requestBits:'open'}
 
-        self.dev = rtdADIO.ADIO.ADIO(self.bits['enabled'] |
-                                     self.bits['sam_off'] |
-                                     self.bits['sam_return'])
+        self.dev = None
+        self.dev = rtdADIO.ADIO.ADIO(self.bits['enabled'] | self.bits['sam_off'] | self.bits['sam_return'],
+                                     self.posBits | self.bits['enabled'] | self.bits['active']) 
         # logger=self.logger)
 
-    #def __del__(self):
-    #    self.dev.disconnect()
+    def __del__(self):
+        if self.dev is not None:
+            self.dev.disconnect()
         
     def start(self, cmd=None):
         pass

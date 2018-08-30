@@ -20,7 +20,7 @@ class GatevalveCmd(object):
         #
         self.vocab = [
             ('gatevalve', 'status', self.status),
-            ('gatevalve', 'open (@force)', self.open),
+            ('gatevalve', 'open [@force]', self.open),
             ('gatevalve', 'close', self.close),
             ('sam', 'off', self.samOff),
             ('sam', 'on', self.samOn),
