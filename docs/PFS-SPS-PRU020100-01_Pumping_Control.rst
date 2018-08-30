@@ -2,6 +2,7 @@ PFS Cryostat pumping.
 =====================
 
 Document ID: PFS-SPS-PRU020100-01_Pumping_Control.rst
+Document link: https://github.com/Subaru-PFS/ics_xcuActor/blob/master/docs/PFS-SPS-PRU020100_Pumping_Control.rst
 
 Each of the twelve PFS cryostats has its own gatevalve and turbo
 pump. The entire instrument is backed by two roughing lines, each with
@@ -126,23 +127,23 @@ Opening the gatevalve with the cryostat under vacuum (< 1 mbar)
 If the cryostat is at vacuum, the checks enforced before a `gatevalve
 open` command is applied are:
 
- - the interlock board must be powered up (`xcu_b1 power on
-   interlock`)
- - the interlock jumper must be installed on Jxxx at the bottom of the
-   piepan
- - both the roughing and turbo pumps must be *on*.
- - the pressures must be within 30 mbar of each other.
+- the interlock board must be powered up (`xcu_b1 power on
+  interlock`)
+- the interlock jumper must be installed on Jxxx at the bottom of the
+  piepan
+- both the roughing and turbo pumps must be *on*.
+- the pressures must be within 30 mbar of each other.
 
 There are are few further bits of logic. Basically, when the gatevalve
 is open, the `xcuActor` actively watches for anomalies in the
 pressures, interlock, and roughing pump. Specifically:
 
- - if an open command fails, the open signal is deasserted.
- - if the measured state of the gatevalve or interlock changes, the
-   valve is commanded closed.
- - while a roughing pump is on, it broadcasts the pressure and pump
-   status continuously (0.2 - 1 HZ). If that data stops or the
-   pressure rises or the pump shows an error, the gatevalve is closed.
+- if an open command fails, the open signal is deasserted.
+- if the measured state of the gatevalve or interlock changes, the
+  valve is commanded closed.
+- while a roughing pump is on, it broadcasts the pressure and pump
+  status continuously (0.2 - 1 HZ). If that data stops or the
+  pressure rises or the pump shows an error, the gatevalve is closed.
 
 Note that the hardware signal from the turbo pump which closes the
 gatevalve when the pump speed falls below 50-80% (TBD) should handle
@@ -153,7 +154,7 @@ turbo spins down.
 We are *not* (yet) watching site air pressure. The gatevalve does
 *not* close on pressure loss, so we probably should.
 
-**JEG**: *Julien: we need a pressure switch on the standby tank*
+  **JEG**: *Julien: we need a pressure switch on the standby tank*
 
 Pumping scenarios
 -----------------
@@ -172,14 +173,15 @@ a. Pump one or more cryostats which are all at atmosphere.
       [ How do we determine that the cryostat has been backfilled? Are
       we adding check valves? CPL ]
 
-      **JEG**: *this is a procedural question. We have the gauges, which
-      we can calibrate, but NOT to 30 mB. We still do not have a completely
-      safe way to backfill, but can almost certainly come up with one. I
-      will think about it. Since a popoff on a backfill line does not have
-      to deal with/seal against high vacuum, and since 30 mbar on a 4-inch
-      disk generates about 5 pounds of force, it does not seem unreasonable
-      to make a popoff which does relieve at a few millbar on the backfill
-      line. Not completely trivial, but easy. Balloons work, too.*
+        **JEG**: *this is a procedural question. We have the gauges,
+        which we can calibrate, but NOT to 30 mB. We still do not have
+        a completely safe way to backfill, but can almost certainly
+        come up with one. I will think about it. Since a popoff on a
+        backfill line does not have to deal with/seal against high
+        vacuum, and since 30 mbar on a 4-inch disk generates about 5
+        pounds of force, it does not seem unreasonable to make a
+        popoff which does relieve at a few millbar on the backfill
+        line. Not completely trivial, but easy. Balloons work, too.*
 
       [ How do we backfill roughing line? With what? CPL ]
 
