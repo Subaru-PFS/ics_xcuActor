@@ -1,8 +1,9 @@
 PFS Cryostat pumping.
 =====================
 
-Document ID: PFS-SPS-PRU020100-01_Pumping_Control.rst
-Document link: https://github.com/Subaru-PFS/ics_xcuActor/blob/master/docs/PFS-SPS-PRU020100_Pumping_Control.rst
+Document ID: PFS-SPS-PRU020100-01
+
+Latest revision link: PFS-SPS-PRU020100_
 
 Each of the twelve PFS cryostats has its own gatevalve and turbo
 pump. The entire instrument is backed by two roughing lines, each with
@@ -105,12 +106,12 @@ often/usually require human judgement and action.
 
 In order for the `gatevalve open` command to actually open the valve,
 
- - the interlock board must be powered up (`xcu_b1 power on
-   interlock`)
- - the interlock jumper must be installed on Jxxx at the bottom of the
-   piepan
- - all pumps must be *off*.
- - the pressures *should* be within 30 mbar of each other.
+- the interlock board must be powered up (`xcu_b1 power on
+  interlock`)
+- the interlock jumper must be installed on Jxxx at the bottom of the
+  piepan
+- all pumps must be *off*.
+- the pressures *should* be within 30 mbar of each other.
 
 The 'gatevalve open' command accepts an optional `ok` argument, which
 overrides the 30 mbar pressure check. [ It also accepts a
@@ -211,3 +212,5 @@ c. Some cryostats are pumping, want to pump more from atmosphere.
 d. Some cryostats are pumping, want to pump more from vacuum.
 
    1. Goto procedure b2.
+
+.. _PFS-SPS-PRU020100: https://github.com/Subaru-PFS/ics_xcuActor/blob/master/docs/PFS-SPS-PRU020100_Pumping_Control.rst
