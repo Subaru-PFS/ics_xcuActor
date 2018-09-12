@@ -307,11 +307,10 @@ class temps(object):
         maxLevel = 1.0 # float(0xfff)
         
         if cmd is not None:
-            cmd.inform('HPheaters=%d,%d' % (HPenabled[0], HPenabled[1]))
-            cmd.inform('heaters=%d,%d,%0.3f,%0.3f' % (enabled[0],
-                                                      enabled[1],
-                                                      atLevel[0]/maxLevel,
-                                                      atLevel[1]/maxLevel))
+            cmd.inform('heaters=%d,%d,%0.3f,%0.3f,%d,%d,%0.3f,%0.3f' % (enabled[0], HPenabled[0],
+                                                                        atLevel[0]/maxLevel, HPenabled[0],
+                                                                        enabled[1], HPenabled[1],
+                                                                        atLevel[1]/maxLevel, HPenabled[1]))
         return enabled + atLevel + HPenabled
         
     def fetchTemps(self, sensors=None, cmd=None):
