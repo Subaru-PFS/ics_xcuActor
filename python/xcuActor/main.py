@@ -13,19 +13,23 @@ class OurActor(actorcore.ICC.ICC):
         actorcore.ICC.ICC.__init__(self, name, 
                                    productName=productName, 
                                    configFile=configFile)
+
         self.logger.setLevel(logLevel)
+        self.addModels([self.name])
         
         self.everConnected = False
 
         self.monitors = dict()
-        
         self.statusLoopCB = self.statusLoop
 
         if name[-1] in '12':
-            self.rough = 'rough1'
+            self.roughName = 'rough1'
         else:
-            self.rough = 'rough2'
-            
+            self.roughName = 'rough2'
+        self.addModels([self.roughName])
+
+        self.roughMonitor = None
+        
     def reloadConfiguration(self, cmd):
         cmd.inform('sections=%08x,%r' % (id(self.config),
                                          self.config))
