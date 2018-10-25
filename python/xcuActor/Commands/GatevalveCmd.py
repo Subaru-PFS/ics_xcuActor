@@ -36,10 +36,11 @@ class GatevalveCmd(object):
                                         keys.Key("hard", types.Float(),
                                                  help='hard limit for dPressure'),   
         )
-        
+
+        # The valve manual declares 30 mbar/22.5 Torr as the maximum pressure across the valve.
         self.atmThreshold = 460.0  # The absolute lowest air pressure to accept as at atmosphere, Torr
-        self.dPressSoftLimit = 3   # The overridable pressure difference limit for opening, Torr
-        self.dPressHardLimit = 10  # The absolute pressure difference limit for opening, Torr
+        self.dPressSoftLimit = 22  # The overridable pressure difference limit for opening, Torr
+        self.dPressHardLimit = 22  # The absolute pressure difference limit for opening, Torr
         
     def status(self, cmd, doFinish=True):
         """ Generate all gatevalve keys."""
@@ -58,6 +59,10 @@ class GatevalveCmd(object):
             self.dPressHardLimit = cmdKeys['hard'].values[0]
         if 'atm' in cmdKeys:
             self.atmThreshold = cmdKeys['atm'].values[0]
+
+        if self.dPressSoftLimit > self.dPressHardLimit:
+            self.dPressSoftLimit = self.dPressHardLimit
+            
         cmd.finish(f'text="dPressure limits are atm={self.atmThreshold} soft={self.dPressSoftLimit} hard={self.dPressHardLimit}"')
         
     def _checkOpenable(self, cmd, atAtmosphere, dPressLimitFlexible):
