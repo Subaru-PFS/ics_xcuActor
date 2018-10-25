@@ -110,7 +110,7 @@ class GatevalveCmd(object):
             else:
                 return f'pressure difference ({dPress}) exceeds soft limit ({self.dPressSoftLimit})'
 
-        return 'unknown pressure differential'
+        return 'OK'
     
     def open(self, cmd):
         """ Enable gatevalve to be opened. Requires that |rough - dewar| <= 30 mTorr. 
@@ -133,9 +133,6 @@ class GatevalveCmd(object):
             else:
                 cmd.fail(f'text="gatevalue opening blocked: {status}"')
                 return
-        else:
-            cmd.finish(f'text="gatevalue opening blocked: {status}"')
-            
         try:
             self.actor.controllers['gatevalve'].open(cmd=cmd)
         except Exception as e:
