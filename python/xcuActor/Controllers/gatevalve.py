@@ -38,9 +38,10 @@ class gatevalve(object):
                              self.requestBits:'open'}
 
         self.dev = None
-        self.dev = rtdADIO.ADIO.ADIO(self.bits['enabled'] | self.bits['sam_off'] | self.bits['sam_return'],
-                                     self.posBits | self.bits['enabled'] | self.bits['active']) 
-        # logger=self.logger)
+        self.dev = rtdADIO.ADIO.ADIO(self.bits['enabled'] | self.bits['sam_off'] | self.bits['sam_return'])
+        # This is the second argument, for the interrupt mask. Add it when we update rtdADIO.
+        #self.posBits | self.bits['enabled'] | self.bits['active'])
+
 
     def __del__(self):
         if self.dev is not None:
