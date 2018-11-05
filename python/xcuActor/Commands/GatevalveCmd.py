@@ -20,7 +20,8 @@ class GatevalveCmd(object):
         #
         self.vocab = [
             ('gatevalve', 'status', self.status),
-            ('gatevalve', 'open [@(underVacuum)] [@(atAtmosphere)] [@(ok)] [@(reallyforce)]', self.open),
+            ('gatevalve', 'open [@(underVacuum)] [@(atAtmosphere)] [@(ok)] [@(reallyforce)] [@(dryrun)]',
+             self.open),
             ('gatevalve', 'close', self.close),
             ('setLimits', '[<atm>] [<soft>] [<hard>]', self.setLimits),
             ('sam', 'off', self.samOff),
@@ -111,15 +112,22 @@ class GatevalveCmd(object):
                 return f'pressure difference ({dPress}) exceeds soft limit ({self.dPressSoftLimit})'
 
         return 'OK'
-    
+
     def open(self, cmd):
         """ Enable gatevalve to be opened. Requires that |rough - dewar| <= 30 mTorr. 
 
+        Either "atAtmosphere" or "underVacuum" must be specified. The tests applied are slightly
+        different for the different modes:
+         - underVacuum, the pumps must be on. 
+        `- atAtmosphere, the pumps must be off.
+
         The hardware interlock might veto the action.
         """
+        
         cmdKeys = cmd.cmd.keywords
         atAtmosphere = 'atAtmosphere' in cmdKeys
         underVacuum = 'underVacuum' in cmdKeys
+        dryrun = 'dryrun' in cmdKeys
         argCheck = (atAtmosphere is True) ^ (underVacuum is True)
         if not argCheck:
             cmd.fail('text="either underVacuum or atAtmosphere must be set"')
@@ -128,11 +136,16 @@ class GatevalveCmd(object):
         status = self._checkOpenable(cmd, atAtmosphere, 'ok' in cmdKeys)
         
         if status != 'OK':
-            if 'force' in cmdKeys:
+            if 'reallyforce' in cmdKeys:
                 cmd.warn(f'text="gatevalve status is suspect but FORCEing it open ({status})"')
             else:
                 cmd.fail(f'text="gatevalue opening blocked: {status}"')
                 return
+
+        if dryrun:
+            cmd.finish('text="dryrun set, so not actually opening gatevalve"')
+            return
+        
         try:
             self.actor.controllers['gatevalve'].open(cmd=cmd)
         except Exception as e:
