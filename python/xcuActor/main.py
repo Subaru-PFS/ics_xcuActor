@@ -26,6 +26,14 @@ class OurActor(actorcore.ICC.ICC):
             self.roughName = 'rough1'
         else:
             self.roughName = 'rough2'
+
+        try:
+            roughOverride = self.config.get(self.name, 'roughActor')
+            if roughOverride is not None:
+                self.roughName = roughOverride
+        except:
+            pass
+        
         self.addModels([self.roughName])
 
         self.roughMonitor = None
