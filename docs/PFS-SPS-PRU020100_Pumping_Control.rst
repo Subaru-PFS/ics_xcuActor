@@ -1,7 +1,7 @@
 PFS Cryostat pumping.
 =====================
 
-Document ID: PFS-SPS-PRU020100-01
+Document ID: PFS-SPS-PRU020100-02
 
 Latest revision link: PFS-SPS-PRU020100_
 
@@ -21,7 +21,8 @@ Pumping control for a given cryostat involves two actors and five
 pieces of hardware. The cryostat's `ics_xcuActor` controls the
 gatevalve and the turbo pump, and reads the internal cryostat
 pressure. One of two `ics_roughActor` s controls a roughing pump and
-reads a pressure gauge.
+reads a pressure gauge which is between the roughing pump and any
+turbo pump.
 
 Both the turbo and the roughing pump are controlled over serial
 lines. The roughing pump can be manually turned on or off, the turbo
@@ -89,7 +90,9 @@ put most of our safety logic into being careful about when to allow
 opening and when to force closing the valve.
 
 There are two distinct situations to handle: when the cryostat is
-under vacuum and when it is not.
+under vacuum and when it is not. In order to clearly disambiguate the
+two, the `gatevalve open` command must actually be either `gatevalve
+open atAtmosphere` or `gatevalve open underVacuum`.
 
 In order to open the gatevalve the pressure difference across the
 valve is supposed to be -- per the manual -- no greater than 30 mbar.
@@ -102,22 +105,20 @@ atmosphere. [ See the manual procedures for that.... ]
 
 At atmosphere, we will not always be able to determine pressures well
 enough for the differential pressure check to pass. So we will
-often/usually require human judgement and action.
+often require human judgement and action.
 
-In order for the `gatevalve open` command to actually open the valve,
+In order for the `gatevalve open atAtmosphere` command to actually
+open the valve,
 
 - the interlock board must be powered up (`xcu_b1 power on
   interlock`)
 - the interlock jumper must be installed on Jxxx at the bottom of the
   piepan
-- all pumps must be *off*.
+- both the roughing and the turbo pumps must be *off*.
 - the pressures *should* be within 30 mbar of each other.
 
 The 'gatevalve open' command accepts an optional `ok` argument, which
-overrides the 30 mbar pressure check. [ It also accepts a
-`reallyforce` argument, which overrides all checks. DO NOT SEND
-THIS unless you are at sea level and have spoken with the Site
-Engineer in person. ]
+overrides the 30 mbar pressure check.
 
 Procedures are important here. WE DO NOT KNOW WHAT THE PHYSICAL
 EFFECTS OF DRIVING THE VALVE THROUGH A PRESSURE OFFSET ARE.
@@ -126,7 +127,7 @@ Opening the gatevalve with the cryostat under vacuum (< 1 mbar)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If the cryostat is at vacuum, the checks enforced before a `gatevalve
-open` command is applied are:
+open underVacuum` command is applied are:
 
 - the interlock board must be powered up (`xcu_b1 power on
   interlock`)
@@ -201,16 +202,24 @@ to make sure that any pumping actions conform to those two scenarios.
       cryostats to pump.
    c. Once roughing line pressure stabilizes and all turbos are at
       full speed, open the appropriate gatevalves.
+   d. [Not yet decided] turn the rougher to standby ???
 
 3. Some cryostats are pumping, want to pump more from atmosphere.
 
    a. close gatevalve on pumping cryostats
    b. turn off turbos, turn off roughing pump.
    c. Goto procedure 1a for the new cryostats
-   d. Once Goto procedure 2b. once the new cryostats get to ~1 mbar.
+   d. Once the new cryostats get to ~1 mbar, goto procedure 2b. 
 
 4. Some cryostats are pumping, want to pump more from vacuum.
 
    a. Goto procedure 2b.
+
+Additional Notes
+----------------
+
+The `gatevalve open` command also accepts a `reallyforce` argument,
+which overrides all checks. DO NOT SEND THIS unless you are at sea
+level and have spoken with the Site Engineer in person. ]
 
 .. _PFS-SPS-PRU020100: https://github.com/Subaru-PFS/ics_xcuActor/blob/master/docs/PFS-SPS-PRU020100_Pumping_Control.rst

@@ -129,12 +129,17 @@ class GatevalveCmd(object):
         return 'OK'
 
     def open(self, cmd):
-        """ Enable gatevalve to be opened. Requires that |rough - dewar| <= 30 mTorr. 
+        """ Enable gatevalve to be opened. Requires that |rough - dewar| <= 22 Torr. 
 
         Either "atAtmosphere" or "underVacuum" must be specified. The tests applied are slightly
-        different for the different modes:
+        different for the different modes. Mainly:
          - underVacuum, the pumps must be on. 
         `- atAtmosphere, the pumps must be off.
+
+        If "dryrun" is passed in, all tests will be made, but if the valve can be opened it will not be.
+
+        If "reallyforce" is passed in, then the valve motion will be enabled regardless of any 
+        failed safety tests. Any detector damage is on you.
 
         The hardware interlock might veto the action.
         """
