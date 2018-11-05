@@ -67,6 +67,16 @@ class GatevalveCmd(object):
         cmd.finish(f'text="dPressure limits are atm={self.atmThreshold} soft={self.dPressSoftLimit} hard={self.dPressHardLimit}"')
         
     def _checkOpenable(self, cmd, atAtmosphere, dPressLimitFlexible):
+        """ Check whether the gatevalve can be opened. 
+
+        Returns
+        -------
+
+        errorString : str
+          "OK" if the valve can be opened, a useful striung otherwise.
+
+        """
+        
         try:
             pcm = self.actor.controllers['PCM']
         except KeyError:
@@ -100,8 +110,13 @@ class GatevalveCmd(object):
         
         if atAtmosphere:
             if dewarPressure < self.atmThreshold:
-                return f'pressure too low to treat as atmosphere ({dewarPressure} < {self.atmThreshold})'
-
+                return f'dewar pressure too low to treat as atmosphere ({dewarPressure} < {self.atmThreshold})'
+            if roughPressure < self.atmThreshold:
+                return f'roughing pressure too low to treat as atmosphere ({roughPressure} < {self.atmThreshold})'
+            cmd.warn('text="lazy Craig is not yet checking pump speeds"')  # CPLXXX
+        else:
+            cmd.warn('text="lazy Craig is not yet checking pump speeds"')  # CPLXXX
+                
         dPress = abs(dewarPressure - roughPressure)
         if dPress >= self.dPressSoftLimit:
             if dPress >= self.dPressHardLimit:
