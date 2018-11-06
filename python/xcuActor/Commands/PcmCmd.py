@@ -468,7 +468,11 @@ class PcmCmd(object):
             if n != 1:
                 n=0
         return int(mask[2:],2)
-                
+
+    def systemInPowerMask(self, mask, system):
+        pcm = self.actor.controllers.get('PCM', None)
+        return pcm.systemInPowerMask(mask, system)
+    
     def getPoweredNames(self, mask):
         """ Return a list of names of the powered ports. """
     

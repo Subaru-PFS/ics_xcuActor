@@ -37,13 +37,15 @@ class gatevalve(object):
                              0:'closed',
                              self.requestBits:'open'}
 
-        self.dev = rtdADIO.ADIO.ADIO(self.bits['enabled'] |
-                                     self.bits['sam_off'] |
-                                     self.bits['sam_return'])
-        # logger=self.logger)
+        self.dev = None
+        self.dev = rtdADIO.ADIO.ADIO(self.bits['enabled'] | self.bits['sam_off'] | self.bits['sam_return'])
+        # This is the second argument, for the interrupt mask. Add it when we update rtdADIO.
+        #self.posBits | self.bits['enabled'] | self.bits['active'])
 
-    #def __del__(self):
-    #    self.dev.disconnect()
+
+    def __del__(self):
+        if self.dev is not None:
+            self.dev.disconnect()
         
     def start(self, cmd=None):
         pass
@@ -76,8 +78,15 @@ class gatevalve(object):
 
         def isOpen(status):
             return (status & self.posBits) == self.bits['open']
+
+        try:
+            ret = self.spinUntil(isOpen, starting=starting, wait=wait, cmd=cmd)
+        except Exception as e:
+            cmd.warn(f'text="FAILED to open gatevalve: {e}; Trying to set requested state to closed...."')
+            self.dev.clear(self.bits['enabled'])
+            self.status(cmd=cmd)
+            raise e
             
-        ret = self.spinUntil(isOpen, starting=starting, wait=wait, cmd=cmd)
         return ret
         
     def close(self, wait=4, cmd=None):

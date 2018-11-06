@@ -80,6 +80,11 @@ class PCM(pfeiffer.Pfeiffer):
 
         return ret
 
+    def systemInPowerMask(self, mask, system):
+        portIndices = {name:i for i,name in enumerate(self.powerPorts)}
+
+        return mask & (1 << portIndices[system])
+    
     def pcmStatus(self, cmd=None):
         if cmd is not None:
             cmd.inform('powerNames=%s' % (self.powerPorts))
