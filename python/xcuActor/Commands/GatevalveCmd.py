@@ -102,6 +102,9 @@ class GatevalveCmd(object):
         callVal = self.actor.cmdr.call(actor=roughName, cmdStr="pump status", timeLim=3)
         if callVal.didFail:
             return 'failed to get roughing pump status'
+
+        turboSpeed, turboStatus = self.actor.controllers['turbo'].speed(cmd)
+        # turboDict = self.actor.models[self.actor.name].keyVarDict
         
         # Check what the invalid values are!!!! CPLXXX
         roughPressure = roughDict['pressure'].getValue()
@@ -109,14 +112,24 @@ class GatevalveCmd(object):
         roughMask, roughErrors = roughDict['pumpErrors'].getValue()
         
         if atAtmosphere:
+            if roughSpeed > 0:
+                return f'roughing pump cannot be on to open at atmosphere'
+            if turboSpeed > 0:
+                return f'turbo pump cannot be on to open at atmosphere'
             if dewarPressure < self.atmThreshold:
                 return f'dewar pressure too low to treat as atmosphere ({dewarPressure} < {self.atmThreshold})'
             if roughPressure < self.atmThreshold:
                 return f'roughing pressure too low to treat as atmosphere ({roughPressure} < {self.atmThreshold})'
-            cmd.warn('text="lazy Craig is not yet checking pump speeds"')  # CPLXXX
         else:
-            cmd.warn('text="lazy Craig is not yet checking pump speeds"')  # CPLXXX
-                
+            if roughSpeed < 30:
+                return f'roughing pump must be running to open under vacuum'
+            if turboSpeed < 90000:
+                return f'turbo pump must be running to open under vacuum'
+            if dewarPressure >= self.atmThreshold:
+                return f'dewar pressure too high to treat as vacuum ({dewarPressure} >= {self.atmThreshold})'
+            if roughPressure >= self.atmThreshold:
+                return f'roughing pressure too high to treat as vacuum ({roughPressure} >= {self.atmThreshold})'
+
         dPress = abs(dewarPressure - roughPressure)
         if dPress >= self.dPressSoftLimit:
             if dPress >= self.dPressHardLimit:
