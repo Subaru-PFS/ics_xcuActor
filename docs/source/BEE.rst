@@ -25,8 +25,9 @@ disk image loaded.
     - 2*Down RET (38400 8,n,1)
     - ESC 4*Right RET RET (Save config and exit)
     
-    **NOTE**: This sequence only works for BIOSes where the serial console
-    has _not_ been configured.
+    **NOTE**: This sequence only works for BIOSes where the serial
+    console has _not_ been configured. There is no sane way to tell
+    whether that has been done.
 
     When booting using the serial console, F4 (and not DEL) brings you
     to the BIOS, and F3 (not F11) brings you to the boot device
@@ -45,8 +46,10 @@ disk image loaded.
 
     While there:
     - Advanced/Miscellaneous Config: Disable the second (CN30) Ethernet
+    - Advanced/Miscellaneous Config: Enable the watchdog interrupt on IRQ11
     - Advanced/Serial Port Config: Set CN8 to 2 ports
-
+    - Advanced/Digital I/O: Enabled, IRQ10
+      
     If you need/want to power-cycle the BEE, from the PFS server
     invoke ``pcm.py --cam=b3 --off=bee --on=bee``.
     
@@ -102,8 +105,3 @@ disk image loaded.
 
     Reboot (ON THE BEE!!!): `reboot`. Stuff should scroll by,
     eventually ending with login prompt.
-    
- 4. At some point, tune the BIOS settingts a bit:
-
-    - Advanced/Miscellaneous Config: Disable the second (CN30) Ethernet
-    - Advanced/Serial Port Config: Set CN8 to 2 ports
