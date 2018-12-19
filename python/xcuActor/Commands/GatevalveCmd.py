@@ -164,6 +164,7 @@ class GatevalveCmd(object):
         argCheck = (atAtmosphere is True) ^ (underVacuum is True)
         if not argCheck:
             cmd.fail('text="either underVacuum or atAtmosphere must be set"')
+            return
         
         # Actively get rough and dewar side pressures
         status = self._checkOpenable(cmd, atAtmosphere, 'ok' in cmdKeys)
