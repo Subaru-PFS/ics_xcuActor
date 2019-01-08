@@ -15,26 +15,11 @@ class OurActor(actorcore.ICC.ICC):
                                    configFile=configFile)
 
         self.logger.setLevel(logLevel)
-        self.addModels([self.name])
         
         self.everConnected = False
 
         self.monitors = dict()
         self.statusLoopCB = self.statusLoop
-
-        if name[-1] in '12':
-            self.roughName = 'rough1'
-        else:
-            self.roughName = 'rough2'
-
-        try:
-            roughOverride = self.config.get(self.name, 'roughActor')
-            if roughOverride is not None:
-                self.roughName = roughOverride
-        except:
-            pass
-        
-        self.addModels([self.roughName])
 
         self.roughMonitor = None
         
@@ -49,6 +34,23 @@ class OurActor(actorcore.ICC.ICC):
             self.attachAllControllers()
             self.everConnected = True
 
+            if self.name[-1] in '12':
+                self.roughName = 'rough1'
+            else:
+                self.roughName = 'rough2'
+
+            try:
+                roughOverride = self.config.get(self.name, 'roughActor')
+                if roughOverride is not None:
+                    self.roughName = roughOverride
+            except:
+                pass
+
+            _needModels = [self.name, self.roughName]
+            self.logger.info(f'adding models: {_needModels}')
+            self.addModels(_needModels)
+            self.logger.info(f'added models: {self.models.keys()}')
+            
             # reactor.callLater(10, self.status_check)
 
     def statusLoop(self, controller):
