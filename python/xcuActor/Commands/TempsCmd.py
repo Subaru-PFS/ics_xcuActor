@@ -68,7 +68,7 @@ class TempsCmd(object):
         if channelID is None:
             ender = cmd.finish if doFinish else cmd.inform
             temps = ret.split(',')
-            ender('temps=%s' % ', '.join(['%0.2f' % (float(t)) for t in temps]))
+            ender('temps=%s' % ', '.join(['%0.4f' % (float(t)) for t in temps]))
         else:
             cmd.finish('text="returned %r"' % (ret))
 
@@ -177,7 +177,7 @@ class TempsCmd(object):
         
         temps = self.actor.controllers['temps'].fetchTemps(cmd=cmd)
         ender = cmd.finish if doFinish else cmd.inform
-        ender('temps=%s' % ', '.join(['%0.2f' % (t) for t in temps]))
+        ender('temps=%s' % ', '.join(['%0.4f' % (t) for t in temps]))
 
         return temps
     
