@@ -35,9 +35,9 @@ class PCM(object):
             self.gaugeType = 'old'
 
         if self.gaugeType == 'old':
-            self.gauge = pfeiffer.Pfeiffer()
+            self.gauge = pfeiffer.Pfeiffer(self.name)
         else:
-            self.gauge = idgPfeiffer.Pfeiffer()
+            self.gauge = idgPfeiffer.Pfeiffer(self.name)
         self.logger.warn('gauge=%s,%s', self.gaugeType, self.gauge)
         
     def start(self, cmd=None):
@@ -238,5 +238,18 @@ class PCM(object):
         ret = self.sendGaugeCommand(cmdStr, cmd=cmd)
         return self.gauge.parsePressure(ret)
     
+    def gaugeRawQuery(self, code, cmd=None):
+        try:
+            gaugeStr = self.gauge.makeRawQueryCmd(code, cmd)
+        except AttributeError:
+            raise RuntimeError("new gauges do not support raw query commands")
         
-    
+        return self.sendGaugeCommand(gaugeStr, cmd=cmd)
+
+    def gaugeRawSet(self, code, value, cmd=None):
+        try:
+            gaugeStr = self.gauge.makeRawSetCmd(code, value, cmd)
+        except AttributeError:
+            raise RuntimeError("new gauges do not support raw set commands")
+        
+        return self.sendGaugeCommand(gaugeStr, cmd=cmd)

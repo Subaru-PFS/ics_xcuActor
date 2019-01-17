@@ -1,6 +1,7 @@
 class Pfeiffer(object):
-    def __init__(self):
+    def __init__(self, name):
         self.busID = 1
+        self.name = name
         
     def parseResponse(self, resp, cmdCode=None, cmd=None):
         """ Fully validate a response telegram, return value
@@ -109,7 +110,7 @@ class Pfeiffer(object):
         """
         
         cmdStr = b'00%03d02=?' % (code)
-        return cmdStr
+        return self.makeRawCmd(cmdStr)
 
     def makeRawSetCmd(self, code, value, cmd=None):
         """ Return command to set a single gauge variable.
@@ -130,7 +131,7 @@ class Pfeiffer(object):
         """
 
         cmdStr = b'10%03d%02d%s' % (code, len(value), value)
-        return cmdStr
+        return self.makeRawCmd(cmdStr)
     
     def makePressureCmd(self):
         return self.makeRawQueryCmd(740)

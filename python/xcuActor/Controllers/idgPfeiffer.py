@@ -1,6 +1,7 @@
 class Pfeiffer(object):
-    def __init__(self):
+    def __init__(self, name):
         self.busID = 1
+        self.name = name
         
     def parseResponse(self, resp, cmdCode=None, cmd=None):
         """ Fully validate a response telegram, return value
