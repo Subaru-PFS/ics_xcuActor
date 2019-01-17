@@ -1,9 +1,7 @@
-from __future__ import absolute_import
-
-from builtins import object
 class Pfeiffer(object):
-    def __init__(self):
+    def __init__(self, name):
         self.busID = 1
+        self.name = name
         
     def parseResponse(self, resp, cmdCode=None, cmd=None):
         """ Fully validate a response telegram, return value
@@ -72,7 +70,7 @@ class Pfeiffer(object):
         
         return sum([c for c in s]) % 256
 
-    def gaugeMakeRawCmd(self, cmdStr, cmd=None):
+    def makeRawCmd(self, cmdStr, cmd=None):
         """ Send set or query string.
         
         Basically, this adds the bus ID, the CRC, and the EOL.
@@ -97,8 +95,8 @@ class Pfeiffer(object):
 
         return cmdStr
 
-    def gaugeRawQuery(self, code, cmd=None):
-        """ Read a single writable gauge variable.
+    def makeRawQueryCmd(self, code, cmd=None):
+        """ Return command to read a single gauge variable.
 
         Args
         ----
@@ -108,20 +106,14 @@ class Pfeiffer(object):
 
         Returns
         -------
-        OK - bool
-        value - string
-           We strip off all but the actual value.
+        cmd - string
         """
         
         cmdStr = b'00%03d02=?' % (code)
-        rawRet = self.gaugeRawCmd(cmdStr, cmd=cmd)
-        val = self.parseResponse(rawRet, cmdCode=code, cmd=cmd)
+        return self.makeRawCmd(cmdStr)
 
-        return val
-        
-    
-    def gaugeRawSet(self, code, value, cmd=None):
-        """ Set a single writable gauge variable.
+    def makeRawSetCmd(self, code, value, cmd=None):
+        """ Return command to set a single gauge variable.
 
         Args
         ----
@@ -134,30 +126,20 @@ class Pfeiffer(object):
 
         Returns
         -------
-        Whatever the gauge returns
+        cmd - str
 
         """
 
-        #if not isinstance(value, str):
-        #    raise TypeError('value must be a string')
-
-        try:
-            value = value.encode('latin-1')
-        except AttributeError:
-            pass
-        
         cmdStr = b'10%03d%02d%s' % (code, len(value), value)
-        rawRet = self.gaugeRawCmd(cmdStr, cmd=cmd)
-        val = self.parseResponse(rawRet, cmdCode=code, cmd=cmd)
-
-        return val
+        return self.makeRawCmd(cmdStr)
     
-    def pressure(self, cmd=None):
-        data_out = self.gaugeRawQuery(740, cmd=cmd)
-
+    def makePressureCmd(self):
+        return self.makeRawQueryCmd(740)
+    
+    def parsePressure(self, rawReading):
         # 430013 -> 4300 13 -> 4.3e-7
-        mantissa = int(data_out[0:4], base=10) * 10.0 ** -3 
-        exponent = int(data_out[4:6], base=10) - 20
+        mantissa = int(rawReading[0:4], base=10) * 10.0 ** -3 
+        exponent = int(rawReading[4:6], base=10) - 20
 
         # convert to torr
         reading = 0.750061683 * (mantissa * 10**exponent) 

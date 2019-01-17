@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
-
 from importlib import reload
 
 import logging
@@ -8,9 +5,11 @@ import socket
 import time
 
 from xcuActor.Controllers import pfeiffer
+from xcuActor.Controllers import idgPfeiffer
 reload(pfeiffer)
+reload(idgPfeiffer)
 
-class PCM(pfeiffer.Pfeiffer):
+class PCM(object):
     powerPorts = ('motors', 'gauge', 'cooler', 'temps',
                   'bee', 'fee', 'interlock', 'heaters')
     
@@ -30,7 +29,16 @@ class PCM(pfeiffer.Pfeiffer):
             self.host = host
             self.port = port
 
-        pfeiffer.Pfeiffer.__init__(self)
+        try:
+            self.gaugeType = self.actor.config.get('pcm', 'gauge')
+        except:
+            self.gaugeType = 'old'
+
+        if self.gaugeType == 'old':
+            self.gauge = pfeiffer.Pfeiffer(self.name)
+        else:
+            self.gauge = idgPfeiffer.Pfeiffer(self.name)
+        self.logger.warn('gauge=%s,%s', self.gaugeType, self.gauge)
         
     def start(self, cmd=None):
         pass
@@ -212,16 +220,36 @@ class PCM(pfeiffer.Pfeiffer):
                 
         return errStr, busy, rest
 
+    def sendGaugeCommand(self, gaugeStr, cmd=None):
+        pcmCmd = b'~@,T5000,'
+        gaugeCmdStr = pcmCmd + gaugeStr
+
+        ret = self.sendOneCommand(gaugeCmdStr, cmd=cmd)
+        gaugeRet = self.gauge.parseResponse(ret, None, cmd)
+        
+        return gaugeRet
+
     def gaugeRawCmd(self, cmdStr, cmd=None):
-        if True:
-            gaugeStr = self.gaugeMakeRawCmd(cmdStr, cmd=cmd)
-            pcmCmd = b'~@,T1500,'
-            cmdStr = pcmCmd + gaugeStr
-        else:
-            crc = self.gaugeCrc(cmdStr)
-            pcmCmd = b'~@,T1500,'
-            cmdStr = b'%s%s%03d' % (pcmCmd, cmdStr, crc)
+        gaugeStr = self.gauge.makeRawCmd(cmdStr, cmd=cmd)
+        return self.sendGaugeCommand(gaugeStr, cmd=cmd)
+    
+    def pressure(self, cmd=None):
+        cmdStr = self.gauge.makePressureCmd()
+        ret = self.sendGaugeCommand(cmdStr, cmd=cmd)
+        return self.gauge.parsePressure(ret)
+    
+    def gaugeRawQuery(self, code, cmd=None):
+        try:
+            gaugeStr = self.gauge.makeRawQueryCmd(code, cmd)
+        except AttributeError:
+            raise RuntimeError("new gauges do not support raw query commands")
+        
+        return self.sendGaugeCommand(gaugeStr, cmd=cmd)
 
-        ret = self.sendOneCommand(cmdStr, cmd=cmd)
-
-        return ret
+    def gaugeRawSet(self, code, value, cmd=None):
+        try:
+            gaugeStr = self.gauge.makeRawSetCmd(code, value, cmd)
+        except AttributeError:
+            raise RuntimeError("new gauges do not support raw set commands")
+        
+        return self.sendGaugeCommand(gaugeStr, cmd=cmd)
