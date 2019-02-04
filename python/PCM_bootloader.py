@@ -96,6 +96,8 @@ class PCM_Bootloader(object):
     def newResponse(self):
         resp = dict()
         resp['messages'] = []
+        resp['errorFlag'] = False
+        resp['warningFlag'] = False
 
         return resp
 
@@ -347,6 +349,10 @@ class PCM_Bootloader(object):
     def uploadHEXfile(self, fileName, LIA_ID=None):
         self.logger.info('starting upload of %s', fileName)
 
+        r = self.newResponse()
+        r['errorFlag'] = True
+        r['messages'].append('uploadHEXfile blew up early')
+                
         # uplaods a new hex file (app) to the PCM
         LIA_CMD = int(self.cLIA_Upload)
         try:
@@ -382,6 +388,10 @@ class PCM_Bootloader(object):
         return r
 
     def dumpHEXfile(self, fileName, LIA_ID=None):
+        r = self.newResponse()
+        r['errorFlag'] = True
+        r['messages'].append('dumpHEXfile blew up early')
+        
         # dumps hex from device to file
         LIA_CMD = int(self.cLIA_Dump)
         r = self.sendUDPData(LIA_CMD, LIA_ID)
@@ -542,10 +552,12 @@ def burnBabyBurn(args):
     hostname = args.host
     hexfile = args.hexfile
     if hexfile is None:
-        ourPath = os.path.dirname(sys.argv[0])
+        ourPath = __file__
         hexfile = os.path.join(ourPath, '..', 'etc', 'PCM_main.hex')
         hexfile = os.path.normpath(hexfile)
 
+    if not os.path.isfile(hexfile):
+        raise RuntimeError(f'{hexfile} is not a valid PCM hexfile')
     netParts = fetchNetInfo(hostname, args.ourHostname)
     if netParts is False:
         raise RuntimeError("cannot resolve or get info about %s (try pinging it?)" % (hostname))
@@ -635,7 +647,7 @@ def main(argv=None):
                         help='the IP address/name of the PCM board')
     parser.add_argument('--cam', type=str, action='store', default=None,
                         help='the name of the PCM board\'s camera')
-    parser.add_argument('--ourHostname', type=str, action='store', default=None,
+    parser.add_argument('--ourHostname', type=str, action='store', default='tron',
                         help='*our* hostname/IP address, when talking to the PCM.')
     parser.add_argument('--debug', action='store_true')
 
