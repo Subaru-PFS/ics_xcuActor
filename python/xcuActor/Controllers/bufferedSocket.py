@@ -62,7 +62,9 @@ class BufferedSocket(object):
             if cmd:
                 cmd.diag('text=%s' % (qstr(msg)))
             self.buffer += more
-
+            if more == b'':
+                return ''
+            
         eolAt = self.buffer.find(self.EOL)
         ret = self.buffer[:eolAt]
 
