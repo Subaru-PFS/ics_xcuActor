@@ -552,7 +552,7 @@ def burnBabyBurn(args):
     hostname = args.host
     hexfile = args.hexfile
     if hexfile is None:
-        ourPath = __file__
+        ourPath = os.path.dirname(os.path.realpath(__file__))
         hexfile = os.path.join(ourPath, '..', 'etc', 'PCM_main.hex')
         hexfile = os.path.normpath(hexfile)
 
