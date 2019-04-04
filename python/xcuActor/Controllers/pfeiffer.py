@@ -1,6 +1,9 @@
 class Pfeiffer(object):
-    def __init__(self, name):
+    def __init__(self, name=None):
         self.busID = 1
+
+        if name is None:
+            name = 'gauge'
         self.name = name
         
     def parseResponse(self, resp, cmdCode=None, cmd=None):
