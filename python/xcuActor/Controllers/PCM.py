@@ -19,7 +19,7 @@ class PCM(object):
         self.name = name
         self.logger = logging.getLogger()
         self.logger.setLevel(loglevel)
-        self.EOL = b'\r\n'
+        self.EOL = b'\n'
 
         self.actor = actor
         if actor is not None:
