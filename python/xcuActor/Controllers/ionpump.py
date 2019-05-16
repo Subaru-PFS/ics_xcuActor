@@ -169,30 +169,33 @@ class ionpump(object):
 
         return float(reply)
         
-    def _onOff(self, newState, cmd=None):
+    def _onOff(self, newState, pump1=True, pump2=True, cmd=None):
         """ Turn the pumps on or off, and report the status. """
         
         ret = []
         for c_i, c in enumerate(self.pumpIDs):
+            if c_i == 0 and not pump1:
+                continue
+            if c_i == 1 and not pump2:
+                continue
             retCmd = self.sendWriteCommand(10+c, '%s' % (int(newState)), cmd=cmd)
             ret.append(retCmd)
-            time.sleep(0.1)
-        time.sleep(1)
+            time.sleep(1)
         
         for c_i, c in enumerate(self.pumpIDs):
             self.readOnePump(c_i, cmd=cmd)
 
         return ret
     
-    def off(self, cmd=None):
+    def off(self, pump1=True, pump2=True, cmd=None):
         """ Turn the pumps off, and report the status. """
 
-        return self._onOff(False, cmd=cmd)
+        return self._onOff(False, pump1=pump1, pump2=pump2, cmd=cmd)
 
-    def on(self, cmd=None):
+    def on(self, pump1=True, pump2=True, cmd=None):
         """ Turn the pumps on, and report the status. """
 
-        return self._onOff(True, cmd=cmd)
+        return self._onOff(True, pump1=pump1, pump2=pump2, cmd=cmd)
 
     def readEnabled(self, channel, cmd=None):
         reply = self.sendReadCommand(10 + channel, cmd=cmd)
