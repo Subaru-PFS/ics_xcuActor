@@ -23,8 +23,8 @@ class IonpumpCmd(object):
             ('ionpumpWrite', '@raw', self.ionpumpWriteRaw),
             ('ionpump', 'ident', self.ident),
             ('ionpump', 'status', self.status),
-            ('ionpump', 'off', self.off),
-            ('ionpump', 'on [<spam>]', self.on),
+            ('ionpump', 'off [@pump1] [@pump2]', self.off),
+            ('ionpump', 'on [@pump1] [@pump2] [<spam>]', self.on),
         ]
 
         # Define typed command arguments for the above commands.
@@ -80,9 +80,13 @@ class IonpumpCmd(object):
 
     def on(self, cmd=None):
         cmdArgs = cmd.cmd.keywords
-        
+        pump1 = 'pump1' in cmdArgs
+        pump2 = 'pump2' in cmdArgs
+        if not pump1 and not pump2:
+            pump1 = pump2 = True
+
         npumps = self.actor.controllers['ionpump'].npumps
-        ret = self.actor.controllers['ionpump'].on(cmd)
+        ret = self.actor.controllers['ionpump'].on(pump1=pump1, pump2=pump2, cmd=cmd)
         if '5' in ret:
             cmd.fail('text="ion pump controller is in LOCAL mode!"')
             return
@@ -94,7 +98,13 @@ class IonpumpCmd(object):
         cmd.finish()
        
     def off(self, cmd=None):
-        ret = self.actor.controllers['ionpump'].off(cmd)
+        cmdArgs = cmd.cmd.keywords
+        pump1 = 'pump1' in cmdArgs
+        pump2 = 'pump2' in cmdArgs
+        if not pump1 and not pump2:
+            pump1 = pump2 = True
+
+        ret = self.actor.controllers['ionpump'].off(pump1=pump1, pump2=pump2, cmd=cmd)
         if '5' in ret:
             cmd.fail('text="ion pump controller is in LOCAL mode!"')
         else:
