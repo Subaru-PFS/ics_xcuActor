@@ -221,10 +221,11 @@ class PCM(object):
         return errStr, busy, rest
 
     def sendGaugeCommand(self, gaugeStr, cmd=None):
-        pcmCmd = b'~@,T5000,'
+        gaugeCmdTimeout = 5     # s
+        pcmCmd = b'~@,T%d,' % (gaugeCmdTimeout * 1000)
         gaugeCmdStr = pcmCmd + gaugeStr
 
-        ret = self.sendOneCommand(gaugeCmdStr, cmd=cmd)
+        ret = self.sendOneCommand(gaugeCmdStr, timeout=gaugeCmdTimeout + 1, cmd=cmd)
         gaugeRet = self.gauge.parseResponse(ret, None, cmd)
         
         return gaugeRet
