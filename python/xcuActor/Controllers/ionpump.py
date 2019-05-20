@@ -171,7 +171,12 @@ class ionpump(object):
         
     def _onOff(self, newState, pump1=True, pump2=True, cmd=None):
         """ Turn the pumps on or off, and report the status. """
-        
+
+        try:
+            graceTime = float(self.actor.config('ionpump', 'delay'))
+        except:
+            graceTime = 2.0
+            
         ret = []
         for c_i, c in enumerate(self.pumpIDs):
             if c_i == 0 and not pump1:
@@ -180,7 +185,7 @@ class ionpump(object):
                 continue
             retCmd = self.sendWriteCommand(10+c, '%s' % (int(newState)), cmd=cmd)
             ret.append(retCmd)
-            time.sleep(1)
+            time.sleep(graceTime)
         
         for c_i, c in enumerate(self.pumpIDs):
             self.readOnePump(c_i, cmd=cmd)
