@@ -1,14 +1,119 @@
 #!/usr/bin/env python
 
-from builtins import object
 import time
+
+import numpy as np
 
 import opscore.protocols.keys as keys
 import opscore.protocols.types as types
-from opscore.utility.qstr import qstr
 
+class GateValveState(object):
+    OPEN_CMD = 1 << 7
+    TURBO_AT_SPEED = 1 << 6
+    PRESSURE_EQUAL = 1 << 5
+    VACUUM_OK = 1 << 4
+    GATEVALVE_OPEN = 1 << 3
+    GATEVALVE_CLOSED = 1 << 2
+    GATEVALVE_TIMEDOUT = 1 << 1
+    GATEVALVE_SIGNAL = 1
+    
+    def __init__(self, state, pressures=None):
+        if isinstance(state, str):
+            state = int(state, base=2)
+        self.state = state
+        if pressures is None:
+            pressures = (np.nan, np.nan)
+        self.setPressures(pressures)
+        
+    def setPressures(self, pressures):
+        self.outsidePressure = pressures[0]
+        self.insidePressure = pressures[1]
+
+    @property
+    def position(self):
+        """ Return the physical position of the gatevalve """
+        
+        if self.state & self.GATEVALVE_OPEN:
+            if self.state & self.GATEVALVE_CLOSED:
+                pos = "broken", "invalid"
+            else:
+                pos = "OK", "open"
+        elif self.state & self.GATEVALVE_CLOSED:
+            pos = "OK", "closed"
+        else:
+            pos = "OK", "unknown"
+
+        return pos
+    
+    @property
+    def request(self):
+        if self.state & self.OPEN_CMD:
+            if self.state & self.GATEVALVE_SIGNAL:
+                pos = "OK", "open"
+            elif self.state & self.GATEVALVE_TIMEDOUT:
+                pos = "broken", "timedOut"
+            elif self.state & self.PRESSURE_EQUAL:
+                pos = "blocked", "blocked,diffPress"
+            else:
+                pos = "blocked", "blocked"
+        else:
+            if not (self.state & self.GATEVALVE_SIGNAL):
+                pos = "OK", "closed"
+            else:
+                pos = "broken", "impossible"
+
+        return pos
+
+    def isOpen(self):
+        return ((self.state & self.GATEVALVE_OPEN)
+                and not (self.state & self.GATEVALVE_CLOSED))
+    
+    def isClosed(self):
+        return ((self.state & self.GATEVALVE_CLOSED)
+                and not (self.state & self.GATEVALVE_OPEN))
+    
+    def pressureDiff(self):
+        """ Return the outside-inside pressure differernce. """
+        return self.outsidePressure - self.insidePressure
+
+    def describeBits(self):
+        bits = []
+        if self.state & self.OPEN_CMD:
+            bits.append('open_cmd')
+        if self.state & self.TURBO_AT_SPEED:
+            bits.append('turbo')
+        if self.state & self.PRESSURE_EQUAL:
+            bits.append('pressure_equal')
+        if self.state & self.VACUUM_OK:
+            bits.append('vacuum_ok')
+        if self.state & self.GATEVALVE_OPEN:
+            bits.append('gv_open')
+        if self.state & self.GATEVALVE_CLOSED:
+            bits.append('gv_closed')
+        if self.state & self.GATEVALVE_TIMEDOUT:
+            bits.append('gv_timeout')
+        if self.state & self.GATEVALVE_SIGNAL:
+            bits.append('gv')
+
+        return ', '.join(bits)
+    
+    def getStateKey(self):
+        stateKey = f'interlockState={self.state:#08b},"{self.describeBits()}"'
+        return stateKey
+    
+    def getPressureKey(self):
+        pressureKey = f'interlockPressures={self.insidePressure:.4},{self.outsidePressure:.4}'
+        return pressureKey
+
+    def getGatevalveKey(self):
+        """ Historical key, before we could know _why_ the GV could be blocked. """
+        stateKey = f'gatevalve={self.state:#02x},{self.request[-1]},{self.position[-1]}'
+        return stateKey
+    
+    def getKeys(self):
+        return ';'.join([self.getPressureKey(), self.getGatevalveKey(), self.getStateKey()])
+    
 class GatevalveCmd(object):
-
     def __init__(self, actor):
         # This lets us access the rest of the actor.
         self.actor = actor
@@ -42,13 +147,26 @@ class GatevalveCmd(object):
         self.atmThreshold = 460.0  # The absolute lowest air pressure to accept as at atmosphere, Torr
         self.dPressSoftLimit = 22  # The overridable pressure difference limit for opening, Torr
         self.dPressHardLimit = 22  # The absolute pressure difference limit for opening, Torr
+
+        try:
+            self.actor.config.get('interlock', 'port')
+            val = 'new'
+        except Exception:
+            val = 'old'
+        self._interlockType = val
+        
+    @property
+    def interlock(self):
+        return self.actor.controllers['interlock']
+
+    @property
+    def gatevalve(self):
+        return self.actor.controllers['gatevalve']
         
     def status(self, cmd, doFinish=True):
         """ Generate all gatevalve keys."""
 
-        self.actor.controllers['gatevalve'].status(cmd=cmd)
-        if doFinish:
-            cmd.finish()
+        self._doStatus(cmd, doFinish=doFinish)
 
     def setLimits(self, cmd):
         """(Engineering) set soft and hard dPressures, minimum atmPressure """
@@ -65,7 +183,29 @@ class GatevalveCmd(object):
             self.dPressSoftLimit = self.dPressHardLimit
             
         cmd.finish(f'text="dPressure limits are atm={self.atmThreshold} soft={self.dPressSoftLimit} hard={self.dPressHardLimit}"')
-        
+
+    def _getDewarPressure(self, cmd, pcm):
+        if self._interlockType == 'old':
+            try:
+                dewarPressure = pcm.pressure(cmd=cmd)
+            except Exception as e:
+                return f'could not check cryostat pressure: {e}'
+        else:
+            state = self.getGatevalveStatus(cmd)
+            dewarPressure = state.insidePressure
+
+        return dewarPressure
+    
+    def _getRoughPressure(self, cmd, roughDict):
+        if self._interlockType == 'old':
+            roughPressure = roughDict['pressure'].getValue()
+        else:
+            state = self.getGatevalveStatus(cmd)
+            roughPressure = state.outsidePressure
+
+        return roughPressure
+            
+    
     def _checkOpenable(self, cmd, atAtmosphere, dPressLimitFlexible):
         """ Check whether the gatevalve can be opened. 
 
@@ -84,13 +224,11 @@ class GatevalveCmd(object):
         
         try:
             pcm.powerOn('interlock')
+            time.sleep(0.1)
         except Exception as e:
             return f'could not turn on interlock power: {e}'
-        
-        try:
-            dewarPressure = pcm.pressure(cmd=cmd)
-        except Exception as e:
-            return f'could not check cryostat pressure: {e}'
+
+        dewarPressure = self._getDewarPressure(cmd, pcm)
 
         roughName = self.actor.roughName
         roughDict = self.actor.models[roughName].keyVarDict
@@ -105,9 +243,10 @@ class GatevalveCmd(object):
 
         turboSpeed, turboStatus = self.actor.controllers['turbo'].speed(cmd)
         # turboDict = self.actor.models[self.actor.name].keyVarDict
+
+        roughPressure = self._getRoughPressure(cmd, roughDict)
         
         # Check what the invalid values are!!!! CPLXXX
-        roughPressure = roughDict['pressure'].getValue()
         roughSpeed = roughDict['pumpSpeed'].getValue()
         roughMask, roughErrors = roughDict['pumpErrors'].getValue()
         
@@ -122,9 +261,9 @@ class GatevalveCmd(object):
                 return f'roughing pressure too low to treat as atmosphere ({roughPressure} < {self.atmThreshold})'
         else:
             if roughSpeed < 30:
-                return f'roughing pump must be running to open under vacuum'
+                return f'roughing pump must be at speed to open under vacuum'
             if turboSpeed < 90000:
-                return f'turbo pump must be running to open under vacuum'
+                return f'turbo pump must be at speed to open under vacuum'
             if dewarPressure >= self.atmThreshold:
                 return f'dewar pressure too high to treat as vacuum ({dewarPressure} >= {self.atmThreshold})'
             if roughPressure >= self.atmThreshold:
@@ -161,7 +300,7 @@ class GatevalveCmd(object):
         atAtmosphere = 'atAtmosphere' in cmdKeys
         underVacuum = 'underVacuum' in cmdKeys
         dryrun = 'dryrun' in cmdKeys
-        argCheck = (atAtmosphere is True) ^ (underVacuum is True)
+        argCheck = atAtmosphere ^ underVacuum
         if not argCheck:
             cmd.fail('text="either underVacuum or atAtmosphere must be set"')
             return
@@ -179,30 +318,113 @@ class GatevalveCmd(object):
         if dryrun:
             cmd.finish('text="dryrun set, so not actually opening gatevalve"')
             return
-        
-        try:
-            self.actor.controllers['gatevalve'].open(cmd=cmd)
-        except Exception as e:
-            cmd.fail('text="FAILED to open gatevalve!!"')
-            return
-        
-        cmd.finish()
-        
+
+        self._doOpen(cmd=cmd)
+
     def close(self, cmd):
         """ Close gatevalve. """
 
-        self.actor.controllers['gatevalve'].close(cmd=cmd)
-        cmd.finish()
+        self._doClose(cmd=cmd)
+
+    def _spinUntil(self, testFunc, starting=None, timeLimit=2.0, cmd=None):
+        """ Poll interlock state until success or timeout. """
+
+        pause = 0.25
+        lastState = starting
+        while timeLimit > 0:
+            ret = self.getGatevalveStatus(cmd, silentIf=lastState)
+            if testFunc(ret):
+                return ret
+            lastState = ret
+            timeLimit -= pause
+            time.sleep(pause)
+        raise RuntimeError(f"failed to get desired gate valve state. Timed out with: {ret.state:#08b})")
         
+    def _doOpen(self, cmd):
+        if self._interlockType == 'old':
+            try:
+                self.gatevalve.open(cmd=cmd)
+            except Exception:
+                cmd.fail('text="FAILED to open gatevalve!!"')
+                return
+        else:
+            def isOpen(status):
+                return status.isOpen()
+
+            try:
+                self.gatevalve.request(True)
+                self._spinUntil(isOpen, cmd=cmd)
+            except Exception as e:
+                cmd.warn(f'text="FAILED to open gatevalve: {e}; Trying to set requested state to closed...."')
+                self._doClose(cmd=cmd, doFinish=False)
+                cmd.fail()
+                return
+
+        self._doStatus(cmd)    
+        cmd.finish()
+            
+    def _doClose(self, cmd, doFinish=True):
+        if self._interlockType == 'old':
+            try:
+                self.gatevalve.close(cmd=cmd)
+            except Exception:
+                cmd.fail('text="FAILED to close gatevalve!!"')
+                return
+        else:
+            def isClosed(status):
+                return status.isClosed()
+
+            try:
+                self.gatevalve.request(False)
+                self._spinUntil(isClosed, cmd=cmd)
+            except Exception as e:
+                cmd.fail(f'text="FAILED to close gatevalve!!!!! {e}"')
+                return
+
+        self._doStatus(cmd)
+        if doFinish:
+            cmd.finish()
+
+    def _doStatus(self, cmd, doFinish=True):
+        if self._interlockType == 'old':
+            self.gatevalve.status(cmd=cmd)
+        else:
+            self.interlockStatus(cmd)
+            
+        if doFinish:
+            cmd.finish()
+
+    def getGatevalveStatus(self, cmd, silentIf=None):
+        """ Get status from the new interlock board. """
+
+        rawStatus = self.interlock.sendCommandStr('gStat,all', cmd=cmd)
+        state = GateValveState(rawStatus)
+
+        if silentIf is not True or state.state != silentIf:
+            cmd.inform(state.getStateKey())
+        return state
+    
+    def interlockStatus(self, cmd):
+        """ Get status from the new interlock board. """
+
+        state = self.getGatevalveStatus(cmd, silentIf=True)
+        
+        pressuresRaw = self.interlock.sendCommandStr('gP,all', cmd=cmd)
+        pressures = [float(s) for s in pressuresRaw.split(',')]
+        state.setPressures(pressures)
+        cmd.inform(state.getKeys())
+
+        return state
+
     def samOff(self, cmd):
         """ Turn off SAM power. """
 
-        self.actor.controllers['gatevalve'].powerOffSam(cmd=cmd)
+        self.gatevalve.powerOffSam(cmd=cmd)
         cmd.finish()
         
     def samOn(self, cmd):
         """ Turn off SAM power. """
 
-        self.actor.controllers['gatevalve'].powerOnSam(cmd=cmd)
+        self.gatevalve.powerOnSam(cmd=cmd)
         cmd.finish()
         
