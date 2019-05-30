@@ -249,36 +249,40 @@ class GatevalveCmd(object):
         # Check what the invalid values are!!!! CPLXXX
         roughSpeed = roughDict['pumpSpeed'].getValue()
         roughMask, roughErrors = roughDict['pumpErrors'].getValue()
-        
+
+        problems = []
         if atAtmosphere:
             if roughSpeed > 0:
-                return f'roughing pump cannot be on to open at atmosphere'
+                problems.append(f'roughing pump cannot be on to open at atmosphere')
             if turboSpeed > 0:
-                return f'turbo pump cannot be on to open at atmosphere'
+                problems.append(f'turbo pump cannot be on to open at atmosphere')
             if dewarPressure < self.atmThreshold:
-                return f'dewar pressure too low to treat as atmosphere ({dewarPressure} < {self.atmThreshold})'
+                problems.append(f'dewar pressure too low to treat as atmosphere ({dewarPressure} < {self.atmThreshold})')
             if roughPressure < self.atmThreshold:
-                return f'roughing pressure too low to treat as atmosphere ({roughPressure} < {self.atmThreshold})'
+                problems.append(f'roughing pressure too low to treat as atmosphere ({roughPressure} < {self.atmThreshold})')
         else:
             if roughSpeed < 30:
-                return f'roughing pump must be at speed to open under vacuum'
+                problems.append(f'roughing pump must be at speed to open under vacuum')
             if turboSpeed < 90000:
-                return f'turbo pump must be at speed to open under vacuum'
+                problems.append(f'turbo pump must be at speed to open under vacuum')
             if dewarPressure >= self.atmThreshold:
-                return f'dewar pressure too high to treat as vacuum ({dewarPressure} >= {self.atmThreshold})'
+                problems.append(f'dewar pressure too high to treat as vacuum ({dewarPressure} >= {self.atmThreshold})')
             if roughPressure >= self.atmThreshold:
-                return f'roughing pressure too high to treat as vacuum ({roughPressure} >= {self.atmThreshold})'
+                problems.append(f'roughing pressure too high to treat as vacuum ({roughPressure} >= {self.atmThreshold})')
 
         dPress = abs(dewarPressure - roughPressure)
         if dPress >= self.dPressSoftLimit:
             if dPress >= self.dPressHardLimit:
-                return f'pressure difference ({dPress}) exceeds hard limit ({self.dPressHardLimit})'
+                problems.append(f'pressure difference ({dPress}) exceeds hard limit ({self.dPressHardLimit})')
             if dPressLimitFlexible:
                 cmd.warn(f'text="overriding pressure difference soft limit {self.dPressSoftLimit} with {dPress}"')
             else:
-                return f'pressure difference ({dPress}) exceeds soft limit ({self.dPressSoftLimit})'
+                problems.append(f'pressure difference ({dPress}) exceeds soft limit ({self.dPressSoftLimit})')
 
-        return 'OK'
+        if len(problems) == 0:
+            return 'OK'
+        else:
+            return problems
 
     def open(self, cmd):
         """ Enable gatevalve to be opened. Requires that |rough - dewar| <= 22 Torr. 
@@ -310,9 +314,13 @@ class GatevalveCmd(object):
         
         if status != 'OK':
             if 'reallyforce' in cmdKeys:
-                cmd.warn(f'text="gatevalve status is suspect but FORCEing it open ({status})"')
+                for problem in status:
+                    cmd.warn(f'text="gatevalve opening WOULD be blocked: {problem}')
+                cmd.warn(f'text="gatevalve status is suspect but FORCEing it open"')
             else:
-                cmd.fail(f'text="gatevalue opening blocked: {status}"')
+                for problem in status:
+                    cmd.warn(f'text="gatevalve opening blocked: {problem}')
+                cmd.fail(f'text="gatevalue was NOT opened"')
                 return
 
         if dryrun:
