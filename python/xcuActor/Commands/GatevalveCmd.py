@@ -52,8 +52,6 @@ class GateValveState(object):
                 pos = "OK", "open"
             elif self.state & self.GATEVALVE_TIMEDOUT:
                 pos = "broken", "timedOut"
-            elif self.state & self.PRESSURE_EQUAL:
-                pos = "blocked", "blocked,diffPress"
             else:
                 pos = "blocked", "blocked"
         else:
@@ -71,6 +69,9 @@ class GateValveState(object):
     def isClosed(self):
         return ((self.state & self.GATEVALVE_CLOSED)
                 and not (self.state & self.GATEVALVE_OPEN))
+    
+    def isBlocked(self):
+        return self.request[0] != "OK"
     
     def pressureDiff(self):
         """ Return the outside-inside pressure differernce. """
@@ -369,6 +370,11 @@ class GatevalveCmd(object):
                 cmd.fail('text="FAILED to open gatevalve!!"')
                 return
         else:
+            state = self._doStatus(cmd, doFinish=False)
+            if state.isBlocked():
+                cmd.fail('text="gatevalve open command is blocked. Close it to re-enable opening"')
+                return
+            
             def isOpen(status):
                 return status.isOpen()
 
@@ -376,9 +382,10 @@ class GatevalveCmd(object):
                 self.gatevalve.request(True)
                 self._spinUntil(isOpen, cmd=cmd)
             except Exception as e:
-                cmd.warn(f'text="FAILED to open gatevalve: {e}; Trying to set requested state to closed...."')
+                self._doStatus(cmd)
+                cmd.warn(f'text="FAILED to open gatevalve: {e} -- commanding it to close"')
                 self._doClose(cmd=cmd, doFinish=False)
-                cmd.fail()
+                cmd.fail(f'text="FAILED to open gatevalve"')
                 return
 
         self._doStatus(cmd)    
@@ -408,13 +415,15 @@ class GatevalveCmd(object):
 
     def _doStatus(self, cmd, doFinish=True):
         if self._interlockType == 'old':
-            self.gatevalve.status(cmd=cmd)
+            ret = self.gatevalve.status(cmd=cmd)
         else:
-            self.interlockStatus(cmd)
+            ret = self.interlockStatus(cmd)
             
         if doFinish:
             cmd.finish()
 
+        return ret
+    
     def getGatevalveStatus(self, cmd, silentIf=None):
         """ Get status from the new interlock board. """
 
