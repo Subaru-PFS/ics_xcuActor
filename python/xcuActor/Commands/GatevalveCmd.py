@@ -132,6 +132,7 @@ class GatevalveCmd(object):
             ('gatevalve', 'open [@(underVacuum)] [@(atAtmosphere)] [@(ok)] [@(reallyforce)] [@(dryrun)]',
              self.open),
             ('gatevalve', 'close', self.close),
+            ('interlock', '@raw', self.interlockRaw),
             ('setLimits', '[<atm>] [<soft>] [<hard>]', self.setLimits),
             ('sam', 'off', self.samOff),
             ('sam', 'on', self.samOn),
@@ -166,6 +167,14 @@ class GatevalveCmd(object):
     @property
     def gatevalve(self):
         return self.actor.controllers['gatevalve']
+
+    def interlockRaw(self, cmd):
+        """ Send a raw command to the interlock controller. """
+
+        cmd_txt = cmd.cmd.keywords['raw'].values[0]
+
+        ret = self.interlock.sendCommandStr(cmd_txt, cmd=cmd)
+        cmd.finish('text="returned %r"' % (ret))
         
     def status(self, cmd, doFinish=True):
         """ Generate all gatevalve keys."""
