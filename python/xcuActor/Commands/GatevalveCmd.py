@@ -93,12 +93,12 @@ class GateValveState(object):
         if self.state & self.GATEVALVE_TIMEDOUT:
             bits.append('gv_timeout')
         if self.state & self.GATEVALVE_SIGNAL:
-            bits.append('gv')
+            bits.append('gv_request')
 
         return ', '.join(bits)
     
     def getStateKey(self):
-        stateKey = f'interlockState={self.state:#08b},"{self.describeBits()}"'
+        stateKey = f'interlock={self.state:#08b},"{self.describeBits()}"'
         return stateKey
     
     def getPressureKey(self):
@@ -107,10 +107,14 @@ class GateValveState(object):
 
     def getGatevalveKey(self):
         """ Historical key, before we could know _why_ the GV could be blocked. """
+        
         stateKey = f'gatevalve={self.state:#02x},{self.request[-1]},{self.position[-1]}'
         return stateKey
     
-    def getKeys(self):
+    def getStateKeys(self):
+        return ';'.join([self.getGatevalveKey(), self.getStateKey()])
+    
+    def getAllKeys(self):
         return ';'.join([self.getPressureKey(), self.getGatevalveKey(), self.getStateKey()])
     
 class GatevalveCmd(object):
@@ -191,7 +195,7 @@ class GatevalveCmd(object):
             except Exception as e:
                 return f'could not check cryostat pressure: {e}'
         else:
-            state = self.getGatevalveStatus(cmd)
+            state = self.interlockStatus(cmd)
             dewarPressure = state.insidePressure
 
         return dewarPressure
@@ -200,7 +204,7 @@ class GatevalveCmd(object):
         if self._interlockType == 'old':
             roughPressure = roughDict['pressure'].getValue()
         else:
-            state = self.getGatevalveStatus(cmd)
+            state = self.interlockStatus(cmd)
             roughPressure = state.outsidePressure
 
         return roughPressure
@@ -337,13 +341,13 @@ class GatevalveCmd(object):
     def _spinUntil(self, testFunc, starting=None, timeLimit=2.0, cmd=None):
         """ Poll interlock state until success or timeout. """
 
-        pause = 0.25
+        pause = 0.2
         lastState = starting
         while timeLimit > 0:
             ret = self.getGatevalveStatus(cmd, silentIf=lastState)
             if testFunc(ret):
                 return ret
-            lastState = ret
+            lastState = ret.state
             timeLimit -= pause
             time.sleep(pause)
         raise RuntimeError(f"failed to get desired gate valve state. Timed out with: {ret.state:#08b})")
@@ -408,8 +412,8 @@ class GatevalveCmd(object):
         rawStatus = self.interlock.sendCommandStr('gStat,all', cmd=cmd)
         state = GateValveState(rawStatus)
 
-        if silentIf is not True or state.state != silentIf:
-            cmd.inform(state.getStateKey())
+        if silentIf is not True and state.state != silentIf:
+            cmd.inform(state.getStateKeys())
         return state
     
     def interlockStatus(self, cmd):
@@ -420,7 +424,7 @@ class GatevalveCmd(object):
         pressuresRaw = self.interlock.sendCommandStr('gP,all', cmd=cmd)
         pressures = [float(s) for s in pressuresRaw.split(',')]
         state.setPressures(pressures)
-        cmd.inform(state.getKeys())
+        cmd.inform(state.getAllKeys())
 
         return state
 
