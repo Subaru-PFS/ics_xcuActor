@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
-from past.builtins import basestring, reload
-from builtins import object
+from importlib import reload
+
 import logging
 import sys
 import time
@@ -83,10 +82,10 @@ class gatevalve(object):
             ret = self.spinUntil(isOpen, starting=starting, wait=wait, cmd=cmd)
         except Exception as e:
             cmd.warn(f'text="FAILED to open gatevalve: {e}; Trying to set requested state to closed...."')
-            self.dev.clear(self.bits['enabled'])
-            self.status(cmd=cmd)
-            raise e
-            
+            ret = self.close(cmd=cmd)
+            raise
+
+        self.status(cmd=cmd)
         return ret
         
     def close(self, wait=4, cmd=None):
@@ -98,9 +97,23 @@ class gatevalve(object):
         def isClosed(status):
             return (status & self.posBits) == self.bits['closed']
             
-        ret = self.spinUntil(isClosed, starting=starting, wait=wait, cmd=cmd)
+        try:
+            ret = self.spinUntil(isClosed, starting=starting, wait=wait, cmd=cmd)
+        except Exception as e:
+            cmd.warn(f'text="FAILED to close gatevalve: {e}"')
+            raise
+        
+        self.status(cmd=cmd)
         return ret
 
+    def request(self, toOpen):
+        """ Raise or drop the gatevalve open request line. """
+
+        if toOpen:
+            self.dev.set(self.bits['enabled'])
+        else:
+            self.dev.clear(self.bits['enabled'])
+            
     def powerOffSam(self, wait=1, cmd=None):
         """ Assert SAM power off. """
         starting = self.status(cmd=cmd)
@@ -149,7 +162,7 @@ class gatevalve(object):
 def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
-    if isinstance(argv, basestring):
+    if isinstance(argv, str):
         import shlex
         argv = shlex.split(argv)
 

@@ -57,9 +57,10 @@ class TurboCmd(object):
         ret = self.actor.controllers['turbo'].ident(cmd=cmd)
         cmd.finish('ident=%s' % (','.join(ret)))
 
-    def status(self, cmd):
+    def status(self, cmd, doFinish=True):
         self.actor.controllers['turbo'].status(cmd=cmd)
-        cmd.finish()
+        if doFinish:
+            cmd.finish()
 
     def standby(self, cmd):
         """ Put the pump into "standby mode", which is at a lower speed than normal mode. 
@@ -68,21 +69,21 @@ class TurboCmd(object):
         """
         
         percent = cmd.cmd.keywords['percent'].values[0]
-        ret = self.actor.controllers['turbo'].startStandby(percent=percent,
-                                                           cmd=cmd)
-        cmd.finish('text=%r' % (qstr(ret)))
+        self.actor.controllers['turbo'].startStandby(percent=percent,
+                                                     cmd=cmd)
+        self.status(cmd)
 
     def standbyOff(self, cmd):
         """ Put the pump back into normal (full-speed) mode. """
         
-        ret = self.actor.controllers['turbo'].stopStandby(cmd=cmd)
-        cmd.finish('text=%r' % (qstr(ret)))
+        self.actor.controllers['turbo'].stopStandby(cmd=cmd)
+        self.status(cmd)
         
     def startTurbo(self, cmd):
         """ Start the turbo pump. """
 
-        ret = self.actor.controllers['turbo'].startPump(cmd=cmd)
-        cmd.finish('ident=%s' % (','.join(ret)))
+        self.actor.controllers['turbo'].startPump(cmd=cmd)
+        self.status(cmd)
 
     def stopTurbo(self, cmd):
         """ Stop the turbo pump. 
@@ -91,5 +92,5 @@ class TurboCmd(object):
         back into the power supply.
         """
 
-        ret = self.actor.controllers['turbo'].stopPump(cmd=cmd)
-        cmd.finish('ident=%s' % (','.join(ret)))
+        self.actor.controllers['turbo'].stopPump(cmd=cmd)
+        self.status(cmd)
