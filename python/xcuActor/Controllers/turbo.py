@@ -1,8 +1,7 @@
-from builtins import range
-from builtins import object
 import logging
-import socket
-import time
+import threading
+
+import serial
 
 from opscore.utility.qstr import qstr
 
@@ -10,62 +9,98 @@ class turbo(object):
     def __init__(self, actor, name,
                  loglevel=logging.INFO):
 
+        self.name = name
         self.actor = actor
         self.logger = logging.getLogger('turbo')
         self.logger.setLevel(loglevel)
 
-        self.EOL = b'\r'
+        self.EOL = '\r'
         
-        self.host = self.actor.config.get('turbo', 'host')
-        self.port = int(self.actor.config.get('turbo', 'port'))
+        port = self.actor.config.get('turbo', 'port')
+        speed = int(self.actor.config.get('turbo', 'speed'))
 
+        self.device = None
+        self.deviceLock = threading.RLock()
+        
+        self.devConfig = dict(port=port, 
+                              baudrate=speed,
+                              timeout=2.0)
+        self.connect()
+        
+    def __str__(self):
+        return ("Turbo(port=%s, device=%s)" %
+                (self.devConfig['port'],
+                 self.device))
+    
     def start(self, cmd=None):
         pass
 
     def stop(self, cmd=None):
         pass
 
+    def connect(self):
+        """ Establish a new connection to the GV interlock. Any old connection is closed.  """
+
+        if self.device:
+            self.device.close()
+            self.device = None
+
+        self.device = serial.Serial(**self.devConfig)
+
     def sendOneCommand(self, cmdStr, cmd=None):
-        if cmd is None:
-            cmd = self.actor.bcast
-
-        if isinstance(cmdStr, str):
-            cmdStr = cmdStr.encode('latin-1')
-            
-        fullCmd = b"%s%s" % (cmdStr, self.EOL)
-        self.logger.info('sending %r', fullCmd)
-        cmd.diag('text="sending %r"' % fullCmd)
-
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            # s.settimeout(1.0)
-        except socket.error as e:
-            cmd.warn('text="failed to create socket to turbo: %s"' % (e))
-            raise
- 
-        try:
-            s.connect((self.host, self.port))
-            s.sendall(fullCmd)
-        except socket.error as e:
-            cmd.warn('text="failed to create connect or send to turbo: %s"' % (e))
-            raise
-
-        ret = ''
-        while True:
+        fullCmd = "%s%s" % (cmdStr, self.EOL)
+        writeCmd = fullCmd.encode('latin-1')
+        with self.deviceLock:
+            if cmd is not None:
+                cmd.debug('text="sending %r"' % fullCmd)
+            self.logger.debug("sending command :%r:" % (fullCmd))
             try:
-                ret1 = s.recv(1024)
-            except socket.error as e:
-                cmd.warn('text="failed to read response from turbo: %s"' % (e))
+                self.device.write(writeCmd)
+            except serial.writeTimeoutError:
                 raise
-            ret = ret + ret1.decode('latin-1')
-            if ret[-1] in '\r\n':
-                break
+            except serial.SerialException:
+                raise
+            except Exception:
+                raise
 
-        self.logger.info('received %r', ret)
-        cmd.diag('text="received %r"' % ret)
-        s.close()
+            ret = self.readResponse(cmd=cmd)
 
         return ret
+
+    def readResponse(self, cmd=None):
+        """ Read a single response line, up to the next self.EOL.
+
+        Returns
+        -------
+        response
+           A string, with trailing EOL removed.
+        """
+
+        response = ""
+
+        while True:
+            try:
+                c = self.device.read(size=1)
+                # self.logger.debug("received char :%r:" % (c))
+            except serial.SerialException:
+                raise
+            except serial.portNotOpenError:
+                raise
+            except Exception:
+                raise
+
+            c = str(c, 'latin-1')
+            if c == '':
+                self.logger.warn('pyserial device read(1) timed out')
+            if c in (self.EOL, ''):
+                break
+            response += c
+
+        if cmd is not None:
+            cmd.debug('text="recv %r"' % response)
+            
+        self.logger.debug("received :%r:" % (response))
+        return response.strip()
 
     def parseReply(self, cmdStr, reply, cmd=None):
         if not isinstance(cmdStr, str):
@@ -87,7 +122,7 @@ class turbo(object):
         
         replyStr = reply[5:].strip().split(';')
         return replyStr
-    
+
     def ident(self, cmd=None):
         cmdStr = '?S851'
 
