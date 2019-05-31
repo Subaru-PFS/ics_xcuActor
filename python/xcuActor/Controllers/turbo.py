@@ -97,10 +97,13 @@ class turbo(object):
         return reply
 
     def startPump(self, cmd=None):
-        # Turn off electronic braking
-        cmdStr = '!S872 0'
-        ret = self.sendOneCommand(cmdStr, cmd=cmd)
-        reply = self.parseReply(cmdStr, ret, cmd=cmd)
+        # Turn on electronic braking
+        # Set at-speed trip point to 98%
+        cmds = ['!S872 1',
+                '!S856 98']
+        for cmdStr in cmds:
+            ret = self.sendOneCommand(cmdStr, cmd=cmd)
+            reply = self.parseReply(cmdStr, ret, cmd=cmd)
 
         cmdStr = '!C852 1'
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
@@ -109,11 +112,6 @@ class turbo(object):
         return reply
 
     def stopPump(self, cmd=None):
-        # Turn on electronic braking
-        cmdStr = '!S872 1'
-        ret = self.sendOneCommand(cmdStr, cmd=cmd)
-        reply = self.parseReply(cmdStr, ret, cmd=cmd)
-
         cmdStr = '!C852 0'
         ret = self.sendOneCommand(cmdStr, cmd=cmd)
         reply = self.parseReply(cmdStr, ret, cmd=cmd)
