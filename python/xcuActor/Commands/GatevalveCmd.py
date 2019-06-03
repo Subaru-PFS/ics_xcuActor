@@ -134,13 +134,16 @@ class GatevalveCmd(object):
              self.open),
             ('gatevalve', 'close', self.close),
             ('interlock', '@raw', self.interlockRaw),
+            ('interlock', 'sendImage <path> [@doWait] [@sendReboot]', self.sendImage),
             ('setLimits', '[<atm>] [<soft>] [<hard>]', self.setLimits),
             ('sam', 'off', self.samOff),
             ('sam', 'on', self.samOn),
         ]
 
         # Define typed command arguments for the above commands.
-        self.keys = keys.KeysDictionary("xcu_gatevalve", (1, 1),
+        self.keys = keys.KeysDictionary("xcu_gatevalve", (1, 2),
+                                        keys.Key("path", types.String(),
+                                                 help='path of firmware file'),
                                         keys.Key("soft", types.Float(),
                                                  help='soft limit for dPressure'),   
                                         keys.Key("atm", types.Float(),
@@ -176,6 +179,18 @@ class GatevalveCmd(object):
 
         ret = self.interlock.sendCommandStr(cmd_txt, cmd=cmd)
         cmd.finish('text="returned %r"' % (ret))
+
+    def sendImage(self, cmd):
+        """ Upload new firmware to interlock board. """
+
+        cmdKeys = cmd.cmd.keywords
+        path = cmdKeys['path'].values[0]
+        doWait = 'doWait' in cmdKeys
+        sendReboot = 'sendReboot' in cmdKeys
+
+        self.interlock.sendImage(path, verbose=True, doWait=doWait, sendReboot=sendReboot)
+
+        cmd.finish()
         
     def status(self, cmd, doFinish=True):
         """ Generate all gatevalve keys."""

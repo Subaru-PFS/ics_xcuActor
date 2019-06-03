@@ -123,22 +123,29 @@ class interlock(object):
         
         return self.sendCommandStr(cmdStr)
 
-    def sendImage(self, path, verbose=True, doWait=True, sendReset=False):
-        """ Download an image file. """
+    def sendImage(self, path, verbose=True, doWait=False, sendReboot=True):
+        """ Download an image file to the interlock board. 
+
+        For a blank pic (bootloader only), do not send a reboot command.
+        Normally, _do_ send a reboot.
+        """
 
         eol = chr(0x0a)
-        ack = chr(0x06)
-        nak = chr(0x15)
+        ack = chr(0x06) # ; ack='+'
+        nak = chr(0x15) # ; name='-'
         lineNumber = 1
         maxRetries = 5
 
-        if sendReset:
-            ret = self.sendCommandStr('reboot')
-            
+        if sendReboot:
+            try:
+                ret = self.sendCommandStr('reboot')
+            except:
+                pass
+        time.sleep(0.5)
+        
         if doWait:
-            if not sendReset:
-                self.device.timeout = 15
-                ret = self.device.readline()
+            self.device.timeout = 5
+            ret = self.device.readline()
             retline = ret.decode('latin-1').strip()
             self.logger.info('at wait, recv: %r', retline)
             isBootLoader = 'Bootloader' in retline
@@ -208,7 +215,19 @@ class interlock(object):
                                            (retries, lineNumber-1))
 
             t1 = time.time()
-            self.logger.info('sent image file %s in %0.2f seconds' % (path, t1-t0))
+            
+        self.logger.info('sent image file %s in %0.2f seconds' % (path, t1-t0))
+        time.sleep(1)
+        line = self.device.readline().decode('latin-1')
+        self.logger.info('recv: %s', line)
+        if 'Bootloader' not in line:
+            self.logger.warn('did not get expected Booloader line after loading image (%s)' % line)
+        else:
+            time.sleep(2)
+            line = self.device.readline().decode('latin-1')
+            self.logger.info('recv: %s', line)
+            if 'Interlock' not in line:
+                self.logger.warn('did not get expected Interlock line after loading image (%s)' % line)
 
         self.logger.setLevel(logLevel)
 
