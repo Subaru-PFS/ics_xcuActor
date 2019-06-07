@@ -251,11 +251,10 @@ class GatevalveCmd(object):
         except KeyError:
             return 'PCM controller is not connected'
         
-        try:
-            pcm.powerOn('interlock')
-            time.sleep(0.1)
-        except Exception as e:
-            return f'could not turn on interlock power: {e}'
+        powerMaskRaw = pcm.pcmCmd('~ge')
+        powerMask = int(powerMaskRaw[2:], base=2)
+        if not pcm.systemInPowerMask(powerMask, 'interlock'):
+            return 'interlock board not powered up (by PCM)',
 
         dewarPressure = self._getDewarPressure(cmd, pcm)
 
