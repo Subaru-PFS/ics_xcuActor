@@ -398,10 +398,10 @@ class GatevalveCmd(object):
                 self.gatevalve.request(True)
                 self._spinUntil(isOpen, cmd=cmd)
             except Exception as e:
+                # cmd.warn(f'text="FAILED to open gatevalve: {e} -- commanding it to close"')
                 self._doStatus(cmd)
-                cmd.warn(f'text="FAILED to open gatevalve: {e} -- commanding it to close"')
-                self._doClose(cmd=cmd, doFinish=False)
-                cmd.fail(f'text="FAILED to open gatevalve"')
+                # self._doClose(cmd=cmd, doFinish=False)
+                cmd.fail(f'text="FAILED to open gatevalve; close it to re-enable opening"')
                 return
 
         self._doStatus(cmd)    
