@@ -103,7 +103,7 @@ class GateValveState(object):
         return stateKey
     
     def getPressureKey(self):
-        pressureKey = f'interlockPressures={self.insidePressure:.4},{self.outsidePressure:.4}'
+        pressureKey = f'interlockPressures={self.insidePressure:6.2f},{self.outsidePressure:}'
         return pressureKey
 
     def getGatevalveKey(self):
@@ -264,11 +264,11 @@ class GatevalveCmd(object):
 
         callVal = self.actor.cmdr.call(actor=roughName, cmdStr="gauge status", timeLim=3)
         if callVal.didFail:
-            return 'failed to get roughing gauge pressure'
+            return 'failed to get roughing gauge pressure',
         
         callVal = self.actor.cmdr.call(actor=roughName, cmdStr="pump status", timeLim=3)
         if callVal.didFail:
-            return 'failed to get roughing pump status'
+            return 'failed to get roughing pump status',
 
         turboSpeed, turboStatus = self.actor.controllers['turbo'].speed(cmd)
         # turboDict = self.actor.models[self.actor.name].keyVarDict
@@ -375,7 +375,8 @@ class GatevalveCmd(object):
             lastState = ret.state
             timeLimit -= pause
             time.sleep(pause)
-        raise RuntimeError(f"failed to get desired gate valve state. Timed out with: {ret.state:#08b})")
+        cmd.warn(f"failed to get desired gate valve state. Timed out with: {ret.state:#08b})")
+        raise RuntimeError()
         
     def _doOpen(self, cmd):
         if self._interlockType == 'old':
