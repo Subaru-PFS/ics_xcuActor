@@ -82,7 +82,7 @@ class GateValveState(object):
         if self.state & self.OPEN_CMD:
             bits.append('open_cmd')
         if self.state & self.TURBO_AT_SPEED:
-            bits.append('turbo')
+            bits.append('turbo_at_speed')
         if self.state & self.PRESSURE_EQUAL:
             bits.append('pressure_equal')
         if self.state & self.VACUUM_OK:
@@ -103,7 +103,7 @@ class GateValveState(object):
         return stateKey
     
     def getPressureKey(self):
-        pressureKey = f'interlockPressures={self.insidePressure:6.2f},{self.outsidePressure:}'
+        pressureKey = f'interlockPressures={self.insidePressure:.2f},{self.outsidePressure:.2f}'
         return pressureKey
 
     def getGatevalveKey(self):
@@ -133,6 +133,7 @@ class GatevalveCmd(object):
             ('gatevalve', 'open [@(underVacuum)] [@(atAtmosphere)] [@(ok)] [@(reallyforce)] [@(dryrun)]',
              self.open),
             ('gatevalve', 'close', self.close),
+            ('interlock', 'status', self.status),
             ('interlock', '@raw', self.interlockRaw),
             ('interlock', 'sendImage <path> [@doWait] [@sendReboot]', self.sendImage),
             ('setLimits', '[<atm>] [<soft>] [<hard>]', self.setLimits),
@@ -453,9 +454,11 @@ class GatevalveCmd(object):
         """ Get status from the new interlock board. """
 
         state = self.getGatevalveStatus(cmd, silentIf=True)
-        
+
+        # The new board returns pressures in mbar. The rest of the instrument uses Torr.
+        # Convert here.
         pressuresRaw = self.interlock.sendCommandStr('gP,all', cmd=cmd)
-        pressures = [float(s) for s in pressuresRaw.split(',')]
+        pressures = [0.75*float(s) for s in pressuresRaw.split(',')]
         state.setPressures(pressures)
         cmd.inform(state.getAllKeys())
 
