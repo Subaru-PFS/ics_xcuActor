@@ -5,16 +5,29 @@ import logging
 from twisted.internet import reactor
 
 import actorcore.ICC
+from pfscore import spectroIds
 
 class OurActor(actorcore.ICC.ICC):
-    def __init__(self, name, productName=None, configFile=None, logLevel=logging.INFO):
+    def __init__(self, name, productName=None, configFile=None, site=None,
+                 logLevel=logging.INFO):
+        if name is not None:
+            cam = name.split('_')[-1]
+        else:
+            cam = None
+
+        self.ids = spectroIds.SpectroIds(cam, site)
+
+        if name is None:
+            name = 'xcu_%s' % (self.ids.camName)
+            
         # This sets up the connections to/from the hub, the logger, and the twisted reactor.
         #
-        actorcore.ICC.ICC.__init__(self, name, 
+        actorcore.ICC.ICC.__init__(self, name,
                                    productName=productName, 
                                    configFile=configFile)
 
         self.logger.setLevel(logLevel)
+
         
         self.everConnected = False
 
@@ -84,10 +97,17 @@ def main():
                         help='configuration file to use')
     parser.add_argument('--logLevel', default=logging.INFO, type=int, nargs='?',
                         help='logging level')
-    parser.add_argument('--name', default='xcu', type=str, nargs='?',
+    parser.add_argument('--name', default=None, type=str, nargs='?',
                         help='identity')
+    parser.add_argument('--cam', default=None, type=str, nargs='?',
+                        help='ccd name, e.g. r1')
     args = parser.parse_args()
-    
+
+    if args.name is not None and args.cam is not None:
+        raise RuntimeError('only one of --cam and --name can be specified')
+    if args.cam is not None:
+        args.name = f'xcu_{args.cam}'
+        
     theActor = OurActor(args.name,
                         productName='xcuActor',
                         configFile=args.config,
