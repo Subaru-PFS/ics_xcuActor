@@ -558,6 +558,13 @@ def burnBabyBurn(args):
 
     if not os.path.isfile(hexfile):
         raise RuntimeError(f'{hexfile} is not a valid PCM hexfile')
+    try:
+        fo = open(hexfile, 'r+')
+    except Exception as e:
+        raise RuntimeError(f'failed to open {hexfile}: {e}')
+    finally:
+        fo.close()
+        
     netParts = fetchNetInfo(hostname, args.ourHostname)
     if netParts is False:
         raise RuntimeError("cannot resolve or get info about %s (try pinging it?)" % (hostname))
