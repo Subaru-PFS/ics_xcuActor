@@ -314,7 +314,7 @@ class PCM_Bootloader(object):
             if r['errorFlag'] is False:
                 self.LIA_IP = IPAddress
         except Exception as e:
-            self.logger.error('%s%s: %s' % (self.cLIA_error, 'Invalid Address Format: %s', e))
+            self.logger.error('%s%s: %s' % (self.cLIA_error, 'Invalid Address Format %s, %r' % (IPAddress, hexIP), e))
             raise
         finally:
             self.incLIASequence()
@@ -378,8 +378,8 @@ class PCM_Bootloader(object):
             if success:
                 self.logger.info('UPLOAD COMPLETED')
             self.logger.debug(r['messages'])
-        except:
-            self.logger.warn('Error opening file')
+        except Exception as e:
+            self.logger.warn('Error uploading hex file: %s', e)
         finally:
             self.incLIASequence()
 
