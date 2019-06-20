@@ -259,26 +259,35 @@ class GatevalveCmd(object):
 
         dewarPressure = self._getDewarPressure(cmd, pcm)
 
+        try:
+            self.actor.config.get('interlock', 'ignoreRoughPump')
+            ignoreRoughPump = True
+        except Exception:
+            ignoreRoughPump = False
+        
         roughName = self.actor.roughName
         roughDict = self.actor.models[roughName].keyVarDict
 
-        callVal = self.actor.cmdr.call(actor=roughName, cmdStr="gauge status", timeLim=3)
-        if callVal.didFail:
-            return 'failed to get roughing gauge pressure',
+        if ignoreRoughPump:
+            roughSpeed = 0 if atAtmosphere else 30
+        else:
+            callVal = self.actor.cmdr.call(actor=roughName, cmdStr="gauge status", timeLim=3)
+            if callVal.didFail:
+                return 'failed to get roughing gauge pressure',
         
-        callVal = self.actor.cmdr.call(actor=roughName, cmdStr="pump status", timeLim=3)
-        if callVal.didFail:
-            return 'failed to get roughing pump status',
+            callVal = self.actor.cmdr.call(actor=roughName, cmdStr="pump status", timeLim=3)
+            if callVal.didFail:
+                return 'failed to get roughing pump status',
+
+            # Check what the invalid values are!!!! CPLXXX
+            roughSpeed = roughDict['pumpSpeed'].getValue()
+            roughMask, roughErrors = roughDict['pumpErrors'].getValue()
 
         turboSpeed, turboStatus = self.actor.controllers['turbo'].speed(cmd)
         # turboDict = self.actor.models[self.actor.name].keyVarDict
 
         roughPressure = self._getRoughPressure(cmd, roughDict)
         
-        # Check what the invalid values are!!!! CPLXXX
-        roughSpeed = roughDict['pumpSpeed'].getValue()
-        roughMask, roughErrors = roughDict['pumpErrors'].getValue()
-
         problems = []
         if atAtmosphere:
             if roughSpeed > 0:
