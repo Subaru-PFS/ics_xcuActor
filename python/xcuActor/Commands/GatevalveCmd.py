@@ -135,7 +135,7 @@ class GatevalveCmd(object):
             ('gatevalve', 'close', self.close),
             ('interlock', 'status', self.status),
             ('interlock', '@raw', self.interlockRaw),
-            ('interlock', 'sendImage <path> [@doWait] [@sendReboot]', self.sendImage),
+            ('interlock', 'sendImage <path> [@doWait] [@sendReboot] [@straightToCode]', self.sendImage),
             ('setLimits', '[<atm>] [<soft>] [<hard>]', self.setLimits),
             ('sam', 'off', self.samOff),
             ('sam', 'on', self.samOn),
@@ -188,9 +188,11 @@ class GatevalveCmd(object):
         path = cmdKeys['path'].values[0]
         doWait = 'doWait' in cmdKeys
         sendReboot = 'sendReboot' in cmdKeys
+        straightToCode = 'straightToCode' in cmdKeys
 
-        self.interlock.sendImage(path, verbose=True, doWait=doWait, sendReboot=sendReboot)
-
+        self.interlock.sendImage(path, verbose=True, doWait=doWait,
+                                 sendReboot=sendReboot,
+                                 straightToCode=straightToCode)
         cmd.finish()
         
     def status(self, cmd, doFinish=True):

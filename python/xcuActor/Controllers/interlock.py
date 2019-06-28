@@ -123,7 +123,7 @@ class interlock(object):
         
         return self.sendCommandStr(cmdStr)
 
-    def sendImage(self, path, verbose=True, doWait=False, sendReboot=True):
+    def sendImage(self, path, verbose=True, doWait=False, sendReboot=True, straightToCode=False):
         """ Download an image file to the interlock board. 
 
         For a blank pic (bootloader only), do not send a reboot command.
@@ -136,6 +136,10 @@ class interlock(object):
         lineNumber = 1
         maxRetries = 5
 
+        if straightToCode:
+            sendReboot = False
+            doWait = False
+            
         if sendReboot:
             try:
                 ret = self.sendCommandStr('reboot')
@@ -157,18 +161,20 @@ class interlock(object):
                 self.logger.info('at bootloader, sending *')
                 self.device.write(b'*')
         else:
-            self.logger.info('at bootloader, sending *')
-            self.device.write(b'*')
+            if not straightToCode:
+                self.logger.info('at bootloader, sending *')
+                self.device.write(b'*')
 
-        ret = self.device.readline()
-        ret = ret.decode('latin-1').strip()
-        self.logger.debug('after * got :%r:', ret)
-        if not ret.startswith('*Waiting for Data...'):
-            self.logger.info('at bootloader *, got %r' % (ret))
-            ret = self.device.readline().decode('latin-1')
-            self.logger.debug('after * retry got %r', ret)
+        if not straightToCode:
+            ret = self.device.readline()
+            ret = ret.decode('latin-1').strip()
+            self.logger.debug('after * got :%r:', ret)
             if not ret.startswith('*Waiting for Data...'):
-                raise RuntimeError('could not get *Waiting for Data')
+                self.logger.info('at bootloader *, got %r' % (ret))
+                ret = self.device.readline().decode('latin-1')
+                self.logger.debug('after * retry got %r', ret)
+                if not ret.startswith('*Waiting for Data...'):
+                    raise RuntimeError('could not get *Waiting for Data')
 
         logLevel = self.logger.level
         # self.logger.setLevel(logging.INFO)
