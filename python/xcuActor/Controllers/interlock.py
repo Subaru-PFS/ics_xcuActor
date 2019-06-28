@@ -3,6 +3,8 @@ import serial
 import threading
 import time
 
+from opscore.utility.qstr import qstr
+
 class interlock(object):
     def __init__(self, actor, name, logLevel=logging.DEBUG):
         self.actor = actor
@@ -23,8 +25,7 @@ class interlock(object):
         
         self.devConfig = dict(port=port, 
                               baudrate=speed,
-                              timeout=1.0)
-        self.devConfig['writeTimeout'] = 1.0
+                              timeout=2.0)
         self.EOL = '\n'
 
         self.connect()
@@ -57,7 +58,7 @@ class interlock(object):
         writeCmd = fullCmd.encode('latin-1')
         with self.deviceLock:
             if cmd is not None:
-                cmd.debug('text="sending %r"' % fullCmd)
+                cmd.debug('text=%s' % (qstr("sending %r" % fullCmd)))
             self.logger.debug("sending command :%r:" % (fullCmd))
             try:
                 self.device.write(writeCmd)
@@ -68,7 +69,10 @@ class interlock(object):
             except Exception:
                 raise
 
-            ret = self.readResponse(cmd=cmd)
+            try:
+                ret = self.readResponse(cmd=cmd)
+            except EOFError:
+                raise EOFError(f"no response from {self.name}; sent :{fullCmd}:")
             if ret != cmdStr:
                 raise RuntimeError("command echo mismatch. sent :%r: rcvd :%r:" % (cmdStr, ret))
  
@@ -114,8 +118,11 @@ class interlock(object):
 
         if cmd is not None:
             cmd.debug('text="recv %r"' % response)
-            
         self.logger.debug("received :%r:" % (response))
+
+        if response == '' and c == '':
+            raise EOFError()
+        
         return response.strip()
 
     def setRaw(self, cmdStr):
