@@ -210,7 +210,19 @@ class ionpump(object):
 
     
     def readError(self, channel, cmd=None):
-        retCmd = self.sendWriteCommand(505, '%d' % (channel), cmd=cmd)
+        """ Read the error mask for a single channel, or the union of all. 
+        
+        Args
+        ----
+        channel - int
+          1-4 for an individual channel, or 0 for the OR of all
+
+        Returns
+        -------
+        mask - the errors as detailed in Table 13 of the 4UHV manual.
+        """
+        
+        self.sendWriteCommand(505, '%06d' % (channel), cmd=cmd)
         reply = self.sendReadCommand(206, cmd=cmd)
         return int(reply)
     
@@ -223,7 +235,7 @@ class ionpump(object):
         p = self.readPressure(channel, cmd=cmd)
         t = self.readTemp(channel, cmd=cmd)
 
-        err = self.readError(0, cmd=cmd)
+        err = self.readError(channel, cmd=cmd)
         
         if cmd is not None:
             cmd.inform('ionPump%d=%d,%g,%g,%g, %g' % (channelNum+1,
