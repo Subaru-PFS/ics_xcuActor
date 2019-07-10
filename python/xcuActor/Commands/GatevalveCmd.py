@@ -109,7 +109,7 @@ class GateValveState(object):
     def getGatevalveKey(self):
         """ Historical key, before we could know _why_ the GV could be blocked. """
         
-        stateKey = f'gatevalve={self.state:#02x},{self.request[-1]},{self.position[-1]}'
+        stateKey = f'gatevalve={self.state:#02x},{self.position[-1]},{self.request[-1]}'
         return stateKey
     
     def getStateKeys(self):
