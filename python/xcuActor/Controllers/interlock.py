@@ -141,34 +141,34 @@ class interlock(object):
                 ret = self.sendCommandStr('reboot')
             except:
                 pass
-        time.sleep(0.5)
+            time.sleep(0.5)
         
-        if doWait:
-            self.device.timeout = 5
-            ret = self.device.readline()
-            retline = ret.decode('latin-1').strip()
-            self.logger.info('at wait, recv: %r', retline)
-            isBootLoader = 'Bootloader' in retline
-            if not isBootLoader:
-                raise RuntimeError("not at bootloader prompt (%s)" % (retline))
-            isBlank = retline[-1] == 'B'
-            self.logger.info('at bootloader: %s (blank=%s), from %r' % (isBootLoader, isBlank, ret))
-            if not isBlank:
+            if doWait:
+                self.device.timeout = 5
+                ret = self.device.readline()
+                retline = ret.decode('latin-1').strip()
+                self.logger.info('at wait, recv: %r', retline)
+                isBootLoader = 'Bootloader' in retline
+                if not isBootLoader:
+                    raise RuntimeError("not at bootloader prompt (%s)" % (retline))
+                isBlank = retline[-1] == 'B'
+                self.logger.info('at bootloader: %s (blank=%s), from %r' % (isBootLoader, isBlank, ret))
+                if not isBlank:
+                    self.logger.info('at bootloader, sending *')
+                    self.device.write(b'*')
+            else:
                 self.logger.info('at bootloader, sending *')
                 self.device.write(b'*')
-        else:
-            self.logger.info('at bootloader, sending *')
-            self.device.write(b'*')
 
-        ret = self.device.readline()
-        ret = ret.decode('latin-1').strip()
-        self.logger.debug('after * got :%r:', ret)
-        if not ret.startswith('*Waiting for Data...'):
-            self.logger.info('at bootloader *, got %r' % (ret))
-            ret = self.device.readline().decode('latin-1')
-            self.logger.debug('after * retry got %r', ret)
+            ret = self.device.readline()
+            ret = ret.decode('latin-1').strip()
+            self.logger.debug('after * got :%r:', ret)
             if not ret.startswith('*Waiting for Data...'):
-                raise RuntimeError('could not get *Waiting for Data')
+                self.logger.info('at bootloader *, got %r' % (ret))
+                ret = self.device.readline().decode('latin-1')
+                self.logger.debug('after * retry got %r', ret)
+                if not ret.startswith('*Waiting for Data...'):
+                    raise RuntimeError('could not get *Waiting for Data')
 
         logLevel = self.logger.level
         # self.logger.setLevel(logging.INFO)
