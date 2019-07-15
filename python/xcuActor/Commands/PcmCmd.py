@@ -130,15 +130,11 @@ class PcmCmd(object):
         
         cmdStr = "~se,%s,%s" % (portName, portState)   
         ret = self.actor.controllers['PCM'].pcmCmd(cmdStr, cmd=cmd)
-        if ret == None:
+        if ret is None:
             cmd.fail('text="failed to execute power command"')
             return
-            
-        binVal = self.powerMasktoInt(ret)    
-        
-        cmd.inform("powerMask=0x%02x; poweredUp=%s" % (binVal,
-                                                       self.getPoweredNames(binVal)))
-        cmd.finish('text="returned %r"' % (ret))
+
+        self.getPowerStatus(cmd)
 
     def getPower(self,cmd):
         """ Request port voltages or current
@@ -174,7 +170,7 @@ class PcmCmd(object):
             return
         cmd.finish('text="returned %r"' % (ret))
         
-    def getPowerState(self,cmd):
+    def getPowerState(self, cmd, doFinish=True):
         """ Request port status
 
         Arguments:
@@ -216,7 +212,8 @@ class PcmCmd(object):
                         amps[nidx+2],
                         volts[nidx+2]*amps[nidx+2]))
 
-        cmd.finish()
+        if doFinish:
+            cmd.finish()
         
     def getEnvironment(self, cmd):
         """ Request PCM environment
