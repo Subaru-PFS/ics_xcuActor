@@ -171,11 +171,8 @@ class PcmCmd(object):
         cmd.finish('text="returned %r"' % (ret))
         
     def getPowerState(self, cmd, doFinish=True):
-        """ Request port status
-
-        Arguments:
-           name      - one subsystem to read voltage/current or all
-        """
+        """ Request power port status. Always reports on all ports.  """
+        
         cmdKeys = cmd.cmd.keywords
         
         r = cmdKeys['counts'] if 'counts' in cmdKeys else None
@@ -191,22 +188,22 @@ class PcmCmd(object):
         states = [c for c in self.actor.controllers['PCM'].pcmCmd('~ge', cmd=cmd).decode('latin-1')]
 
         cmd.diag('text="states: %s"' % (states))
-        try:
-            portName = self.getParameterName(cmdKeys[1].name)
-        except IndexError:
-            portName = 'all'
+
+        inputNames = ["24Vups", "24Vaux"]
+        for nidx in range(2):
+            lineState = "OK" # figure out battery power, etc later.
+            cmd.inform('pcmPower%d=%s,%s,%0.3f,%0.3f,%0.3f' %
+                       (nidx+1, inputNames[nidx],
+                        lineState,
+                        volts[nidx], amps[nidx],
+                        volts[nidx]*amps[nidx]))
             
         rawPortNames = self.actor.config.get('pcm', 'portNames')
-        allPortNames = [s.strip() for s in rawPortNames.split(',')]
-        if portName == 'all':
-            portNames = allPortNames
-        else:
-            portNames = [portName]
+        portNames = [s.strip() for s in rawPortNames.split(',')]
 
-        for name in portNames:
-            nidx = allPortNames.index(name)
+        for nidx in range(len(portNames)):
             cmd.inform('pcmPort%d="%s","%s",%0.2f,%0.2f,%0.2f' %
-                       (nidx+1, name,
+                       (nidx+1, portNames[nidx],
                         states[-(nidx+1)],
                         volts[nidx+2],
                         amps[nidx+2],
