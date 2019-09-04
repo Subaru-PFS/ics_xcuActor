@@ -276,6 +276,6 @@ class ionpump(object):
             cmdFunc('ionPump%d=%d,%g,%g,%g, %g' % (channelNum+1,
                                                    enabled,
                                                    V,A,t,p))
-            cmdFunc('ionPump%dErrors=0x%02x,%s' % (channelNum+1, err, qstr(errString)))
+            cmdFunc('ionPump%dErrors=0x%04x,%s' % (channelNum+1, err, qstr(errString)))
                 
         return enabled,V,A,p
