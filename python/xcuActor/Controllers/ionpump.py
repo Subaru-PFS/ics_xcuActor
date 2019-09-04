@@ -223,7 +223,37 @@ class ionpump(object):
         self.sendWriteCommand(505, '%06d' % (channel), cmd=cmd)
         reply = self.sendReadCommand(206, cmd=cmd)
         return int(reply)
+
+    errorBits = {0x0001:"Fan error",
+                 0x0002:"HV power input error",
+                 0x0004:"PFC power input error",
+                 0x0008:"PFC overtemp",
+                 0x0010:"CPU-HV communication error",
+                 0x0020:"Interlock cable",
+                 0x0040:"HV overtemp",
+                 0x0080:"Protection error",
+                 0x0100:"Measurement error",
+                 0x0200:"HV output error",
+                 0x0400:"Short circuit",
+                 0x0800:"HV disabled",
+                 0x1000:"0x1000",
+                 0x2000:"0x2000",
+                 0x4000:"0x4000",
+                 0x8000:"Suspect live channel"}
     
+    def _makeErrorString(self, err):
+        """ Return a string describing all error bits, or 'OK'. """
+
+        if err == 0:
+            return "OK"
+        errors = []
+        for i in range(16):
+            mask = 1 << i
+            if err & mask:
+                errors.append(self.errorBits[mask])
+
+        return ",".join(errors)
+        
     def readOnePump(self, channelNum, cmd=None):
         channel = self.pumpIDs[channelNum]
         enabled = self.readEnabled(channel)
@@ -234,18 +264,18 @@ class ionpump(object):
         t = self.readTemp(channel, cmd=cmd)
 
         err = self.readError(channel, cmd=cmd)
-        
-        if cmd is not None:
-            cmd.inform('ionPump%d=%d,%g,%g,%g, %g' % (channelNum+1,
-                                                      enabled,
-                                                      V,A,t,p))
-            if err > 0:
-                cmd.warn('ionPump%dErrors=0x%02x,%s' % (channelNum+1, err, 'ERROR'))
-            else:
-                cmd.inform('ionPump%dErrors=0x%02x,%s' % (channelNum+1, err, 'OK'))
 
         # INSTRM-594, INSTRM-758: create synthetic error when pump is on but not indicating current or pressure.
         if enabled and (V == 0 or A == 0 or p == 0):
             err |= 0x8000
 
+        if cmd is not None:
+            cmdFunc = cmd.inform if err == 0 else cmd.warn
+            errString = self._makeErrorString(err)
+            
+            cmdFunc('ionPump%d=%d,%g,%g,%g, %g' % (channelNum+1,
+                                                   enabled,
+                                                   V,A,t,p))
+            cmdFunc('ionPump%dErrors=0x%02x,%s' % (channelNum+1, err, qstr(errString)))
+                
         return enabled,V,A,p
