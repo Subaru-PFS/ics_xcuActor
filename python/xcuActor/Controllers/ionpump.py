@@ -1,5 +1,3 @@
-from builtins import chr
-from builtins import object
 import logging
 import socket
 import time
@@ -245,5 +243,9 @@ class ionpump(object):
                 cmd.warn('ionPump%dErrors=0x%02x,%s' % (channelNum+1, err, 'ERROR'))
             else:
                 cmd.inform('ionPump%dErrors=0x%02x,%s' % (channelNum+1, err, 'OK'))
-                
+
+        # INSTRM-594, INSTRM-758: create synthetic error when pump is on but not indicating current or pressure.
+        if enabled and (V == 0 or A == 0 or p == 0):
+            err |= 0x8000
+
         return enabled,V,A,p
