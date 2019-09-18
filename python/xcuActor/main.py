@@ -6,6 +6,7 @@ from twisted.internet import reactor
 
 import actorcore.ICC
 from pfscore import spectroIds
+import cryoMode
 
 class OurActor(actorcore.ICC.ICC):
     def __init__(self, name, productName=None, configFile=None, site=None,
@@ -35,6 +36,7 @@ class OurActor(actorcore.ICC.ICC):
         self.statusLoopCB = self.statusLoop
 
         self.roughMonitor = None
+        self.cryoMode = cryoMode.CryoMode()
         
     def reloadConfiguration(self, cmd):
         cmd.inform('sections=%08x,%r' % (id(self.config),
