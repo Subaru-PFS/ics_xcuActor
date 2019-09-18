@@ -113,7 +113,8 @@ class TopCmd(object):
         cmd.inform('text="monitors: %s"' % (self.actor.monitors))
         cmd.inform('text="config id=0x%08x %r"' % (id(self.actor.config),
                                                    self.actor.config.sections()))
-
+        self.actor.cryoMode.genKeys(cmd)
+        
         if 'all' in cmd.cmd.keywords:
             for c in self.actor.controllers:
                 self.actor.callCommand("%s status" % (c))

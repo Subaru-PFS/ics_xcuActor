@@ -24,7 +24,8 @@ class CryoMode(object):
     def genKeys(self, cmd=None):
         cmd = self._cmd(cmd)
         cmd.inform(f'cryoMode={self.mode}')
-        
+    status = genKeys
+    
     def setMode(self, newMode, cmd=None):
         if newMode not in self.validModes:
             raise ValueError(f"{newMode} is not a valid cryo mode")
