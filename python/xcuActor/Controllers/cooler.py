@@ -1,4 +1,3 @@
-from builtins import range
 from importlib import reload
 import logging
 import socket
@@ -196,8 +195,23 @@ class cooler(object):
         self.stopCooler(cmd=cmd, name=name, forceShutdown=True)
     
     def errorFlags(self, errorMask):
-        """ Return a string describing the error state
+        """Return a string describing the error state
 
+        Args
+        ----
+        errorMask : `int`
+          The device's error mask
+
+        Returns
+        -------
+        errorMask : `int`
+           The final errorMask. The input `errorMask` plus any synthetic bits
+        errorString : `str`
+           A human readable description of the final errorMask.
+
+        Notes
+        -----
+       
         The documentation describes the following, but I suspect that there
         may be more...
 
@@ -205,24 +219,34 @@ class cooler(object):
         00000010 - Low Reject Temperature 
         10000000 - Over Current Error 
         11111111 - Invalid Configuration
+
+        In addition, we generate a synthetic error bit, bit 9,
+        indicating that the reject temperature limit has ben exceeded.
+
         """
 
         bits = ('high reject temperature',
                 'low reject temperature',
                 'bit 2', 'bit 3', 'bit 4', 'bit 5', 'bit 6',
-                'over current')
-
+                'over current', 'reject limit')
+        rejectBit = len(bits)-1
+        
+        if self.rejectLimitHit:
+            errorMask |= 1 << rejectBit
         if errorMask == 0:
-            return "OK"
+            return errorMask, "OK"
         if errorMask == 0b11111111:
-            return "invalid configuration"
+            elist = ["invalid configuration"]
+            if errorMask & 0x100:
+                elist.append(bits[rejectBit])
+            return errorMask, ', '.join(elist)
 
         elist = []
-        for i in range(8):
+        for i in range(len(bits)):
             if errorMask & (1 << i):
                 elist.append(bits[i])
 
-        return ', '.join(elist)
+        return errorMask, ', '.join(elist)
         
     def getTemps(self, cmd=None, name='cooler'):
         mode = self.sendOneCommand('COOLER', doClose=False, cmd=cmd)
@@ -239,13 +263,18 @@ class cooler(object):
         rejectTemp = float(self.sendOneCommand('TEMP2', doClose=False, cmd=cmd))
         setTemp = float(self.sendOneCommand('TTARGET', cmd=cmd))
 
+        if rejectTemp > float(self.actor.config.get('cooler', 'rejectLimit')):
+            self.stopCooler(cmd, name=name, forceShutdown=True)
+        else:
+            self.rejectLimitHit = False
+            
         if cmd is not None:
-            errorString = self.errorFlags(errorMask)
+            errorMask, errorString = self.errorFlags(errorMask)
             if errorString == 'OK':
                 call = cmd.inform
             else:
                 call = cmd.warn
-            call('%sStatus=%s,0x%02x, %s, %g,%g,%g' % (name, mode,
+            call('%sStatus=%s,0x%03x, %s, %g,%g,%g' % (name, mode,
                                                        errorMask, qstr(errorString),
                                                        minPower, maxPower, power))
             cmd.inform('%sTemps=%g,%g,%g, %g' % (name, setTemp,
