@@ -146,11 +146,17 @@ class cooler(object):
     
     def startCooler(self, mode, setpoint, cmd=None, name='cooler'):
         headTemp = float(self.sendOneCommand('TC', cmd=cmd))
-
         if headTemp > 350:
             cmd.fail('text="the %s cryocooler temperature is too high (%sK). Check the temperature sense cable."'
                      % (name, headTemp))
             return
+
+        rejectTemp = float(self.sendOneCommand('TEMP2', cmd=cmd))
+        if rejectTemp > float(self.actor.config.get('cooler', 'rejectLimit')):
+            cmd.fail('text="the %s cryocooler reject temperature is too high (%sC). Check the coolant flow."'
+                     % (name, rejectTemp))
+            return
+            
         self.rejectLimitHit = False
 
         self.unlock()
