@@ -29,6 +29,8 @@ class cooler(object):
 
         self.keepUnlocked = False
         self.sock = None
+
+        self.rejectLimitHit = False
         
     def start(self, cmd=None):
         pass
@@ -150,10 +152,11 @@ class cooler(object):
             cmd.fail('text="the %s cryocooler temperature is too high (%sK). Check the temperature sense cable."'
                      % (name, headTemp))
             return
+        self.rejectLimitHit = False
 
         self.unlock()
         
-        if mode is 'power':
+        if mode == 'power':
             ret = self.sendOneCommand('PWOUT=%g' % (setpoint), doClose=False, cmd=cmd)
             ret = self.sendOneCommand('COOLER=POWER', doClose=False, cmd=cmd)
             pass
@@ -168,13 +171,30 @@ class cooler(object):
         if cmd:
             cmd.finish()
         
-    def stopCooler(self, cmd=None, name='cooler'):
+    def stopCooler(self, cmd=None, name='cooler', forceShutdown=False):
+        """ Stop the cooler.
+
+        Args
+        ----
+        cmd : `actorcore.Command`
+           The controlling command
+        name " `str`
+           The device name.
+        forceShutdown : `bool`
+           Whether this done because of some status value.
+        """
+        
         ret = self.sendOneCommand('LOGIN=STIRLING', doClose=False)
         ret = self.sendOneCommand('COOLER=OFF', doClose=False)
         self.sendOneCommand('LOGOUT=STIRLING', doClose=False)
+        self.rejectLimitHit = forceShutdown
 
-        self.status(cmd=cmd, name=name)
+        if not forceShutdown:
+            self.status(cmd=cmd, name=name)
 
+    def emergencyShutdown(self, cmd, name='cooler'):
+        self.stopCooler(cmd=cmd, name=name, forceShutdown=True)
+    
     def errorFlags(self, errorMask):
         """ Return a string describing the error state
 
