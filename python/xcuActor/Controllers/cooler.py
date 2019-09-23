@@ -64,7 +64,7 @@ class cooler(object):
             
         self.sock = None
         
-    def sendOneCommand(self, cmdStr, doClose=True, cmd=None):
+    def sendOneCommand(self, cmdStr, doClose=True, cmd=None, timeout=None):
         """ Send one command and return one response.
 
         Args
@@ -107,7 +107,7 @@ class cooler(object):
                                                                            ret))
             raise
 
-        reply = self.getOneResponse(cmd=cmd)
+        reply = self.getOneResponse(cmd=cmd, timeout=timeout)
         if doClose:
             self.closeSock(cmd)
 
@@ -252,7 +252,7 @@ class cooler(object):
         mode = self.sendOneCommand('COOLER', doClose=False, cmd=cmd)
         errorMask = int(self.sendOneCommand('ERROR', doClose=False, cmd=cmd))
         try:
-            maxPower = float(self.sendOneCommand('E', doClose=False, cmd=cmd))
+            maxPower = float(self.sendOneCommand('E', doClose=False, cmd=cmd, timeout=2))
             minPower = float(self.getOneResponse(cmd=cmd))
             power = float(self.getOneResponse(cmd=cmd))
         except ValueError:
