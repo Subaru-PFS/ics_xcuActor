@@ -22,7 +22,8 @@ class ionpump(object):
         self.port = int(self.actor.config.get(self.name, 'port'))
         self.busID = int(self.actor.config.get(self.name, 'busID'))
         self.pumpIDs = [int(ID) for ID in self.actor.config.get('ionpump', 'pumpids').split(',')]
-
+        self.startTime = 0
+        
     @property
     def npumps(self):
         return len(self.pumpIDs)
@@ -186,6 +187,8 @@ class ionpump(object):
             retCmd = self.sendWriteCommand(10+c, '%s' % (int(newState)), cmd=cmd)
             ret.append(retCmd)
             time.sleep(graceTime)
+
+        self.startTime = time.time()
         
         for c_i, c in enumerate(self.pumpIDs):
             self.readOnePump(c_i, cmd=cmd)
@@ -273,7 +276,7 @@ class ionpump(object):
             doTurnOff = True
 
         # INSTRM-772: create synthetic error when high pressure limit hit
-        if enabled and (p > float(self.actor.config.get('ionpump', 'maxPressure'))):
+        if enabled and (time.time() - self.startTime > 60) and (p > float(self.actor.config.get('ionpump', 'maxPressure'))):
             err |= 0x10000
             doTurnOff = True
             
