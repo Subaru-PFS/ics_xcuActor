@@ -239,7 +239,8 @@ class ionpump(object):
                  0x1000:"0x1000",
                  0x2000:"0x2000",
                  0x4000:"0x4000",
-                 0x8000:"Suspect live channel"}
+                 0x8000:"Suspect live channel",
+                 0x10000:"Pressure limit hit"}
     
     def _makeErrorString(self, err):
         """ Return a string describing all error bits, or 'OK'. """
@@ -247,7 +248,7 @@ class ionpump(object):
         if err == 0:
             return "OK"
         errors = []
-        for i in range(16):
+        for i in range(len(self.errorBits)):
             mask = 1 << i
             if err & mask:
                 errors.append(self.errorBits[mask])
