@@ -267,9 +267,16 @@ class ionpump(object):
         err = self.readError(channel, cmd=cmd)
 
         # INSTRM-594, INSTRM-758: create synthetic error when pump is on but not indicating current or pressure.
+        doTurnOff = False
         if enabled and (V == 0 or A == 0 or p == 0):
             err |= 0x8000
+            doTurnOff = True
 
+        # INSTRM-772: create synthetic error when high pressure limit hit
+        if enabled and (p > float(self.actor.config.get('ionpump', 'maxPressure'))):
+            err |= 0x10000
+            doTurnOff = True
+            
         if cmd is not None:
             cmdFunc = cmd.inform if err == 0 else cmd.warn
             errString = self._makeErrorString(err)
@@ -277,6 +284,10 @@ class ionpump(object):
             cmdFunc('ionPump%d=%d,%g,%g,%g, %g' % (channelNum+1,
                                                    enabled,
                                                    V,A,t,p))
-            cmdFunc('ionPump%dErrors=0x%04x,%s' % (channelNum+1, err, qstr(errString)))
-                
+            cmdFunc('ionPump%dErrors=0x%05x,%s,%s' % (channelNum+1, err,
+                                                      "OK" if errString == "OK" else "ERROR",
+                                                      qstr(errString)))
+        if doTurnOff:
+            self.off(cmd=cmd)
+            
         return enabled,V,A,p
