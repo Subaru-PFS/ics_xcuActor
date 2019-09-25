@@ -22,7 +22,8 @@ class ionpump(object):
         self.port = int(self.actor.config.get(self.name, 'port'))
         self.busID = int(self.actor.config.get(self.name, 'busID'))
         self.pumpIDs = [int(ID) for ID in self.actor.config.get('ionpump', 'pumpids').split(',')]
-
+        self.startTime = 0
+        
     @property
     def npumps(self):
         return len(self.pumpIDs)
@@ -186,6 +187,8 @@ class ionpump(object):
             retCmd = self.sendWriteCommand(10+c, '%s' % (int(newState)), cmd=cmd)
             ret.append(retCmd)
             time.sleep(graceTime)
+
+        self.startTime = time.time()
         
         for c_i, c in enumerate(self.pumpIDs):
             self.readOnePump(c_i, cmd=cmd)
@@ -239,7 +242,8 @@ class ionpump(object):
                  0x1000:"0x1000",
                  0x2000:"0x2000",
                  0x4000:"0x4000",
-                 0x8000:"Suspect live channel"}
+                 0x8000:"Suspect live channel",
+                 0x10000:"Pressure limit hit"}
     
     def _makeErrorString(self, err):
         """ Return a string describing all error bits, or 'OK'. """
@@ -247,7 +251,7 @@ class ionpump(object):
         if err == 0:
             return "OK"
         errors = []
-        for i in range(16):
+        for i in range(len(self.errorBits)):
             mask = 1 << i
             if err & mask:
                 errors.append(self.errorBits[mask])
@@ -266,9 +270,16 @@ class ionpump(object):
         err = self.readError(channel, cmd=cmd)
 
         # INSTRM-594, INSTRM-758: create synthetic error when pump is on but not indicating current or pressure.
+        doTurnOff = False
         if enabled and (V == 0 or A == 0 or p == 0):
             err |= 0x8000
+            doTurnOff = True
 
+        # INSTRM-772: create synthetic error when high pressure limit hit
+        if enabled and (time.time() - self.startTime > 60) and (p > float(self.actor.config.get('ionpump', 'maxPressure'))):
+            err |= 0x10000
+            doTurnOff = True
+            
         if cmd is not None:
             cmdFunc = cmd.inform if err == 0 else cmd.warn
             errString = self._makeErrorString(err)
@@ -276,6 +287,10 @@ class ionpump(object):
             cmdFunc('ionPump%d=%d,%g,%g,%g, %g' % (channelNum+1,
                                                    enabled,
                                                    V,A,t,p))
-            cmdFunc('ionPump%dErrors=0x%04x,%s' % (channelNum+1, err, qstr(errString)))
-                
+            cmdFunc('ionPump%dErrors=0x%05x,%s,%s' % (channelNum+1, err,
+                                                      "OK" if errString == "OK" else "ERROR",
+                                                      qstr(errString)))
+        if doTurnOff:
+            self.off(cmd=cmd)
+            
         return enabled,V,A,p
