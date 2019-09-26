@@ -276,7 +276,10 @@ class ionpump(object):
             doTurnOff = True
 
         # INSTRM-772: create synthetic error when high pressure limit hit
-        if enabled and (time.time() - self.startTime > 60) and (p > float(self.actor.config.get('ionpump', 'maxPressure'))):
+        if (enabled and
+            (time.time() - self.startTime > float(self.actor.config.get('ionpump', 'spikeDelay'))) and
+            (p > float(self.actor.config.get('ionpump', 'maxPressure')))):
+            
             err |= 0x10000
             doTurnOff = True
             
