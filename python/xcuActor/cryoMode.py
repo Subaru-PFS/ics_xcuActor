@@ -1,4 +1,9 @@
 import logging
+from functools import partial
+from threading import Timer
+
+import fysom
+
 
 class CryoMode(object):
     """Track, as much as we need to, the states of the devices controlling
@@ -8,12 +13,37 @@ class CryoMode(object):
     For now, a command sets the mode.
 
     """
-    validModes = ('unknown', 'idle', 'pumpdown', 'cooldown', 'operation', 'warmup')
-    
+    validModes = ('unknown', 'offline', 'standby', 'pumpdown', 'cooldown', 'operation', 'warmup', 'bakeout')
+    standbyTime = dict(toPumpdown=5,
+                       toCooldown=5)
+
     def __init__(self, actor, logLevel=logging.INFO):
         self.actor = actor
         self.logger = logging.getLogger('cryomode')
-        self.mode = 'unknown'
+        callbacks = dict([(f'on{mode}', self.modeChangeCB) for mode in self.validModes])
+
+        events = [{'name': 'toOffline', 'src': ['unknown', 'pumpdown', 'cooldown', 'operation', 'warmup', 'bakeout', 'standby'], 'dst': 'offline'},
+                  {'name': 'toPumpdown', 'src': 'offline', 'dst': 'pumpdown'},
+                  {'name': 'toCooldown', 'src': 'pumpdown', 'dst': 'cooldown'},
+                  {'name': 'toOperation', 'src': 'cooldown', 'dst': 'operation'},
+                  {'name': 'toWarmup', 'src': ['cooldown', 'operation'], 'dst': 'warmup'}]
+
+        for name, delay in self.standbyTime.items():
+            goEvent = f'go{name}'
+            callbacks[f'on{name}'] = partial(self.standby, delay, goEvent)
+
+            [delayedEvent] = [event for event in events if event['name'] == name]
+            events.append(dict(name=goEvent, src='standby', dst=delayedEvent['dst']))
+            delayedEvent['dst'] = 'standby'
+
+        self.mode = fysom.Fysom({'initial': 'unknown',
+                                 'events': events,
+                                 'callbacks': callbacks
+                                 })
+
+    def standby(self, delay, funcname, e):
+        t = Timer(delay, getattr(self.mode, funcname))
+        t.start()
 
     def _cmd(self, cmd):
         if cmd is None:
@@ -21,24 +51,33 @@ class CryoMode(object):
         else:
             return cmd
 
+    def modeChangeCB(self, e):
+        self.actor.bcast.inform(f'cryoMode={e.dst}')
+
     def genKeys(self, cmd=None):
         cmd = self._cmd(cmd)
-        cmd.inform(f'cryoMode={self.mode}')
+        cmd.inform(f'cryoMode={self.mode.current}')
+
     status = genKeys
-    
+
     def setMode(self, newMode, cmd=None):
         if newMode not in self.validModes:
             raise ValueError(f"{newMode} is not a valid cryo mode")
-        self.mode = newMode
+
+        getattr(self.mode, f'to{newMode.capitalize()}')()
         self.genKeys(cmd)
 
     def updateCooler(self, cmd=None):
         pass
+
     def updateGatevalve(self, cmd=None):
         pass
+
     def updateTurbo(self, cmd=None):
         pass
+
     def updateIonpump(self, cmd=None):
         pass
+
     def updateHeater(self, cmd=None):
         pass
