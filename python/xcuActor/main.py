@@ -36,7 +36,7 @@ class OurActor(actorcore.ICC.ICC):
         self.statusLoopCB = self.statusLoop
 
         self.roughMonitor = None
-        self.cryoMode = cryoMode.CryoMode()
+        self.cryoMode = cryoMode.CryoMode(self)
         
     def reloadConfiguration(self, cmd):
         cmd.inform('sections=%08x,%r' % (id(self.config),
