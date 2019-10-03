@@ -23,9 +23,10 @@ class CryoMode(object):
         callbacks = dict([(f'on{mode}', self.modeChangeCB) for mode in self.validModes])
 
         events = [{'name': 'toOffline', 'src': ['unknown', 'pumpdown', 'cooldown', 'operation', 'warmup', 'bakeout', 'standby'], 'dst': 'offline'},
-                  {'name': 'toPumpdown', 'src': 'offline', 'dst': 'pumpdown'},
-                  {'name': 'toCooldown', 'src': 'pumpdown', 'dst': 'cooldown'},
-                  {'name': 'toOperation', 'src': 'cooldown', 'dst': 'operation'},
+                  {'name': 'toPumpdown', 'src': ['offline'], 'dst': 'pumpdown'},
+                  {'name': 'toBakeout', 'src': ['offline', 'pumpdown'], 'dst': 'bakeout'},
+                  {'name': 'toCooldown', 'src': ['offline', 'pumpdown'], 'dst': 'cooldown'},
+                  {'name': 'toOperation', 'src': ['offline', 'cooldown'], 'dst': 'operation'},
                   {'name': 'toWarmup', 'src': ['cooldown', 'operation'], 'dst': 'warmup'}]
 
         for name, delay in self.standbyTime.items():
@@ -42,8 +43,17 @@ class CryoMode(object):
                                  })
 
     def standby(self, delay, funcname, e):
-        t = Timer(delay, getattr(self.mode, funcname))
+        t = Timer(delay, self.triggerMode, args=(funcname,))
         t.start()
+
+    def triggerMode(self, event):
+        trigger = getattr(self.mode, event)
+
+        if 'goto' in event and self.mode.current != 'standby':
+            self.actor.bcast.warn(f'not in standby mode')
+            return
+
+        return trigger()
 
     def _cmd(self, cmd):
         if cmd is None:
@@ -64,7 +74,7 @@ class CryoMode(object):
         if newMode not in self.validModes:
             raise ValueError(f"{newMode} is not a valid cryo mode")
 
-        getattr(self.mode, f'to{newMode.capitalize()}')()
+        self.triggerMode(event=f'to{newMode.capitalize()}')
         self.genKeys(cmd)
 
     def updateCooler(self, cmd=None):
