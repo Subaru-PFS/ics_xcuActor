@@ -53,6 +53,7 @@ class CryoMode(object):
 
     def standby(self, delay, funcname, e):
         t = Timer(delay, self.triggerMode, args=(funcname,))
+        t.daemon = True
         t.start()
 
     def triggerMode(self, event):
