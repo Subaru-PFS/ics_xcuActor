@@ -14,8 +14,8 @@ class CryoMode(object):
 
     """
     validModes = ('unknown', 'offline', 'standby', 'pumpdown', 'cooldown', 'operation', 'warmup', 'bakeout')
-    standbyTime = dict(toPumpdown=5,
-                       toCooldown=5)
+    standbyTime = dict(toPumpdown=600,
+                       toCooldown=600)
 
     def __init__(self, actor, logLevel=logging.INFO):
         self.actor = actor
@@ -50,7 +50,7 @@ class CryoMode(object):
         trigger = getattr(self.mode, event)
 
         if 'goto' in event and self.mode.current != 'standby':
-            self.actor.bcast.warn(f'not in standby mode')
+            self.actor.bcast.inform(f'cryoMode no longer in standby mode')
             return
 
         return trigger()
