@@ -41,6 +41,15 @@ class CryoMode(object):
                                  'events': events,
                                  'callbacks': callbacks
                                  })
+        self.actor.models[self.actor.name].keyVarDict['turboSpeed'].addCallback(self.turboAtSpeed)
+
+    def turboAtSpeed(self, keyvar):
+        try:
+            atSpeed = keyvar.getValue() >= 90000
+            if atSpeed:
+                self.mode.gotoPumpdown()
+        except ValueError:
+            return
 
     def standby(self, delay, funcname, e):
         t = Timer(delay, self.triggerMode, args=(funcname,))
