@@ -20,6 +20,8 @@ class CryoMode(object):
     def __init__(self, actor, logLevel=logging.INFO):
         self.actor = actor
         self.logger = logging.getLogger('cryomode')
+        self.delayedEvent = None
+
         callbacks = dict([(f'on{mode}', self.modeChangeCB) for mode in self.validModes])
 
         events = [{'name': 'toOffline', 'src': ['unknown', 'pumpdown', 'cooldown', 'operation', 'warmup', 'bakeout', 'standby'], 'dst': 'offline'},
@@ -44,23 +46,30 @@ class CryoMode(object):
         self.actor.models[self.actor.name].keyVarDict['turboSpeed'].addCallback(self.turboAtSpeed)
 
     def turboAtSpeed(self, keyvar):
+        if self.delayedEvent is None or not self.delayedEvent.is_alive():
+            return
+        (event,) = self.delayedEvent.args
+
         try:
             atSpeed = keyvar.getValue() >= 90000
-            if atSpeed:
+            if atSpeed and event == 'gotoPumpdown':
                 self.mode.gotoPumpdown()
         except ValueError:
             return
 
     def standby(self, delay, funcname, e):
-        t = Timer(delay, self.triggerMode, args=(funcname,))
-        t.daemon = True
-        t.start()
+        if self.delayedEvent is not None:
+            self.delayedEvent.cancel()
+
+        self.delayedEvent = Timer(delay, self.triggerMode, args=(funcname,))
+        self.delayedEvent.daemon = True
+        self.delayedEvent.start()
 
     def triggerMode(self, event):
         trigger = getattr(self.mode, event)
 
         if 'goto' in event and self.mode.current != 'standby':
-            self.actor.bcast.inform(f'cryoMode no longer in standby mode')
+            self.actor.bcast.inform(f'state machine not triggered : cryoMode no longer in standby')
             return
 
         return trigger()
