@@ -470,6 +470,10 @@ class GatevalveCmd(object):
         # Convert here.
         pressuresRaw = self.interlock.sendCommandStr('gP,all', cmd=cmd)
         pressures = [0.75*float(s) for s in pressuresRaw.split(',')]
+        if any([p <= -10 for p in pressures]):
+            cmd.warn('text="raw interlock board pressures are suspiciously low: %s"' % (pressures))
+        pressures = [max(p, 0.0) for p in pressures]
+        
         state.setPressures(pressures)
         cmd.inform(state.getAllKeys())
 
