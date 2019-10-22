@@ -36,7 +36,7 @@ class OurActor(actorcore.ICC.ICC):
         self.statusLoopCB = self.statusLoop
 
         self.roughMonitor = None
-        self.cryoMode = cryoMode.CryoMode(self)
+
         
     def reloadConfiguration(self, cmd):
         cmd.inform('sections=%08x,%r' % (id(self.config),
@@ -65,7 +65,7 @@ class OurActor(actorcore.ICC.ICC):
             self.logger.info(f'adding models: {_needModels}')
             self.addModels(_needModels)
             self.logger.info(f'added models: {self.models.keys()}')
-            
+            self.cryoMode = cryoMode.CryoMode(self)
             # reactor.callLater(10, self.status_check)
 
     def statusLoop(self, controller):
