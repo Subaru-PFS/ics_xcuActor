@@ -8,7 +8,7 @@ class MiscCmd(object):
         self.actor = actor
 
         self.vocab = [
-            ('setCryoMode', '@(idle|pumpdown|cooldown|operation|warmup)', self.setCryoMode),
+            ('setCryoMode', '@(offline|standby|pumpdown|cooldown|operation|warmup|bakeout)', self.setCryoMode),
         ]
 
         self.keys = keys.KeysDictionary("xcu_misc", (1, 1),
