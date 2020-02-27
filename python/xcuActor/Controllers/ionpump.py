@@ -22,7 +22,7 @@ class ionpump(object):
         self.port = int(self.actor.config.get(self.name, 'port'))
         self.busID = int(self.actor.config.get(self.name, 'busID'))
         self.pumpIDs = [int(ID) for ID in self.actor.config.get('ionpump', 'pumpids').split(',')]
-        self.startTime = 0
+        self.spikeWindowEnd = 0
         
     @property
     def npumps(self):
@@ -168,6 +168,14 @@ class ionpump(object):
 
         return float(reply)
         
+    def startSpikeWindow(self, spikeDelay=None):
+        """ Arrange to ignore pressure spikes for a little while. """
+        
+        if spikeDelay is None:
+            spikeDelay = float(self.actor.config.get('ionpump', 'spikeDelay'))
+                               
+        self.spikeWindowEnd = time.time() + spikeDelay
+        
     def _onOff(self, newState, pump1=True, pump2=True, cmd=None):
         """ Turn the pumps on or off, and report the status. """
 
@@ -188,7 +196,7 @@ class ionpump(object):
             ret.append(retCmd)
             time.sleep(graceTime)
 
-        self.startTime = time.time()
+        self.startSpikeWindow()
         
         for c_i, c in enumerate(self.pumpIDs):
             self.readOnePump(c_i, cmd=cmd)
@@ -257,7 +265,7 @@ class ionpump(object):
                 errors.append(self.errorBits[mask])
 
         return ",".join(errors)
-        
+
     def readOnePump(self, channelNum, cmd=None):
         channel = self.pumpIDs[channelNum]
         enabled = self.readEnabled(channel)
@@ -277,7 +285,7 @@ class ionpump(object):
 
         # INSTRM-772: create synthetic error when high pressure limit hit
         if (enabled and
-            (time.time() - self.startTime > float(self.actor.config.get('ionpump', 'spikeDelay'))) and
+            (time.time() > self.spikeWindowEnd) and
             (p > float(self.actor.config.get('ionpump', 'maxPressure')))):
             
             err |= 0x10000
