@@ -37,7 +37,11 @@ class OurActor(actorcore.ICC.ICC):
 
         self.roughMonitor = None
 
-        
+    def isNir(self):
+        """ Return True if we are a NIR cryostat. """
+
+        return self.ids.arm == 'n'
+    
     def reloadConfiguration(self, cmd):
         cmd.inform('sections=%08x,%r' % (id(self.config),
                                          self.config))
