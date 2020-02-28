@@ -23,17 +23,6 @@ class MotorsCmd(object):
     stepsOffHome = 2
     zeroOffset = 100 * microstepping
     
-    # CONVERSION FACTORS TO CONVERT MICRONS TO MOTOR STEPS
-    # microsteps per rev * pivot ratio / screw pitch
-    a_microns_to_steps = stepsPerRev * 36.77 / 635.0
-    b_microns_to_steps = stepsPerRev * 36.02 / 635.0
-    c_microns_to_steps = stepsPerRev * 36.02 / 635.0 
-    a_microns_to_microsteps = a_microns_to_steps * microstepping
-    b_microns_to_microsteps = b_microns_to_steps * microstepping
-    c_microns_to_microsteps = c_microns_to_steps * microstepping
-
-    homeDistance = 400 * a_microns_to_microsteps # max steps for homing
-    
     def __init__(self, actor):
         # This lets us access the rest of the actor.
         self.actor = actor
@@ -71,6 +60,22 @@ class MotorsCmd(object):
                                                  help='the number of ticks/microns to move actuators A,B, and C'),
                                         )
 
+        if self.actor.isNir:
+            self.pivotRatios = (40.62, 40.26, 40.26)
+        else:
+            self.pivotRatios = (36.77, 36.02, 36.02)
+            
+        # Precalculate conversion factors to convert microns to motor steps
+        # microsteps per rev * pivot ratio / screw pitch
+        self.a_microns_to_steps = self.stepsPerRev * self.pivotRatios[0] / 635.0
+        self.b_microns_to_steps = self.stepsPerRev * self.pivotRatios[1] / 635.0
+        self.c_microns_to_steps = self.stepsPerRev * self.pivotRatios[2] / 635.0 
+        self.a_microns_to_microsteps = self.a_microns_to_steps * self.microstepping
+        self.b_microns_to_microsteps = self.b_microns_to_steps * self.microstepping
+        self.c_microns_to_microsteps = self.c_microns_to_steps * self.microstepping
+
+        self.homeDistance = 400 * self.a_microns_to_microsteps # max steps for homing
+    
         self._clearStatus()
 
         try:
