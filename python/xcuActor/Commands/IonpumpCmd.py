@@ -43,7 +43,10 @@ class IonpumpCmd(object):
         cmd.finish('text="returned %r"' % (ret))
 
     def ionpumpReadRaw(self, cmd):
-        """ Send a raw read command to the ionpump controller. """
+        """ Send a raw read command to the ionpump controller. 
+
+        The format is simply the register number: `raw=REGNUM`.
+        """
 
         cmd_txt = cmd.cmd.keywords['raw'].values[0]
 
@@ -51,7 +54,16 @@ class IonpumpCmd(object):
         cmd.finish('text="returned %r"' % (ret))
 
     def ionpumpWriteRaw(self, cmd):
-        """ Send a raw write command to the ionpump controller. """
+        """Send a raw write command to the ionpump controller. 
+
+        The format is `raw=REGNUM VALUE`.
+
+        Note that the command does not know about types, so the value
+        has to be padded if necessary. Ints are 6 digits, strings
+        (floats) are 10. E.g. to set the controller for which we want
+        to read status, send `raw=505 000003`.
+
+        """
 
         cmd_txt = cmd.cmd.keywords['raw'].values[0]
 
