@@ -5,7 +5,7 @@ import logging
 from twisted.internet import reactor
 
 import actorcore.ICC
-from pfscore import spectroIds
+from pfs.utils import spectroIds
 import cryoMode
 
 class OurActor(actorcore.ICC.ICC):
