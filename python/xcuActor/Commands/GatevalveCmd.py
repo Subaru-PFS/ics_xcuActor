@@ -17,13 +17,14 @@ class GateValveState(object):
     GATEVALVE_TIMEDOUT = 1 << 1
     GATEVALVE_SIGNAL = 1
     
-    def __init__(self, state, pressures=None):
+    def __init__(self, state, gvMask=0x00, pressures=None):
         if isinstance(state, str):
             state = int(state, base=2)
         self.state = state
         if pressures is None:
             pressures = (np.nan, np.nan)
         self.setPressures(pressures)
+        self.gvMask = gvMask
         
     def setPressures(self, pressures):
         self.outsidePressure = pressures[0]
@@ -109,7 +110,7 @@ class GateValveState(object):
     def getGatevalveKey(self):
         """ Historical key, before we could know _why_ the GV could be blocked. """
         
-        stateKey = f'gatevalve={self.state:#02x},{self.position[-1]},{self.request[-1]}'
+        stateKey = f'gatevalve={self.state:#02x},{self.position[-1]},{self.request[-1]}; gvMask={self.gvMask:#02x}'
         return stateKey
     
     def getStateKeys(self):
@@ -455,7 +456,8 @@ class GatevalveCmd(object):
         """ Get status from the new interlock board. """
 
         rawStatus = self.interlock.sendCommandStr('gStat,all', cmd=cmd)
-        state = GateValveState(rawStatus)
+        gvMask = self.gatevalve.getStatus()
+        state = GateValveState(rawStatus, gvMask=gvMask)
 
         if silentIf is not True and state.state != silentIf:
             cmd.inform(state.getStateKeys())
