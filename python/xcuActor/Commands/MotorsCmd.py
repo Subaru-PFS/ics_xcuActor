@@ -481,9 +481,6 @@ class MotorsCmd(object):
 
         self.motorStatus(cmd)
 
-        # Declare that we actually moved, whether or not we succeeded.
-        self.declareNewMotorPositions(cmd)
-        
     def moveCcd(self, cmd):
         """ Adjust the position of the detector motors. 
         Arguments:
@@ -598,6 +595,9 @@ class MotorsCmd(object):
         except Exception as e:
             errCode = "uncaught error: %s" % (e)
             
+        # Declare that we actually moved, whether or not we succeeded.
+        self.declareNewMotorPositions(cmd)
+        
         if errCode != "OK":
             self.haltMotors(cmd, doFinish=False)
             self.motorStatus(cmd, doFinish=False)
