@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import division
-from builtins import chr
-from builtins import range
-from builtins import object
-import time
+from astropy import time as astroTime
 
 import opscore.protocols.keys as keys
 import opscore.protocols.types as types
@@ -180,7 +176,7 @@ class MotorsCmd(object):
         """
 
         # Use MJD seconds.
-        now = time.time() / 86400 + 40587
+        now = astroTime.Time.now().mjd
         cmd.inform(f'fpaMoved={now:0.6f}')
 
     def motorStatus(self, cmd, doFinish=True):
@@ -479,7 +475,7 @@ class MotorsCmd(object):
             if ok:
                 self.status[m-1] = "OK"
                 self._setPosition(m, cmd, 100)
-                
+
         self.declareNewMotorPositions(cmd, invalid=False)
         cmd.inform('text="axes homed: %s"' % (axes))
 
