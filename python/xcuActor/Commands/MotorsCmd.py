@@ -163,7 +163,26 @@ class MotorsCmd(object):
             
         allPos = [int(p) for p in rawPos.split(',')]
         return allPos[:3]
-    
+
+    def declareNewMotorPositions(self, cmd, invalid=False):
+        """Called when motors have been moved or are about to be homed.
+
+        Args
+        ----
+        cmd : `Command`
+          Where to send keywords.
+        invalid : `bool`
+          Whether the current positions are trash/unknown.
+          Used right before homing.
+
+        For now we just generate the MHS keyword which declares that the 
+        old motor positions have been invalidated.
+        """
+
+        # Use MJD seconds.
+        now = time.time() / 86400 + 40587
+        cmd.inform(f'fpaMoved={now:0.6f}')
+
     def motorStatus(self, cmd, doFinish=True):
         """ query all CCD motor axes """
 
@@ -427,6 +446,10 @@ class MotorsCmd(object):
             cmd.fail('txt="unknown axis name in %r: %s"' % (_axes, e))
             return
 
+        # Make sure that the outside world knows that the axis positions are soon to be invalid.
+        # There are many failures out of the loop, so declare now.
+        self.declareNewMotorPositions(cmd, invalid=True)
+
         maxTime = self._calcMoveTime(self.homeDistance) + 2.0
         for m in axes:
             self.status[m-1] = "Homing"
@@ -457,10 +480,14 @@ class MotorsCmd(object):
                 self.status[m-1] = "OK"
                 self._setPosition(m, cmd, 100)
                 
+        self.declareNewMotorPositions(cmd, invalid=False)
         cmd.inform('text="axes homed: %s"' % (axes))
 
         self.motorStatus(cmd)
 
+        # Declare that we actually moved, whether or not we succeeded.
+        self.declareNewMotorPositions(cmd)
+        
     def moveCcd(self, cmd):
         """ Adjust the position of the detector motors. 
         Arguments:
