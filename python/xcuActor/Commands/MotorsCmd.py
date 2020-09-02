@@ -42,6 +42,7 @@ class MotorsCmd(object):
             ('motors', 'move [<a>] [<b>] [<c>] [<piston>] [@(microns)] [@(abs)] [@(force)]', self.moveCcd),
             ('motors', 'halt', self.haltMotors),
             ('motors', '@(toSwitch) @(a|b|c) @(home|far) @(set|clear)', self.toSwitch),
+            ('motors', 'declareMove', self.declareMove),
         ]
 
         # Define typed command arguments for the above commands.
@@ -178,6 +179,13 @@ class MotorsCmd(object):
         # Use MJD seconds.
         now = astroTime.Time.now().mjd
         cmd.inform(f'fpaMoved={now:0.6f}')
+
+    def declareMove(self, cmd):
+        """Force an announcement that the motors have moved.
+        """
+
+        self.declareNewMotorPositions(cmd)
+        cmd.finish()
 
     def motorStatus(self, cmd, doFinish=True):
         """ query all CCD motor axes """
