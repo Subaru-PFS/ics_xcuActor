@@ -236,14 +236,15 @@ class cooler(object):
                 'bit 2', 'bit 3', 'bit 4', 'bit 5', 'bit 6',
                 'over current', 'reject limit')
         rejectBit = len(bits)-1
+        rejectMask = 1 << rejectBit
         
         if self.rejectLimitHit:
-            errorMask |= 1 << rejectBit
+            errorMask |= rejectMask
         if errorMask == 0:
             return errorMask, "OK"
-        if errorMask == 0b11111111:
+        if (errorMask & 0xff == 0xff):
             elist = ["invalid configuration"]
-            if errorMask & 0x100:
+            if errorMask & rejectMask:
                 elist.append(bits[rejectBit])
             return errorMask, ', '.join(elist)
 
@@ -256,7 +257,7 @@ class cooler(object):
         
     def getTemps(self, cmd=None, name='cooler'):
         mode = self.sendOneCommand('COOLER', doClose=False, cmd=cmd)
-        errorMask = int(self.sendOneCommand('ERROR', doClose=False, cmd=cmd))
+        errorMask = int(self.sendOneCommand('ERROR', doClose=False, cmd=cmd), base=2)
         try:
             maxPower = float(self.sendOneCommand('E', doClose=False, cmd=cmd, timeout=2))
             minPower = float(self.getOneResponse(cmd=cmd))
