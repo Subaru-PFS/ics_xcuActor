@@ -6,6 +6,7 @@ import opscore.protocols.keys as keys
 import opscore.protocols.types as types
 from opscore.utility.qstr import qstr
 
+import pfs.utils
 class MotorsCmd(object):
     
     # MOTOR PARAMETERS FOR INITIALIZATION used by initCcd    
@@ -42,6 +43,10 @@ class MotorsCmd(object):
             ('motors', 'move [<a>] [<b>] [<c>] [<piston>] [@(microns)] [@(abs)] [@(force)]', self.moveCcd),
             ('motors', 'halt', self.haltMotors),
             ('motors', '@(toSwitch) @(a|b|c) @(home|far) @(set|clear)', self.toSwitch),
+            ('motors', 'setRange [<a>] [<b>] [<c>] [@(noSave)]', self.setRange),
+            ('motors', '@(toCenter|toFocus|nearFar|nearHome) [<axes>]', self.moveToName),
+            ('motors', 'okPositions', self.okPositions),
+            ('motors', 'declareFocus [@med]', self.declareFocus),
             ('motors', 'declareMove', self.declareMove),
         ]
 
@@ -82,6 +87,8 @@ class MotorsCmd(object):
         except:
             self.brokenLAMr1A = False
 
+        self.farLimits = 0,0,0
+
     def _clearStatus(self):
         self.status = ["Unknown", "Unknown", "Unknown"]
         self.positions = [0, 0, 0]
@@ -105,6 +112,20 @@ class MotorsCmd(object):
             cmd.fail('text="code=%s, returned %s"' % (errCode, rest))
         else:
             cmd.finish('text="returned %s"' % (rest))
+
+    def okPositions(self, cmd):
+        """ Declare that the current positions are good w.r.t. the home switches.
+
+        If the current motor position indicates that we have been power-cycled, fail.
+        """
+
+        a,b,c = self._getPositions(cmd)
+        if a < self.zeroOffset or b < self.zeroOffset or c < self.zeroOffset:
+            cmd.fail('text=f"some motors are in invalid positions: {a},{b},{c}"')
+            return
+
+        self.status = ["OK", "OK", "OK"]
+        self.motorStatus(cmd)
 
     def _getSwitches(self, axis, cmd):
         """ Fetch the switch positions for the given axis
@@ -179,6 +200,12 @@ class MotorsCmd(object):
         # Use MJD seconds.
         now = astroTime.Time.now().mjd
         cmd.inform(f'fpaMoved={now:0.6f}')
+
+    def declareFocus(self, cmd):
+        """Persist the current motor positions as the best-focus positions.
+        """
+
+        cmd.finish()
 
     def declareMove(self, cmd):
         """Force an announcement that the motors have moved.
@@ -489,8 +516,65 @@ class MotorsCmd(object):
 
         self.motorStatus(cmd)
 
+    def _moveCcd(self, cmd, a, b, c, absMove):
+        if a is not None:
+            a *= self.microstepping
+        if b is not None:
+            b *= self.microstepping
+        if c is not None:
+            c *= self.microstepping
+
+        maxDistance = 0
+        if absMove:
+            if a is not None:
+                a += self.zeroOffset
+                maxDistance = max(maxDistance, abs(a - self.positions[0]*self.microstepping))
+            if b is not None:
+                b += self.zeroOffset
+                maxDistance = max(maxDistance, abs(b - self.positions[1]*self.microstepping))
+            if c is not None:
+                c += self.zeroOffset
+                maxDistance = max(maxDistance, abs(c - self.positions[2]*self.microstepping))
+
+            cmdStr = "A%s,%s,%s,R" % (int(a) if a is not None else '',
+                                      int(b) if b is not None else '',
+                                      int(c) if c is not None else '')
+        else:
+            if a is not None:
+                maxDistance = max(maxDistance, abs(a))
+            if b is not None:
+                maxDistance = max(maxDistance, abs(b))
+            if c is not None:
+                maxDistance = max(maxDistance, abs(c))
+
+            cmdStr = "P%s,%s,%s,R" % (int(a) if a is not None else '',
+                                      int(b) if b is not None else '',
+                                      int(c) if c is not None else '')
+
+
+        maxTime = self._calcMoveTime(maxDistance) + 2.0
+        cmd.diag('text="maxDistance=%d maxTime=%0.1f"' % (maxDistance, maxTime))
+        try:
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(cmdStr,
+                                                                          waitForIdle=True,
+                                                                          returnAfterIdle=True,
+                                                                          maxTime=maxTime,
+                                                                          cmd=cmd)
+        except Exception as e:
+            errCode = "uncaught error: %s" % (e)
+
+        # Declare that we actually moved, whether or not we succeeded.
+        self.declareNewMotorPositions(cmd)
+
+        if errCode != "OK":
+            self.haltMotors(cmd, doFinish=False)
+            self.motorStatus(cmd, doFinish=False)
+            cmd.fail('text="move failed with code=%s"' % (errCode))
+        else:
+            self.motorStatus(cmd)
+
     def moveCcd(self, cmd):
-        """ Adjust the position of the detector motors. 
+        """ Adjust the position of the detector motors.
         Arguments:
             a=num b=num c=num     - one or more motor commands, in ticks.
               or
@@ -551,72 +635,68 @@ class MotorsCmd(object):
             a = b = c = piston
         if moveMicrons:
             if a is not None:
-                a = int(float(a) * self.a_microns_to_steps) * self.microstepping
+                a = int(float(a) * self.a_microns_to_steps)
             if b is not None:
-                b = int(float(b) * self.b_microns_to_steps) * self.microstepping
+                b = int(float(b) * self.b_microns_to_steps)
             if c is not None:
-                c = int(float(c) * self.c_microns_to_steps) * self.microstepping
-        else:
-            if a is not None:
-                a *= self.microstepping
-            if b is not None:
-                b *= self.microstepping
-            if c is not None:
-                c *= self.microstepping
+                c = int(float(c) * self.c_microns_to_steps)
 
-        maxDistance = 0
-        if absMove:
-            if a is not None:
-                a += self.zeroOffset
-                maxDistance = max(maxDistance, abs(a - self.positions[0]*self.microstepping))
-            if b is not None:
-                b += self.zeroOffset
-                maxDistance = max(maxDistance, abs(b - self.positions[1]*self.microstepping))
-            if c is not None:
-                c += self.zeroOffset
-                maxDistance = max(maxDistance, abs(c - self.positions[2]*self.microstepping))
-            
-            cmdStr = "A%s,%s,%s,R" % (int(a) if a is not None else '',
-                                      int(b) if b is not None else '',
-                                      int(c) if c is not None else '')
-        else:
-            if a is not None:
-                maxDistance = max(maxDistance, abs(a))
-            if b is not None:
-                maxDistance = max(maxDistance, abs(b))
-            if c is not None:
-                maxDistance = max(maxDistance, abs(c))
-                
-            cmdStr = "P%s,%s,%s,R" % (int(a) if a is not None else '',
-                                      int(b) if b is not None else '',
-                                      int(c) if c is not None else '')
-
-
-        maxTime = self._calcMoveTime(maxDistance) + 2.0
-        cmd.diag('text="maxDistance=%d maxTime=%0.1f"' % (maxDistance, maxTime))
-        try:
-            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(cmdStr,
-                                                                          waitForIdle=True,
-                                                                          returnAfterIdle=True,
-                                                                          maxTime=maxTime,
-                                                                          cmd=cmd)
-        except Exception as e:
-            errCode = "uncaught error: %s" % (e)
-            
-        # Declare that we actually moved, whether or not we succeeded.
-        self.declareNewMotorPositions(cmd)
-        
-        if errCode != "OK":
-            self.haltMotors(cmd, doFinish=False)
-            self.motorStatus(cmd, doFinish=False)
-            cmd.fail('text="move failed with code=%s"' % (errCode))
-        else:
-            self.motorStatus(cmd)
+        self._moveCcd(cmd, a, b, c, absMove)
 
     def haltMotors(self, cmd, doFinish=True):
         errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd('T', cmd=cmd)
         cmd.warn('text="halted motors!"')
         if doFinish:
             cmd.finish()
-        
-        
+
+    def setRange(self, cmd):
+        """ Declare the meaasured range of the motors.
+
+        If we are told any axis positions, set those.
+        If we are told _no_ axis positions, use the current positions.
+        """
+
+        cmdKeys = cmd.cmd.keywords
+        a = cmdKeys['a'].values[0] if 'a' in cmdKeys else None
+        b = cmdKeys['b'].values[0] if 'b' in cmdKeys else None
+        c = cmdKeys['c'].values[0] if 'c' in cmdKeys else None
+
+        if a is None and b is None and c is None:
+            a, b, c = self._getPositions()
+            self.farLimits = a,b,c
+        else:
+            currentLimits = list(self.farLimits)
+            if a is not None:
+                currentLimits[0] = int(a)
+            if b is not None:
+                currentLimits[1] = int(b)
+            if c is not None:
+                currentLimits[2] = int(c)
+
+            self.farLimits = tuple(currentLimits)
+
+        cmd.finish(f'farLimit={self.farLimits[0]},{self.farLimits[1]},{self.farLimits[2]}')
+
+    def moveToName(self, cmd):
+        """ Move to one of the defined special positions: focus, center, nearHome, nearFar. """
+
+        cmdKeys = cmd.cmd.keywords
+        _axes = cmdKeys['axes'].values if 'axes' in cmdKeys else ('a','b','c')
+
+        moveArgs = dict(cmd=cmd)
+        if 'nearHome' in cmdKeys:
+            for ax in _axes:
+                moveArgs[ax] = 100 + self.stepsNearLimit
+        elif 'toCenter' in cmdKeys or 'nearFar' in cmdKeys:
+            for ax in _axes:
+                far = self.farLimits[self.motorID(ax)-1]
+                if far == 0:
+                    cmd.fail(f'text="far limit position for axis {ax} is not known"')
+                    return
+                moveArgs[ax] = (far - self.stepsNearLimit) if 'nearFar' in cmdKeys else far//2
+        elif 'toFocus' in cmdKeys:
+            cmd.fail(f'text="sorry, moving to focus not yet implemented."')
+            return
+
+        moveArgs['absMove'] = True
+        self._moveCcd(**moveArgs)
