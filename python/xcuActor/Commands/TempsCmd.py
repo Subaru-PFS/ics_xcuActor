@@ -22,7 +22,6 @@ class TempsCmd(object):
         #
         self.vocab = [
             ('temps', '@raw', self.tempsRaw),
-            ('temps', 'flash <filename>', self.flash),
             ('temps', 'status [<channel>]', self.getTemps),
             ('temps', 'test1', self.test1),
             ('temps', 'test2', self.test2),
@@ -34,8 +33,6 @@ class TempsCmd(object):
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("xcu_temps", (1, 1),
-                                        keys.Key("filename", types.String(),
-                                                 help='filename to read or flash'),
                                         keys.Key("power", types.Int(),
                                                  help='power level to set (0..100)'),
                                         keys.Key("channel", types.Int(),
@@ -163,18 +160,6 @@ class TempsCmd(object):
 
         cmd.finish()
 
-    def flash(self, cmd):
-        """ Flash the temperatire board with new firmware. """
-        
-        filename = cmd.cmd.keywords['filename'].values[0]
-        try:
-            self.actor.controllers['temps'].sendImage(filename, cmd=cmd)
-        except Exception as e:
-            cmd.fail('text="failed to flash from %s: %s"' % (filename, e))
-            return
-
-        cmd.finish('text="flashed from %s"' % (filename))
-            
     def status(self, cmd, doFinish=True):
         """ Return all status keywords. """
         
