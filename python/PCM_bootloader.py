@@ -484,7 +484,7 @@ def hexIP2asciiIP(hexStr, reverse=False):
     return ip
     
 
-def fetchNetInfo(hostname, ourHostname=None):
+def fetchNetInfo(hostname, ourHostname=None, macID=None):
     """Generate all the network info we need for burning. 
 
     Args
@@ -493,6 +493,8 @@ def fetchNetInfo(hostname, ourHostname=None):
       The hostname/IP address of the PCM 
     ourHostname : str
       The hostname/IP address of *our* interface when talking to the PCM.
+    macID : str, optional
+      the last two octets of the MAC address.
 
     Returns
     -------
@@ -513,16 +515,35 @@ def fetchNetInfo(hostname, ourHostname=None):
     optional argument.
 
     """
-    hostname = skt.gethostbyname(hostname)
+    if hostname is not None:
+        hostname = skt.gethostbyname(hostname)
+
+    if macID is not None:
+        try:
+            o1, o2 = macID.split(':')
+            _ = int(o1, base=16)
+            _ = int(o2, base=16)
+        except:
+            raise ValueError(f'macID must be two octets separated by a colon ("01:23") (not {macID})')
+
     with open('/proc/net/arp', 'r') as arp:
         allArps = arp.readlines()
+        found = False
+        for arp in allArps[1:]:
+            ip, _, _, mac, _, iface = arp.split()
 
-    found = False
-    for arp in allArps[1:]:
-        ip, _, _, mac, _, iface = arp.split()
-        if hostname == ip:
-            found = True
-            break
+            if macID is not None:
+                macOctets = mac.split(':')
+                print(f'   looking for macID={o1}:{o2} vs {mac}')
+                if macOctets[-2] == o1 and macOctets[-1] == o2:
+                    print(f'found device with macID={o1}:{o2} at ip={ip}, setting to {hostname}')
+                    found = True
+                    ip = None if hostname is None else hostname
+                    break
+            elif hostname is not None:
+                if hostname == ip:
+                    found = True
+                    break
 
     if not found:
         return False
@@ -565,7 +586,7 @@ def burnBabyBurn(args):
     finally:
         fo.close()
         
-    netParts = fetchNetInfo(hostname, args.ourHostname)
+    netParts = fetchNetInfo(hostname, args.ourHostname, macID=args.macID)
     if netParts is False:
         raise RuntimeError("cannot resolve or get info about %s (try pinging it?)" % (hostname))
     
@@ -576,21 +597,22 @@ def burnBabyBurn(args):
     print("ip, mac, LIA_ID, iface, ourIP, hexfile = %s, %s, %s, %s, %s,%s" % (ip, mac,
                                                                               liaID, iface, ourIp,
                                                                               hexfile))
-    pcm = PCM_Bootloader(hostname=ip,
-                         logLevel=(logging.DEBUG if args.debug else logging.INFO))
-    
-    pcm.rebootPCM()
-    del pcm
+    if ip is not None:
+        pcm = PCM_Bootloader(hostname=ip,
+                             logLevel=(logging.DEBUG if args.debug else logging.INFO))
+        pcm.rebootPCM()
+        del pcm
     
     pcm = PCM_Bootloader(hostname=ip,
                          ourIp = ourIp,
                          logLevel=(logging.DEBUG if args.debug else logging.INFO))
-    for i in range(5):
-        ret = pcm.setLIA_IP(ip, LIA_ID=liaID)
-        time.sleep(1.0)
+    if ip is not None:
+        for i in range(5):
+            ret = pcm.setLIA_IP(ip, LIA_ID=liaID)
+            time.sleep(1.0)
         
-    if ret['errorFlag']:
-        raise RuntimeError('failed to force IP address: %s' % (ret['messages'],))
+        if ret['errorFlag']:
+            raise RuntimeError('failed to force IP address: %s' % (ret['messages'],))
 
     ret = pcm.getLIAStatus()
     if ret['errorFlag']:
@@ -660,11 +682,11 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
 
-    if args.cam is not None and args.host is not None:
-        raise SystemExit("only one of --cam or --host can be specified")
+    if args.cam is not None and args.host is not None and args.macID is not None:
+        raise SystemExit("only one of --cam, --host, or --macID can be specified")
     
-    if args.cam is None and args.host is None:
-        raise SystemExit("one of --cam or --host must be specified")
+    if args.cam is None and args.host is None and args.macID is None:
+        raise SystemExit("one of --cam, --host, or --macID  must be specified")
     
     if args.cam is not None:
         args.host = 'pcm-%s' % (args.cam)
