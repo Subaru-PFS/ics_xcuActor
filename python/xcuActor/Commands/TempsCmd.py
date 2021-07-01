@@ -66,7 +66,8 @@ class TempsCmd(object):
             ender = cmd.finish if doFinish else cmd.inform
             temps = ret.split(',')
             if self.actor.ids.arm in 'brm':
-                visTemps = [temps[i] for i in (0,1,2,3,4,10,11)]
+                # Was 0,1,2,... See INSTRM-1147
+                visTemps = [temps[i] for i in (2,0,1,3,4,10,11)]
                 cmd.inform('visTemps=%s' % ', '.join(['%0.4f' % (float(t)) for t in visTemps]))
             ender('temps=%s' % ', '.join(['%0.4f' % (float(t)) for t in temps]))
         else:
