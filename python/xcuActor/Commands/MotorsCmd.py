@@ -39,7 +39,8 @@ class MotorsCmd(object):
             ('motors', 'homeCcd [<axes>]', self.homeCcd),
             ('motors', 'home [<axes>]', self.homeCcd),
             ('motors', 'moveCcd [<a>] [<b>] [<c>] [<piston>] [@(microns)] [@(abs)] [@(force)]', self.moveCcd),
-            ('motors', 'move [<a>] [<b>] [<c>] [<piston>] [@(microns)] [@(abs)] [@(force)]', self.moveCcd),
+            ('motors', 'move [<a>] [<b>] [<c>] [<piston>] [[@(microns)] [@(abs)] [@(force)]', self.moveCcd),
+            ('motors', 'moveFocus <microns> [@(abs)]', self.moveFocus)
             ('motors', 'halt', self.haltMotors),
             ('motors', '@(toSwitch) @(a|b|c) @(home|far) @(set|clear)', self.toSwitch),
             ('motors', 'declareMove', self.declareMove),
@@ -57,6 +58,8 @@ class MotorsCmd(object):
                                                  help='the number of ticks/microns to move actuator C'),
                                         keys.Key("piston", types.Float(),
                                                  help='the number of ticks/microns to move actuators A,B, and C'),
+                                        keys.Key("microns", types.Float(),
+                                                 help='the number of microns to move actuators A,B, and C'),
                                         )
 
         if self.actor.isNir():
@@ -489,6 +492,17 @@ class MotorsCmd(object):
 
         self.motorStatus(cmd)
 
+    def moveFocus(self, cmd):
+        """Change FPA focus position.
+
+        Keeping the calibrated tilt, move in piston.
+        """
+        cmdKeys = cmd.cmd.keywords
+        moveMicrons = 'microns' in cmdKeys
+        absMove = 'abs' in cmdKeys 
+
+        raise NotImplementedError()
+    
     def moveCcd(self, cmd):
         """ Adjust the position of the detector motors. 
         Arguments:
