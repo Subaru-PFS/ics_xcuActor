@@ -14,8 +14,8 @@ class CryoMode(object):
 
     """
     validModes = ('unknown', 'offline', 'standby', 'pumpdown', 'cooldown', 'operation', 'warmup', 'bakeout')
-    standbyTime = dict(toPumpdown=600,
-                       toCooldown=600)
+    standbyTime = dict(toPumpdown=600,  # turbo pump takes about 2 minutes to reach 90000RPM
+                       toCooldown=600)  # cryoCooler power takes about 4 minutes to go over 70W lower limit
 
     def __init__(self, actor, logLevel=logging.INFO):
         self.actor = actor
@@ -24,7 +24,9 @@ class CryoMode(object):
 
         callbacks = dict([(f'on{mode}', self.modeChangeCB) for mode in self.validModes])
 
-        events = [{'name': 'toOffline', 'src': ['unknown', 'pumpdown', 'cooldown', 'operation', 'warmup', 'bakeout', 'standby'], 'dst': 'offline'},
+        events = [{'name': 'toOffline',
+                   'src': ['unknown', 'pumpdown', 'cooldown', 'operation', 'warmup', 'bakeout', 'standby'],
+                   'dst': 'offline'},
                   {'name': 'toPumpdown', 'src': ['offline'], 'dst': 'pumpdown'},
                   {'name': 'toBakeout', 'src': ['offline', 'pumpdown'], 'dst': 'bakeout'},
                   {'name': 'toCooldown', 'src': ['offline', 'pumpdown'], 'dst': 'cooldown'},
@@ -46,16 +48,25 @@ class CryoMode(object):
         self.actor.models[self.actor.name].keyVarDict['turboSpeed'].addCallback(self.turboAtSpeed)
 
     def turboAtSpeed(self, keyvar):
+        """ turbo at speed callback. """
+        # dont need to go even further.
         if self.delayedEvent is None or not self.delayedEvent.is_alive():
             return
+
         (event,) = self.delayedEvent.args
+
+        # if not in transient pumpdown state or transition already passed.
+        if event != 'gotoPumpdown' or self.mode.current == 'pumpdown':
+            return
 
         try:
             atSpeed = keyvar.getValue() >= 90000
-            if atSpeed and event == 'gotoPumpdown':
-                self.mode.gotoPumpdown()
         except ValueError:
             return
+
+        if atSpeed:
+            # go to pumpdown mode righ away.
+            self.mode.gotoPumpdown()
 
     def standby(self, delay, funcname, e):
         if self.delayedEvent is not None:
