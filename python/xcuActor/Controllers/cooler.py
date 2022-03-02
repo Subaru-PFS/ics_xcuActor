@@ -30,7 +30,8 @@ class cooler(object):
         self.sock = None
 
         self.rejectLimitHit = False
-        
+        self.tipSensorBad = False
+
     def start(self, cmd=None):
         pass
 
@@ -229,17 +230,26 @@ class cooler(object):
         In addition, we generate a synthetic error bit, bit 9,
         indicating that the reject temperature limit has ben exceeded.
 
+        And a second synthetic bit, bit 10, indicating that the tip temp sensor
+        is reading 400K.
+
         """
 
         bits = ('high reject temperature',
                 'low reject temperature',
                 'bit 2', 'bit 3', 'bit 4', 'bit 5', 'bit 6',
-                'over current', 'reject limit')
-        rejectBit = len(bits)-1
+                'over current',
+                'reject limit',
+                'tip sensor disconnected')
+        rejectBit = len(bits)-2
         rejectMask = 1 << rejectBit
-        
+        tipSensorBit = len(bits)-1
+        tipSensorMask = 1 << tipSensorBit
+
         if self.rejectLimitHit:
             errorMask |= rejectMask
+        if self.tipSensorBad:
+            errorMask |= tipSensorMask
         if errorMask == 0:
             return errorMask, "OK"
         if (errorMask & 0xff == 0xff):
@@ -274,7 +284,9 @@ class cooler(object):
             self.stopCooler(cmd, name=name, forceShutdown=True)
         else:
             self.rejectLimitHit = False
-            
+
+        self.tipSensorBad = (tipTemp > 399)
+
         if cmd is not None:
             errorMask, errorString = self.errorFlags(errorMask)
             if errorString == 'OK':
