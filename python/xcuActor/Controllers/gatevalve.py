@@ -18,7 +18,7 @@ class gatevalve(object):
         self.logger = logger if logger else logging.getLogger('gatevalve')
         self.logger.setLevel(loglevel)
 
-        self.bits = dict(sam_off=0x20,
+        self.bits = dict(sam_on=0x20,
                          sam_return=0x10,
                          enabled=0x8,
                          active=0x4,
@@ -37,7 +37,7 @@ class gatevalve(object):
                              self.requestBits:'open'}
 
         self.dev = None
-        self.dev = rtdADIO.ADIO.ADIO(self.bits['enabled'] | self.bits['sam_off'] | self.bits['sam_return'])
+        self.dev = rtdADIO.ADIO.ADIO(self.bits['enabled'] | self.bits['sam_on'] | self.bits['sam_return'])
         # This is the second argument, for the interrupt mask. Add it when we update rtdADIO.
         #self.posBits | self.bits['enabled'] | self.bits['active'])
 
@@ -115,23 +115,23 @@ class gatevalve(object):
             self.dev.clear(self.bits['enabled'])
             
     def powerOffSam(self, wait=1, cmd=None):
-        """ Assert SAM power off. """
+        """ Deassert SAM power line, turning it off. """
         starting = self.status(cmd=cmd)
-        self.dev.set(self.bits['sam_off'])
+        self.dev.clear(self.bits['sam_on'])
 
         def isSamOff(status):
-            return bool(status & self.bits['sam_off'])
+            return not bool(status & self.bits['sam_on'])
             
         ret = self.spinUntil(isSamOff, starting=starting, wait=wait, cmd=cmd)
         return ret
         
     def powerOnSam(self, wait=1, cmd=None):
-        """ Deassert SAM power line, turning it on. """
+        """ Assert SAM power line, turning it on. """
         starting = self.status(cmd=cmd)
-        self.dev.clear(self.bits['sam_off'])
+        self.dev.set(self.bits['sam_on'])
 
         def isSamOn(status):
-            return not bool(status & self.bits['sam_off'])
+            return bool(status & self.bits['sam_on'])
             
         ret = self.spinUntil(isSamOn, starting=starting, wait=wait, cmd=cmd)
         return ret
@@ -146,7 +146,7 @@ class gatevalve(object):
         pos = self.positionNames[rawPos]
         rawRequest = bits & self.requestBits
         request = self.requestNames[rawRequest]
-        samPower = not bool(self.bits['sam_off'] & bits)
+        samPower = bool(self.bits['sam_on'] & bits)
 
         return pos, request, samPower
         
