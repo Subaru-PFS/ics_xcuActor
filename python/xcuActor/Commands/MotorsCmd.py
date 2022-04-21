@@ -42,7 +42,7 @@ class MotorsCmd(object):
             ('motors', 'home [<axes>]', self.homeCcd),
             ('motors', 'moveCcd [<a>] [<b>] [<c>] [<piston>] [@(microns)] [@(abs)] [@(force)]', self.moveCcd),
             ('motors', 'move [<a>] [<b>] [<c>] [<piston>] [@(microns)] [@(abs)] [@(force)]', self.moveCcd),
-            ('motors', 'moveFocus [<microns>]', self.moveFocus),
+            ('motors', 'moveFocus [<microns>] [@(abs)]', self.moveFocus),
             ('motors', 'halt', self.haltMotors),
             ('motors', '@(toSwitch) @(a|b|c) @(home|far) @(set|clear)', self.toSwitch),
             ('motors', 'setRange [<a>] [<b>] [<c>] [@(noSave)]', self.setRange),
@@ -804,12 +804,14 @@ class MotorsCmd(object):
         self._moveCcd(cmd, *netSteps, absMove=True)
 
     def moveFocus(self, cmd):
-        """Move to given focus position, applying the tilt calibrations."""
+        """Move to given focus position, applying the tilt calibrations and the nominal focus offset. """
 
         cmdKeys = cmd.cmd.keywords
         moveMicrons = np.array(cmdKeys['microns'].values)
-        # isAbsolute = 'abs' in cmdKeys['microns']
+        isAbsolute = 'abs' in cmdKeys
 
+        if not isAbsolute:
+            moveMicrons += self.focus
         self._moveFocus(cmd, moveMicrons)
 
     def haltMotors(self, cmd, doFinish=True):
