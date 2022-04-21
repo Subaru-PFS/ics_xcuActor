@@ -19,7 +19,7 @@ class MotorsCmd(object):
     stepsPerRev = 200
     microstepsPerRev = microstepping * stepsPerRev
     stepsOffHome = 2
-    stepsNearLimit = 5          # How close we dare to slew to a limit switch
+    stepsNearLimit = 10          # How close we dare to slew to a limit switch
     zeroOffset = 100 * microstepping
     leadScrewPitch = 700.0      # um/rev
 
@@ -45,7 +45,7 @@ class MotorsCmd(object):
             ('motors', 'moveFocus [<microns>] [@(abs)]', self.moveFocus),
             ('motors', 'halt', self.haltMotors),
             ('motors', '@(toSwitch) @(a|b|c) @(home|far) @(set|clear)', self.toSwitch),
-            ('motors', '@(toCenter|toFocus|nearFar|nearHome) [<axes>]', self.moveToName),
+            ('motors', '@(toCenter|toFocus|nearFar|nearHome)', self.moveToName),
             ('motors', 'okPositions', self.okPositions),
             ('motors', 'declareMove', self.declareMove),
             ('motors', 'reloadConfig', self.loadConfig),
@@ -120,7 +120,7 @@ class MotorsCmd(object):
         try:
             self.initializeStatus(cmd)
         except Exception as e:
-            cmd.warn(f'text=failed to fetch motors status: {e}')
+            cmd.warn(f'text="failed to fetch motors status: {e}"')
             cmd.finish()
 
     def initializeStatus(self, cmd=None):
@@ -158,8 +158,9 @@ class MotorsCmd(object):
         except KeyError:
             cmd.warn('text="no persisted motor positions found. Will use controller positions if valid"')
             persistedPositions = self.positions
-        except:
-            raise
+        except Exception as e:
+            cmd.warn(f'text="no persisted motor positions saved. Will use controller positions if valid: {e}"')
+            persistedPositions = self.positions
 
         controllerCleared = all([self.positions[i] == 0 for i in range(3)])
         if controllerCleared:
@@ -820,10 +821,10 @@ class MotorsCmd(object):
             cmd.finish()
 
     def moveToName(self, cmd):
-        """ Move to one of the defined special positions: focus, center, nearHome, nearFar. """
+        """ Move to one of the defined special positions: toFocus, toCenter, nearHome, nearFar. """
 
         cmdKeys = cmd.cmd.keywords
-        _axes = cmdKeys['axes'].values if 'axes' in cmdKeys else ('a','b','c')
+        _axes = ('a','b','c')
 
         if 'toFocus' in cmdKeys:
             # CPL -- need to load enu to detect med res.
@@ -833,14 +834,16 @@ class MotorsCmd(object):
         moveArgs = dict(cmd=cmd)
         if 'nearHome' in cmdKeys:
             for ax in _axes:
-                moveArgs[ax] = 100 + self.stepsNearLimit
-        elif 'toCenter' in cmdKeys or 'nearFar' in cmdKeys:
-            for ax in _axes:
-                far = self.range[self.motorID(ax)-1]
-                if far == 0:
-                    cmd.fail(f'text="far limit position for axis {ax} is not known"')
-                    return
-                moveArgs[ax] = (far - self.stepsNearLimit) if 'nearFar' in cmdKeys else far//2
+                moveArgs[ax] = self.stepsNearLimit
+        elif 'toCenter' or 'nearFar' in cmdKeys:
+            far = (self.range * self.microns_to_steps).astype('int')
+            if np.any(far <= 0):
+                cmd.fail(f'text="far limit position for axis {ax} is not known"')
+                return
+            for ax_i, ax in enumerate(_axes):
+                moveArgs[ax] = (far[ax_i] - self.stepsNearLimit) if 'nearFar' in cmdKeys else far[ax_i]//2
+        else:
+            raise RuntimeError(f'no known move type for {cmdKeys}')
 
         moveArgs['absMove'] = True
         self._moveCcd(**moveArgs)
