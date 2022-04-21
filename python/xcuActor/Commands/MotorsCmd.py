@@ -109,10 +109,10 @@ class MotorsCmd(object):
         self.instConfig.reload()
         cfg = self.instConfig['fpa']
 
-        self.range = cfg['range']
+        self.range = np.array(cfg['range'])
         self.focus = cfg['focus']
         self.medFocus = cfg.get('medFocus', None)
-        self.tilts = cfg['tilts']
+        self.tilts = np.array(cfg['tilts'])
 
         cmd.inform(f'fpaTilt={self.tilts[0]:0.2f},{self.tilts[1]:0.2f},{self.tilts[2]:0.2f}')
         cmd.inform(f'fpaRange={self.range[0]:0.2f},{self.range[1]:0.2f},{self.range[2]:0.2f}')
