@@ -45,7 +45,6 @@ class MotorsCmd(object):
             ('motors', 'moveFocus [<microns>] [@(abs)]', self.moveFocus),
             ('motors', 'halt', self.haltMotors),
             ('motors', '@(toSwitch) @(a|b|c) @(home|far) @(set|clear)', self.toSwitch),
-            ('motors', 'setRange [<a>] [<b>] [<c>] [@(noSave)]', self.setRange),
             ('motors', '@(toCenter|toFocus|nearFar|nearHome) [<axes>]', self.moveToName),
             ('motors', 'okPositions', self.okPositions),
             ('motors', 'declareMove', self.declareMove),
@@ -819,34 +818,6 @@ class MotorsCmd(object):
         cmd.warn('text="halted motors!"')
         if doFinish:
             cmd.finish()
-
-    def setRange(self, cmd):
-        """ Declare the meaasured range of the motors.
-
-        If we are told any axis positions, set those.
-        If we are told _no_ axis positions, use the current positions.
-        """
-
-        cmdKeys = cmd.cmd.keywords
-        a = cmdKeys['a'].values[0] if 'a' in cmdKeys else None
-        b = cmdKeys['b'].values[0] if 'b' in cmdKeys else None
-        c = cmdKeys['c'].values[0] if 'c' in cmdKeys else None
-
-        if a is None and b is None and c is None:
-            a, b, c = self._getRawPosition()
-            self.farLimits = a,b,c
-        else:
-            currentLimits = list(self.farLimits)
-            if a is not None:
-                currentLimits[0] = int(a)
-            if b is not None:
-                currentLimits[1] = int(b)
-            if c is not None:
-                currentLimits[2] = int(c)
-
-            self.farLimits = tuple(currentLimits)
-
-        cmd.finish(f'farLimit={self.farLimits[0]},{self.farLimits[1]},{self.farLimits[2]}')
 
     def moveToName(self, cmd):
         """ Move to one of the defined special positions: focus, center, nearHome, nearFar. """
