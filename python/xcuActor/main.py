@@ -24,12 +24,12 @@ class OurActor(actorcore.ICC.ICC):
         # This sets up the connections to/from the hub, the logger, and the twisted reactor.
         #
         actorcore.ICC.ICC.__init__(self, name,
-                                   productName=productName, 
-                                   configFile=configFile)
+                                   productName=productName,
+                                   configFile=configFile,
+                                   idDict=self.ids.idDict)
 
         self.logger.setLevel(logLevel)
 
-        
         self.everConnected = False
 
         self.monitors = dict()
