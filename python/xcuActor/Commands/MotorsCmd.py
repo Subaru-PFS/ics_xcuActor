@@ -49,6 +49,8 @@ class MotorsCmd(object):
             ('motors', 'okPositions', self.okPositions),
             ('motors', 'declareMove', self.declareMove),
             ('motors', 'reloadConfig', self.loadConfig),
+            ('motors', 'setTilts <spatial> <spectral>', self.setTilts),
+            ('motors', 'setArmOffsets [<a>] [<b>] [<c>]', self.setArmOffsets),
         ]
 
         # Define typed command arguments for the above commands.
@@ -65,6 +67,10 @@ class MotorsCmd(object):
                                                  help='the number of ticks/microns to move actuators A,B, and C'),
                                         keys.Key("microns", types.Float(),
                                                  help='the number of microns to move actuators'),
+                                        keys.Key("spatial", types.Float(),
+                                                 help='microns of spatial tilt'),
+                                        keys.Key("spectral", types.Float(),
+                                                 help='microns of spectral tilt'),
                                         )
 
         if self.actor.isNir():
@@ -122,6 +128,33 @@ class MotorsCmd(object):
         except Exception as e:
             cmd.warn(f'text="failed to fetch motors status: {e}"')
             cmd.finish()
+
+    def setTilts(self, cmd):
+        """Manually set temporary tilts."""
+
+        cmdKeys = cmd.cmd.keywords
+        spectral = cmdKeys['spectral'].values[0]
+        spatial = cmdKeys['spatial'].values[0]
+
+        a = spatial
+        b = c = -spatial
+
+        b += spectral
+        c -= spectral
+
+        self.tilts = np.array([a,b,c])
+        cmd.finish(f'fpaTilt={self.tilts[0]:0.2f},{self.tilts[1]:0.2f},{self.tilts[2]:0.2f}')
+
+    def setArmOffsets(self, cmd):
+        """Manually set temporary tilts."""
+
+        cmdKeys = cmd.cmd.keywords
+        a = cmdKeys['a'].values[0] if 'a' in cmdKeys else self.tilts[0]
+        b = cmdKeys['b'].values[0] if 'b' in cmdKeys else self.tilts[1]
+        c = cmdKeys['c'].values[0] if 'c' in cmdKeys else self.tilts[2]
+
+        self.tilts = np.array([a,b,c])
+        cmd.finish(f'fpaTilt={self.tilts[0]:0.2f},{self.tilts[1]:0.2f},{self.tilts[2]:0.2f}')
 
     def initializeStatus(self, cmd=None):
         """Establish the status of the motors, matching against persisted positions.
@@ -537,7 +570,7 @@ class MotorsCmd(object):
             cmd.inform('text="taking axis %s %s %s switch: maxTime=%0.2f"' %
                        (m,
                         "off" if untilClear else "onto",
-                        "home" if switch is 1 else "far limit",
+                        "home" if switch == 1 else "far limit",
                         maxTime))
 
             errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(moveCmd,
@@ -556,7 +589,7 @@ class MotorsCmd(object):
             if switches[switch-1] != toSet:
                 cmd.warn('text="axis %d did not %s %s switch"' % (m,
                                                                   "clear" if untilClear else "set",
-                                                                  "home" if switch is 1 else "far limit"))
+                                                                  "home" if switch == 1 else "far limit"))
                 return False
 
         finally:
