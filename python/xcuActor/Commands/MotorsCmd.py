@@ -98,7 +98,8 @@ class MotorsCmd(object):
             self.brokenLAMr1A = False
 
         self.instData = instdata.InstData(self.actor)
-        self.instConfig = instdata.InstConfig(self.actor.name)
+        self.instConfig = instdata.InstConfig(self.actor.name,
+                                              idDict=self.actor.ids.idDict)
 
         self.loadConfig()
 
