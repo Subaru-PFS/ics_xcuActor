@@ -23,6 +23,7 @@ class ionpump(object):
         self.busID = int(self.actor.config.get(self.name, 'busID'))
         self.pumpIDs = [int(ID) for ID in self.actor.config.get('ionpump', 'pumpids').split(',')]
         self.startTime = 0
+        self.commandedOn = None
         
     @property
     def npumps(self):
@@ -189,6 +190,7 @@ class ionpump(object):
             time.sleep(graceTime)
 
         self.startTime = time.time()
+        self.commandedOn = newState
         
         for c_i, c in enumerate(self.pumpIDs):
             self.readOnePump(c_i, cmd=cmd)
@@ -242,8 +244,11 @@ class ionpump(object):
                  0x1000:"0x1000",
                  0x2000:"0x2000",
                  0x4000:"0x4000",
-                 0x8000:"Suspect live channel",
-                 0x10000:"Pressure limit hit"}
+
+                 # And our synthetic bits:
+                 0x8000:"Channel enabled but no current/voltage/pressure",
+                 0x10000:"Pressure limit hit",
+                 0x20000:"Pump shut down by itself"}
     
     def _makeErrorString(self, err):
         """ Return a string describing all error bits, or 'OK'. """
@@ -282,7 +287,15 @@ class ionpump(object):
             
             err |= 0x10000
             doTurnOff = True
-            
+
+        # INSTRM-1150: create synthetic error when pumps shut down on their own.
+        if self.commandedOn is True and not enabled:
+            err |= 0x20000
+            self.commandedOn = False
+        # If the actor has restarted, set our commandedOn state to the controller's state.
+        if self.commandedOn is None:
+            self.commandedOn = enabled
+
         if cmd is not None:
             cmdFunc = cmd.inform if err == 0 else cmd.warn
             errString = self._makeErrorString(err)
