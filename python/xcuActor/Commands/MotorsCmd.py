@@ -75,8 +75,12 @@ class MotorsCmd(object):
 
         if self.actor.isNir():
             self.pivotRatios = (40.62, 40.26, 40.26)
+            self.armNumToMotorNum = {1:2, 2:3, 3:1}
+            self.motorNumToArmNum = {1:3, 2:1, 3:2}
         else:
             self.pivotRatios = (36.77, 36.02, 36.02)
+            self.armNumToMotorNum = {1:1, 2:2, 3:3}
+            self.motorNumToArmNum = {1:1, 2:2, 3:3}
 
         # Precalculate conversion factors to convert microns to motor steps
         # microsteps per rev * pivot ratio / screw pitch
@@ -100,7 +104,6 @@ class MotorsCmd(object):
         self.instData = instdata.InstData(self.actor)
         self.instConfig = instdata.InstConfig(self.actor.name,
                                               idDict=self.actor.ids.idDict)
-
         self.loadConfig()
 
     def loadConfig(self, cmd=None):
@@ -184,6 +187,7 @@ class MotorsCmd(object):
         cmd.inform('text="validating motor status"')
 
         self.status = ["Unknown", "Unknown", "Unknown"]
+        self.positions = [-1,-1,-1]
         self.positions = self._getCorrectedPosition(cmd)
 
         try:
@@ -212,14 +216,31 @@ class MotorsCmd(object):
         cmd.inform(f'fpaMoved={movedTime:0.6f}')
         self.motorStatus(cmd)
 
-    def motorID(self, motorName):
-        """ Translate from all plausible motor/axis IDs to the controller IDs. """
+    def armNum(self, armId):
+        """ Translate from all plausible arm names to the 1-based arm number. """
 
-        motorNames = {'a':1, '1':1, 1:1,
+        armStrings = {'a':1, '1':1, 1:1,
                       'b':2, '2':2, 2:2,
                       'c':3, '3':3, 3:3}
 
-        return motorNames[motorName]
+        return armStrings[armId]
+
+    def motorNum(self, armName):
+        """ Translate from all plausible arm names to the 1-based motor number. """
+
+        return self.armNumToMotorNum[self.armNum(armName)]
+
+    def armOrderToMotorOrder(self, armList):
+        """ Convert a list of items in arm order to motor order. """
+
+        motorList = [armList[self.motorNumToArmNum[m_i]-1] for m_i in (1,2,3)]
+        return motorList
+
+    def motorOrderToArmOrder(self, motorList):
+        """ Convert a list of items in motor order to arm order. """
+
+        armList = [motorList[self.armNumToMotorNum[a_i]-1] for a_i in (1,2,3)]
+        return armList
 
     def motorsRaw(self, cmd):
         """ Send a raw AllMotion command to the motor controller. """
@@ -246,12 +267,12 @@ class MotorsCmd(object):
         self.status = ["OK", "OK", "OK"]
         self.motorStatus(cmd)
 
-    def _getSwitches(self, axis, cmd):
-        """ Fetch the switch positions for the given axis
+    def _getSwitches(self, arm, cmd):
+        """ Fetch the switch positions for the given arm
 
         Args
         ----
-        axis - {a,b,c,1,2,3}
+        arm - {a,b,c,1,2,3}
 
 
         Returns
@@ -262,14 +283,14 @@ class MotorsCmd(object):
         """
         getLimitCmd = "?aa%d"
 
-        m = self.motorID(axis)
+        m = self.motorNum(arm)
 
         errCode, busy, rawLim = self.actor.controllers['PCM'].motorsCmd((getLimitCmd % (m)),
                                                                         maxTime=2.0,
                                                                         cmd=cmd)
         if errCode != "OK":
-            raise RuntimeError("query of axis %d limits failed with code=%s and result=%s" %
-                               (m, errCode, rawLim))
+            raise RuntimeError("query of arm %s (motor %d) limits failed with code=%s and result=%s" %
+                               (arm, m, errCode, rawLim))
 
         farSwitch = 0
         homeSwitch = 0
@@ -288,7 +309,7 @@ class MotorsCmd(object):
         Returns
         -------
 
-        The states of the three axis positions.
+        The states of the three arm positions, in arm order
 
         """
 
@@ -298,8 +319,11 @@ class MotorsCmd(object):
         if errCode != "OK":
             raise RuntimeError("query of axis positions failed with code=%s" % (errCode))
 
-        allPos = [int(p) for p in rawPos.split(',')]
-        return np.array(allPos[:3])
+        motorPos = [int(p) for p in rawPos.split(',')]
+        armPos = self.motorOrderToArmOrder(motorPos)
+
+        cmd.debug(f'text="motors={motorPos} arms={armPos}"')
+        return np.array(armPos)
 
     def _getCorrectedPosition(self, cmd):
         """Return full step positions, w.r.t. the home switches
@@ -444,8 +468,8 @@ class MotorsCmd(object):
         if doFinish:
             cmd.finish()
 
-    def _getInitString(self, axis):
-        """ Get the per-axis motor controller initialization string. """
+    def _getInitString(self, motor):
+        """ Get the per-motor motor controller initialization string. """
 
         # aM%d   - select motor %d
         # n2     - enable limit switches
@@ -457,29 +481,30 @@ class MotorsCmd(object):
         #
         initCmd = "aM%dn2f0F0V%dh%dm%dR"
 
-        return initCmd % (axis, self.velocity, self.holdCurrent, self.runCurrent)
+        return initCmd % (motor, self.velocity, self.holdCurrent, self.runCurrent)
 
-    def initOneAxis(self, axis, cmd, doClear=True):
-        """ Re-initialize the given axis.
+    def initOneArm(self, arm, cmd, doClear=True):
+        """ Re-initialize the given arm.
 
         Args
         ----
-          axis : 1..3, a..c
-            axis ID
+          arm : 1..3, a..c
+            arm ID
           doClear : bool
             if set, mark the position as unknown.
         """
 
-        m = self.motorID(axis)
+        armNum = self.armNum(arm)
+        m = self.motorNum(arm)
         if doClear:
-            self.status[m-1] = "Unknown"
-            self.positions[m-1] = 0
+            self.status[armNum-1] = "Unknown"
+            self.positions[armNum-1] = 0
 
         initCmd = self._getInitString(m)
         errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(initCmd,
                                                                       cmd=cmd)
         if errCode != "OK":
-            raise RuntimeError("Failed to initialize axis %d: %s" % (m, errCode))
+            raise RuntimeError("Failed to initialize arm %s (motor %d): %s" % (arm, m, errCode))
 
     def _clearStatus(self, cmd):
         self.status = ["Unknown", "Unknown", "Unknown"]
@@ -490,15 +515,15 @@ class MotorsCmd(object):
         self._clearStatus(cmd)
 
         try:
-            for m in 1,2,3:
-                self.initOneAxis(m, cmd)
+            for arm in 1,2,3:
+                self.initOneArm(arm, cmd)
         finally:
             self.motorStatus(cmd)
 
     def storePowerOnParameters(self, cmd):
         """ Initialize the boot all CCD motor axes: set scales and limits, etc. """
 
-        s0instruction = "s0e1M500e2M500e3M500R" # contoller executes stored programs 1,2, and 3
+        s0instruction = "s0e1M500e2M500e3M500R" # controller executes stored programs 1,2, and 3
         motorParams = "s%d%s"
 
         cmd.inform('text="burning in init commands register 0"')
@@ -512,7 +537,7 @@ class MotorsCmd(object):
 
         for m in 1,2,3:
             initCmd = self._getInitString(m)
-            cmd.inform('text="burning in init commands for axis %d"' % (m))
+            cmd.inform('text="burning in init commands for motor %d"' % (m))
             try:
                 errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(motorParams % (m, initCmd),
                                                                               waitForIdle=True, returnAfterIdle=True,
@@ -525,7 +550,7 @@ class MotorsCmd(object):
                     cmd.warn('text="blowing through expected glitch: %s"' % (e))
 
             if errCode != "OK":
-                cmd.fail('text="init of axis %d failed with code=%s"' % (m, errCode))
+                cmd.fail('text="init of motor %d failed with code=%s"' % (m, errCode))
                 return
 
         cmd.finish()
@@ -533,14 +558,14 @@ class MotorsCmd(object):
     def _calcMoveTime(self, distance):
         return distance/self.velocity
 
-    def _moveToSwitch(self, axis, cmd, switch=1, untilClear=True, maxDistance=200,
+    def _moveToSwitch(self, arm, cmd, switch=1, untilClear=True, maxDistance=200,
                       velocity=None, stepping=None):
-        """ Move until an axis's switch changes state.
+        """ Move until an arm's switch changes state.
 
         Args
         ----
-          axis : 1..3 or a..c
-             The axis ID
+          arm : 1..3 or a..c
+             The arm ID
           switch : 1 or 2
              Home or far limit switch.
           untilClear : bool
@@ -553,7 +578,8 @@ class MotorsCmd(object):
              microsteps (default = 1 full step)
         """
 
-        m = self.motorID(axis)
+        armNum = self.armNum(arm)
+        m = self.motorNum(arm)
         toSet = not untilClear
 
         if stepping is None:
@@ -568,8 +594,8 @@ class MotorsCmd(object):
                                              maxDistance)
         try:
             maxTime = self._calcMoveTime(maxDistance) + 0.1*maxDistance + 5.0
-            cmd.inform('text="taking axis %s %s %s switch: maxTime=%0.2f"' %
-                       (m,
+            cmd.inform('text="taking arm %s (motor %s) %s %s switch: maxTime=%0.2f"' %
+                       (arm, m,
                         "off" if untilClear else "onto",
                         "home" if switch == 1 else "far limit",
                         maxTime))
@@ -581,36 +607,36 @@ class MotorsCmd(object):
                                                                           cmd=cmd)
             if errCode != "OK":
                 self.haltMotors(cmd, doFinish=False)
-                self.status[m-1] = "Unknown"
+                self.status[armNum] = "Unknown"
                 self.motorStatus(cmd, doFinish=False)
-                cmd.warn('text="axis %d failed with code=%s"' % (m, errCode))
+                cmd.warn('text="arm %d failed with code=%s"' % (arm, errCode))
                 return False
 
-            switches = self._getSwitches(m, cmd)
+            switches = self._getSwitches(arm, cmd)
             if switches[switch-1] != toSet:
-                cmd.warn('text="axis %d did not %s %s switch"' % (m,
-                                                                  "clear" if untilClear else "set",
-                                                                  "home" if switch == 1 else "far limit"))
+                cmd.warn('text="arm %s (motor %d) did not %s %s switch"' % (arm, m,
+                                                                            "clear" if untilClear else "set",
+                                                                            "home" if switch == 1 else "far limit"))
                 return False
 
         finally:
-            self.initOneAxis(m, cmd, doClear=False)
+            self.initOneArm(arm, cmd, doClear=False)
             return True
 
         return True
 
-    def _setPosition(self, axis, cmd, position):
-        """ Define the axis's current position as being at a given step.
+    def _setPosition(self, arm, cmd, position):
+        """ Define the arm's current position as being at a given step.
 
         Args
         ----
-          axis : 1..3 or a..c
-             The axis ID
+          arm : 1..3 or a..c
+             The arm ID
           position : int
              Full steps for the current position.
         """
 
-        m = self.motorID(axis)
+        m = self.motorNum(arm)
         moveCmd = "aM%dz%dR" % (m, position*self.microstepping)
 
         errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(moveCmd,
@@ -627,10 +653,9 @@ class MotorsCmd(object):
 
         cmdKeys = cmd.cmd.keywords
         cmd.diag('text="keys: %s"' % (cmdKeys))
-        for ax in 'a','b','c':
-            if ax in cmdKeys:
-                axis = ax
-        axis = self.motorID(axis)
+        for a in 'a','b','c':
+            if a in cmdKeys:
+                arm = a
         switch = 1 if 'home' in cmdKeys else 2
         untilClear = 'clear' in cmdKeys
         stepping = self.microstepping
@@ -639,14 +664,14 @@ class MotorsCmd(object):
              'far' in cmdKeys and 'clear' in cmdKeys)):
             stepping *= -1
 
-        self._moveToSwitch(axis, cmd, untilClear=untilClear,
+        self._moveToSwitch(arm, cmd, untilClear=untilClear,
                            switch=switch, stepping=stepping)
         self.motorStatus(cmd)
 
     def homeCcd(self, cmd):
-        """ Home CCD motor axes.
+        """ Home CCD motors.
 
-        The axes are homed one after the other, after which they are
+        The arms are homed one after the other, after which they are
         pulled off the home switch. That position is defined to be 100 steps.
 
         """
@@ -654,12 +679,12 @@ class MotorsCmd(object):
         homeCmd1 = "aM%d" + "Z%dR" % (self.homeDistance)
 
         cmdKeys = cmd.cmd.keywords
-        _axes = cmdKeys['axes'].values if 'axes' in cmdKeys else [1,2,3]
+        arms = cmdKeys['axes'].values if 'axes' in cmdKeys else ['a','b','c']
 
         try:
-            axes = [self.motorID(a) for a in _axes]
+            motors = [self.motorNum(a) for a in arms]
         except KeyError as e:
-            cmd.fail('txt="unknown axis name in %r: %s"' % (_axes, e))
+            cmd.fail('txt="unknown arm name in %r: %s"' % (arms, e))
             return
 
         # Make sure that the outside world knows that the axis positions are soon to be invalid.
@@ -667,37 +692,38 @@ class MotorsCmd(object):
         self.declareNewMotorPositions(cmd, invalid=True)
 
         maxTime = self._calcMoveTime(self.homeDistance) + 2.0
-        for m in axes:
-            self.status[m-1] = "Homing"
-            self.positions[m-1] = 0
+        for a_i, arm in enumerate(arms):
+            motor = motors[a_i]
+            self.status[a_i] = "Homing"
+            self.positions[a_i] = 0
 
-            cmd.inform('text="homing axis %s: maxTime=%0.2f"' % (m, maxTime))
-            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(homeCmd1 % (m),
+            cmd.inform('text="homing arm %s (motor %s): maxTime=%0.2f"' % (arm, motor, maxTime))
+            errCode, busy, rest = self.actor.controllers['PCM'].motorsCmd(homeCmd1 % (motor),
                                                                           waitForIdle=True,
                                                                           returnAfterIdle=True,
                                                                           maxTime=maxTime,
                                                                           cmd=cmd)
             if errCode != "OK":
                 self.haltMotors(cmd, doFinish=False)
-                self.status[m-1] = "Unknown"
+                self.status[a_i] = "Unknown"
                 self.motorStatus(cmd, doFinish=False)
-                cmd.fail('text="home of axis %d failed with code=%s"' % (m, errCode))
+                cmd.fail('text="home of arm %s (motor %s) failed with code=%s"' % (arm, motor, errCode))
                 return
-            homeSwitch, _ = self._getSwitches(m, cmd)
+            homeSwitch, _ = self._getSwitches(arm, cmd)
             if not homeSwitch:
-                cmd.fail('text="home of axis %d did not leave home switch in."' % (m))
+                cmd.fail('text="home of arm %s did not leave home switch in."' % (arm))
                 return
 
-            cmd.diag('text="home switch for motor %d hit"' % (m))
+            cmd.diag('text="home switch for arm %s hit"' % (arm))
 
-        for m in axes:
-            ok = self._moveToSwitch(m, cmd)
+        for a_i, arm in enumerate(arms):
+            ok = self._moveToSwitch(arm, cmd, switch=1, untilClear=True)
             if ok:
-                self.status[m-1] = "OK"
-                self._setPosition(m, cmd, 100)
+                self.status[a_i] = "OK"
+                self._setPosition(arm, cmd, 100)
 
         self.declareNewMotorPositions(cmd, invalid=False)
-        cmd.inform('text="axes homed: %s"' % (axes))
+        cmd.inform('text="arms homed: %s"' % (arms))
 
         self.motorStatus(cmd)
 
@@ -721,9 +747,7 @@ class MotorsCmd(object):
                 c += self.zeroOffset
                 maxDistance = max(maxDistance, abs(c - self.positions[2]*self.microstepping))
 
-            cmdStr = "A%s,%s,%s,R" % (int(a) if a is not None else '',
-                                      int(b) if b is not None else '',
-                                      int(c) if c is not None else '')
+            cmdChar = 'A'
         else:
             if a is not None:
                 maxDistance = max(maxDistance, abs(a))
@@ -732,10 +756,12 @@ class MotorsCmd(object):
             if c is not None:
                 maxDistance = max(maxDistance, abs(c))
 
-            cmdStr = "P%s,%s,%s,R" % (int(a) if a is not None else '',
-                                      int(b) if b is not None else '',
-                                      int(c) if c is not None else '')
+            cmdChar = 'P'
 
+        armMoves = (a,b,c)
+        motorMoves = self.armOrderToMotorOrder(armMoves)
+        motorCmdParts = [int(motorMoves[m_i]) if motorMoves[m_i] is not None else '' for m_i in range(len(motorMoves))]
+        cmdStr = "%s%s,%s,%s,R" % (cmdChar, *motorCmdParts)
 
         maxTime = self._calcMoveTime(maxDistance) + 2.0
         cmd.diag('text="maxDistance=%d maxTime=%0.1f"' % (maxDistance, maxTime))
