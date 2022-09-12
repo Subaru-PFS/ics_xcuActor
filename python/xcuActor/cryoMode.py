@@ -3,7 +3,7 @@ from functools import partial
 from threading import Timer
 
 import fysom
-
+import ics.utils.instdata as instdata
 
 class CryoMode(object):
     """Track, as much as we need to, the states of the devices controlling
@@ -19,6 +19,7 @@ class CryoMode(object):
 
     def __init__(self, actor, logLevel=logging.INFO):
         self.actor = actor
+        self.instData = instdata.InstData(actor)
         self.logger = logging.getLogger('cryomode')
         self.delayedEvent = None
 
@@ -31,7 +32,7 @@ class CryoMode(object):
                   {'name': 'toBakeout', 'src': ['offline', 'pumpdown'], 'dst': 'bakeout'},
                   {'name': 'toCooldown', 'src': ['offline', 'pumpdown'], 'dst': 'cooldown'},
                   {'name': 'toOperation', 'src': ['offline', 'cooldown'], 'dst': 'operation'},
-                  {'name': 'toWarmup', 'src': ['cooldown', 'operation'], 'dst': 'warmup'}]
+                  {'name': 'toWarmup', 'src': ['offline', 'cooldown', 'operation'], 'dst': 'warmup'}]
 
         for name, delay in self.standbyTime.items():
             goEvent = f'go{name}'
@@ -45,7 +46,25 @@ class CryoMode(object):
                                  'events': events,
                                  'callbacks': callbacks
                                  })
+        self.reload()
         self.actor.models[self.actor.name].keyVarDict['turboSpeed'].addCallback(self.turboAtSpeed)
+
+    def reload(self):
+        """ reload persisted state, so it can survive shutdown."""
+        try:
+            persisted, = self.instData.loadKey('cryoMode')
+        except:
+            persisted = 'offline'
+
+        # go to offline first to respect transition.
+        self.mode.toOffline()
+        # no need to go further.
+        if persisted in ['offline']:
+            return
+        # go to event
+        event = getattr(self.mode, f'to{persisted.capitalize()}')
+        # call event
+        event()
 
     def turboAtSpeed(self, keyvar):
         """ turbo at speed callback. """
@@ -93,6 +112,11 @@ class CryoMode(object):
 
     def modeChangeCB(self, e):
         self.actor.bcast.inform(f'cryoMode={e.dst}')
+        # not persisting transient and initial state.
+        if e.dst in ['unknown', 'standby']:
+            return
+        # persist cryoMode
+        self.instData.persistKey('cryoMode', e.dst)
 
     def genKeys(self, cmd=None):
         cmd = self._cmd(cmd)
