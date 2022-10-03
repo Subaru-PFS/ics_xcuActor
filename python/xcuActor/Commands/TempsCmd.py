@@ -70,6 +70,9 @@ class TempsCmd(object):
                 # had to actually change actorkeys ordering
                 visTemps = [temps[i] for i in (0,1,2,3,4,10,11)]
                 cmd.inform('visTemps=%s' % ', '.join(['%0.4f' % (float(t)) for t in visTemps]))
+            elif self.actor.ids.specNum <= 4:  # Ignore disgusting wiring in JHU test dewars (n8, n9).
+                nirTemps = [temps[i] for i in (1,0,2,3,4,5,7,8,9,10,11)]
+                cmd.inform('nirTemps=%s' % ', '.join(['%0.4f' % (float(t)) for t in nirTemps]))
             ender('temps=%s' % ', '.join(['%0.4f' % (float(t)) for t in temps]))
         else:
             cmd.finish('text="returned %r"' % (ret))
