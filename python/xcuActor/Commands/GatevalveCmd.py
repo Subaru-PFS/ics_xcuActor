@@ -138,6 +138,7 @@ class GatevalveCmd(object):
             ('interlock', '@raw', self.interlockRaw),
             ('interlock', 'sendImage <path> [@doWait] [@sendReboot] [@straightToCode]', self.sendImage),
             ('setLimits', '[<atm>] [<soft>] [<hard>]', self.setLimits),
+            ('sam', 'status', self.samStatus),
             ('sam', 'off', self.samOff),
             ('sam', 'on', self.samOn),
         ]
@@ -480,6 +481,12 @@ class GatevalveCmd(object):
         cmd.inform(state.getAllKeys())
 
         return state
+
+    def samStatus(self, cmd):
+        """ Report SAM power. """
+
+        self.gatevalve.status(cmd=cmd)
+        cmd.finish()
 
     def samOff(self, cmd):
         """ Turn off SAM power. """
