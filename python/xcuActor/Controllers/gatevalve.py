@@ -155,7 +155,7 @@ class gatevalve(object):
         pos, request, samPower = self.describeStatus(ret)
         if cmd and ret != silentIf:
             cmd.inform('gatevalve=0x%02x,%s,%s' % (ret, pos, request))
-            cmd.inform('samPower=%d' % (samPower))
+            cmd.inform('sampower=%d' % (samPower))
 
         return ret
 
