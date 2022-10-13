@@ -45,7 +45,7 @@ class gatevalve(object):
     def __del__(self):
         if self.dev is not None:
             self.dev.disconnect()
-        
+
     def start(self, cmd=None):
         pass
 
@@ -87,7 +87,7 @@ class gatevalve(object):
 
         self.status(cmd=cmd)
         return ret
-        
+
     def close(self, wait=4, cmd=None):
         """ Drop the gatevalve Open Enable line. """
 
@@ -96,13 +96,13 @@ class gatevalve(object):
 
         def isClosed(status):
             return (status & self.posBits) == self.bits['closed']
-            
+
         try:
             ret = self.spinUntil(isClosed, starting=starting, wait=wait, cmd=cmd)
         except Exception as e:
             cmd.warn(f'text="FAILED to close gatevalve: {e}"')
             raise
-        
+
         self.status(cmd=cmd)
         return ret
 
@@ -113,35 +113,27 @@ class gatevalve(object):
             self.dev.set(self.bits['enabled'])
         else:
             self.dev.clear(self.bits['enabled'])
-            
+
     def powerOffSam(self, wait=1, cmd=None):
         """ Deassert SAM power line, turning it off. """
-        starting = self.status(cmd=cmd)
         self.dev.clear(self.bits['sam_on'])
+        return self.samStatus()
 
-        def isSamOff(status):
-            return not bool(status & self.bits['sam_on'])
-            
-        ret = self.spinUntil(isSamOff, starting=starting, wait=wait, cmd=cmd)
-        return ret
-        
     def powerOnSam(self, wait=1, cmd=None):
         """ Assert SAM power line, turning it on. """
-        starting = self.status(cmd=cmd)
         self.dev.set(self.bits['sam_on'])
+        return self.samStatus()
 
-        def isSamOn(status):
-            return bool(status & self.bits['sam_on'])
-            
-        ret = self.spinUntil(isSamOn, starting=starting, wait=wait, cmd=cmd)
+    def samStatus(self):
+        ret = bool(self.getStatus() & self.bits['sam_on'])
         return ret
-        
+
     def getStatus(self):
         return self.dev.status()
 
     def describeStatus(self, bits):
         """ Return the description of the position and the requested position. """
-        
+
         rawPos = bits & self.posBits
         pos = self.positionNames[rawPos]
         rawRequest = bits & self.requestBits
@@ -149,13 +141,12 @@ class gatevalve(object):
         samPower = bool(self.bits['sam_on'] & bits)
 
         return pos, request, samPower
-        
+
     def status(self, silentIf=None, cmd=None):
         ret = self.getStatus()
         pos, request, samPower = self.describeStatus(ret)
         if cmd and ret != silentIf:
-            cmd.inform('gatevalve=0x%02x,%s,%s' % (ret, pos, request))
-            cmd.inform('samPower=%d' % (samPower))
+            cmd.inform('sampower=%d' % (samPower))
 
         return ret
 
@@ -178,7 +169,7 @@ def main(argv=None):
     def _status(gv):
         stat0 = gv.status()
         pos, request = gv.describeStatus(stat0)
-    
+
         print("status=0x%02x,%s,%s" % (stat0,
                                        pos, request))
 
@@ -191,4 +182,3 @@ def main(argv=None):
 
 if __name__ == "__main__":
     main()
-    
