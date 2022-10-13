@@ -9,6 +9,7 @@ class MiscCmd(object):
 
         self.vocab = [
             ('setCryoMode', '@(offline|standby|pumpdown|cooldown|operation|warmup|bakeout)', self.setCryoMode),
+            ('setRoughActor', '@(rough1|rough2)', self.setRoughActor),
         ]
 
         self.keys = keys.KeysDictionary("xcu_misc", (1, 1),
@@ -31,3 +32,12 @@ class MiscCmd(object):
         self.actor.cryoMode.setMode(newMode, cmd=cmd)
         cmd.finish()
 
+    def setRoughActor(self, cmd):
+        """ Set the current roughing actor. """
+
+        cmdKeys = cmd.cmd.keywords
+        for n in 'rough1', 'rough2':
+            if n in cmdKeys:
+                self.actor.roughName = n
+
+        cmd.finish(f'text="roughName={self.actor.roughName}')
