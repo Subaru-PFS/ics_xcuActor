@@ -476,27 +476,32 @@ class GatevalveCmd(object):
         if any([p <= -10 for p in pressures]):
             cmd.warn('text="raw interlock board pressures are suspiciously low: %s"' % (pressures))
         pressures = [max(p, 0.0) for p in pressures]
-        
+
         state.setPressures(pressures)
         cmd.inform(state.getAllKeys())
 
         return state
 
-    def samStatus(self, cmd):
+    def samStatus(self, cmd, doFinish=True):
         """ Report SAM power. """
 
-        self.gatevalve.status(cmd=cmd)
-        cmd.finish()
+        samStatus = self.gatevalve.samStatus()
+        resp = f'sampower={int(samStatus)}'
+        if doFinish:
+            cmd.finish(resp)
+        else:
+            cmd.inform(resp)
 
     def samOff(self, cmd):
         """ Turn off SAM power. """
 
+        self.samStatus(cmd=cmd, doFinish=False)
         self.gatevalve.powerOffSam(cmd=cmd)
-        cmd.finish()
-        
+        self.samStatus(cmd=cmd)
+
     def samOn(self, cmd):
         """ Turn off SAM power. """
 
+        self.samStatus(cmd=cmd, doFinish=False)
         self.gatevalve.powerOnSam(cmd=cmd)
-        cmd.finish()
-        
+        self.samStatus(cmd=cmd)

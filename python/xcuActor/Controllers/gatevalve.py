@@ -45,7 +45,7 @@ class gatevalve(object):
     def __del__(self):
         if self.dev is not None:
             self.dev.disconnect()
-        
+
     def start(self, cmd=None):
         pass
 
@@ -113,29 +113,21 @@ class gatevalve(object):
             self.dev.set(self.bits['enabled'])
         else:
             self.dev.clear(self.bits['enabled'])
-            
+
     def powerOffSam(self, wait=1, cmd=None):
         """ Deassert SAM power line, turning it off. """
-        starting = self.status(cmd=cmd)
         self.dev.clear(self.bits['sam_on'])
+        return self.samStatus()
 
-        def isSamOff(status):
-            return not bool(status & self.bits['sam_on'])
-            
-        ret = self.spinUntil(isSamOff, starting=starting, wait=wait, cmd=cmd)
-        return ret
-        
     def powerOnSam(self, wait=1, cmd=None):
         """ Assert SAM power line, turning it on. """
-        starting = self.status(cmd=cmd)
         self.dev.set(self.bits['sam_on'])
+        return self.samStatus()
 
-        def isSamOn(status):
-            return bool(status & self.bits['sam_on'])
-            
-        ret = self.spinUntil(isSamOn, starting=starting, wait=wait, cmd=cmd)
+    def samStatus(self):
+        ret = bool(self.getStatus() & self.bits['sam_on'])
         return ret
-        
+
     def getStatus(self):
         return self.dev.status()
 
