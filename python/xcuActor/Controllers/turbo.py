@@ -15,18 +15,18 @@ class turbo(object):
         self.logger.setLevel(loglevel)
 
         self.EOL = '\r'
-        
-        port = self.actor.config.get('turbo', 'port')
-        speed = int(self.actor.config.get('turbo', 'speed'))
+
+        port = self.actor.actorConfig[self.name]['port']
+        speed = self.actor.actorConfig[self.name]['speed']
 
         self.device = None
         self.deviceLock = threading.RLock()
-        
+
         self.devConfig = dict(port=port, 
                               baudrate=speed,
                               timeout=2.0)
         self.connect()
-        
+
     def __str__(self):
         return ("Turbo(port=%s, device=%s)" %
                 (self.devConfig['port'],

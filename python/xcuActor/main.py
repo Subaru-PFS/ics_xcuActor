@@ -9,7 +9,7 @@ from ics.utils.sps import spectroIds
 import cryoMode
 
 class OurActor(actorcore.ICC.ICC):
-    def __init__(self, name, productName=None, configFile=None, site=None,
+    def __init__(self, name, productName=None, site=None,
                  logLevel=logging.INFO):
         if name is not None:
             cam = name.split('_')[-1]
@@ -20,12 +20,11 @@ class OurActor(actorcore.ICC.ICC):
 
         if name is None:
             name = 'xcu_%s' % (self.ids.camName)
-            
+
         # This sets up the connections to/from the hub, the logger, and the twisted reactor.
         #
         actorcore.ICC.ICC.__init__(self, name,
                                    productName=productName,
-                                   configFile=configFile,
                                    idDict=self.ids.idDict)
 
         self.logger.setLevel(logLevel)
@@ -35,21 +34,19 @@ class OurActor(actorcore.ICC.ICC):
         self.monitors = dict()
         self.statusLoopCB = self.statusLoop
 
-        self.roughMonitor = None
-
     def isNir(self):
         """ Return True if we are a NIR cryostat. """
 
         return self.ids.arm == 'n'
-    
+
     def reloadConfiguration(self, cmd):
-        cmd.inform('sections=%08x,%r' % (id(self.config),
-                                         self.config))
+        cmd.inform('sections=%08x,%r' % (id(self.actorConfig),
+                                         self.actorConfig.keys()))
 
     def connectionMade(self):
         if self.everConnected is False:
             logging.info("Attaching all controllers...")
-            self.allControllers = [s.strip() for s in self.config.get(self.name, 'startingControllers').split(',')]
+            self.allControllers = self.actorConfig['controllers']['starting']
             self.attachAllControllers()
             self.everConnected = True
 
@@ -59,8 +56,10 @@ class OurActor(actorcore.ICC.ICC):
                 self.roughName = 'rough2'
 
             try:
-                roughOverride = self.config.get(self.name, 'roughActor')
+                roughOverride = self.actorConfig.get('roughActor', None)
                 if roughOverride is not None:
+                    logging.warning('overwriting default roughActor with %s',
+                                    roughOverride)
                     self.roughName = roughOverride
             except:
                 pass
@@ -99,8 +98,6 @@ class OurActor(actorcore.ICC.ICC):
             
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', default=None, type=str, nargs='?',
-                        help='configuration file to use')
     parser.add_argument('--logLevel', default=logging.INFO, type=int, nargs='?',
                         help='logging level')
     parser.add_argument('--name', default=None, type=str, nargs='?',
@@ -116,7 +113,6 @@ def main():
         
     theActor = OurActor(args.name,
                         productName='xcuActor',
-                        configFile=args.config,
                         logLevel=args.logLevel)
     theActor.run()
 

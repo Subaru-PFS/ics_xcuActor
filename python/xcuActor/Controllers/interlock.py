@@ -11,18 +11,18 @@ class interlock(object):
         self.name = name
 
         try:
-            port = self.actor.config.get(self.name, 'port')
-            speed = int(self.actor.config.get(self.name, 'speed'))
+            port = self.actor.actorConfig[self.name]['port']
+            speed = self.actor.actorConfig[self.name]['speed']
         except Exception as e:
             self.actor.bcast.warn('failed to connect to interlock controller: %s' % e)
             raise
-            
+
         self.logger = logging.getLogger(self.name)
         self.logger.setLevel(logLevel)
 
         self.device = None
         self.deviceLock = threading.RLock()
-        
+
         self.devConfig = dict(port=port, 
                               baudrate=speed,
                               timeout=2.0)

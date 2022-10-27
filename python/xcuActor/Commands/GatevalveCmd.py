@@ -161,7 +161,7 @@ class GatevalveCmd(object):
         self.dPressHardLimit = 22  # The absolute pressure difference limit for opening, Torr
 
         try:
-            self.actor.config.get('interlock', 'port')
+            self.actor.actorConfig['interlock']['port']
             val = 'new'
         except Exception:
             val = 'old'
@@ -264,8 +264,7 @@ class GatevalveCmd(object):
         dewarPressure = self._getDewarPressure(cmd, pcm)
 
         try:
-            self.actor.config.get('interlock', 'ignoreRoughPump')
-            ignoreRoughPump = True
+            ignoreRoughPump = self.actor.actorConfig['interlock']['ignoreRoughPump']
         except Exception:
             ignoreRoughPump = False
 
