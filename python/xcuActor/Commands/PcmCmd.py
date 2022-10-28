@@ -197,9 +197,8 @@ class PcmCmd(object):
                         lineState,
                         volts[nidx], amps[nidx],
                         volts[nidx]*amps[nidx]))
-            
-        rawPortNames = self.actor.config.get('pcm', 'portNames')
-        portNames = [s.strip() for s in rawPortNames.split(',')]
+
+        portNames = self.actor.actorConfig['PCM']['portNames']
 
         for nidx in range(len(portNames)):
             cmd.inform('pcmPort%d="%s","%s",%0.2f,%0.2f,%0.2f' %

@@ -96,10 +96,7 @@ class MotorsCmd(object):
 
         self.homeDistance = 400 * self.a_microns_to_microsteps # max steps for homing
 
-        try:
-            self.brokenLAMr1A = self.actor.config.getboolean('hacks', 'brokenLAMr1A')
-        except:
-            self.brokenLAMr1A = False
+        self.brokenLAMr1A = False
 
         self.instData = instdata.InstData(self.actor)
         self.instConfig = instdata.InstConfig(self.actor.name,
@@ -420,6 +417,7 @@ class MotorsCmd(object):
                 cmd.arn('ccdMotor%d=%s,%s,%s,%s,%0.2f' % (m, status,
                                                           homeSwitch, farSwitch,
                                                           stepCnt, microns))
+
     def motorStatus(self, cmd, doFinish=True):
         """ query all CCD motor axes """
 

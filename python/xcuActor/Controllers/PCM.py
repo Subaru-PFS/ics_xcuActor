@@ -23,14 +23,14 @@ class PCM(object):
 
         self.actor = actor
         if actor is not None:
-            self.host = self.actor.config.get('pcm', 'host')
-            self.port = int(self.actor.config.get('pcm', 'port'))
+            self.host = self.actor.actorConfig[self.name]['host']
+            self.port = self.actor.actorConfig[self.name]['port']
         else:
             self.host = host
             self.port = port
 
         try:
-            self.gaugeType = self.actor.config.get('pcm', 'gauge')
+            self.gaugeType = self.actor.actorConfig[self.name]['gauge']
         except:
             self.gaugeType = 'old'
 

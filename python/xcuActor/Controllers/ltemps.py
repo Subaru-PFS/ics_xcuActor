@@ -15,9 +15,9 @@ class ltemps(object):
         self.logger.setLevel(loglevel)
 
         self.EOL = '\n'
-        
-        self.host = self.actor.config.get('ltemps', 'host')
-        self.port = int(self.actor.config.get('ltemps', 'port'))
+
+        self.host = self.actor.actorConfig[self.name]['host']
+        self.port = self.actor.actorConfig[self.name]['port']
 
     def start(self):
         pass

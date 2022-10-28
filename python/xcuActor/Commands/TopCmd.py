@@ -38,21 +38,21 @@ class TopCmd(object):
 
     def monitor(self, cmd):
         """ Enable/disable/adjust period controller monitors. """
-        
+
         period = cmd.cmd.keywords['period'].values[0]
         controllers = cmd.cmd.keywords['controllers'].values
 
         knownControllers = ["gauge", "rough1", "heaters", "power"]
-        for c in self.actor.config.get(self.actor.name, 'controllers').split(','):
+        for c in self.actor.actorConfig['controllers']['all']:
             c = c.strip()
             knownControllers.append(c)
-        
+
         foundOne = False
         for c in controllers:
             if c not in knownControllers:
                 cmd.warn('text="not starting monitor for %s: unknown controller"' % (c))
                 continue
-                
+
             self.actor.monitor(c, period, cmd=cmd)
             foundOne = True
 
@@ -108,16 +108,16 @@ class TopCmd(object):
         """Report camera status and actor version. """
 
         self.actor.sendVersionKey(cmd)
-        
+
         cmd.inform('text=%s' % ("Present!"))
         cmd.inform('text="monitors: %s"' % (self.actor.monitors))
-        cmd.inform('text="config id=0x%08x %r"' % (id(self.actor.config),
-                                                   self.actor.config.sections()))
+        cmd.inform('text="config id=0x%08x %r"' % (id(self.actor.actorConfig),
+                                                   self.actor.actorConfig.keys()))
         self.actor.cryoMode.genKeys(cmd)
-        
+
         if 'all' in cmd.cmd.keywords:
             for c in self.actor.controllers:
                 self.actor.callCommand("%s status" % (c))
-            
+
         cmd.finish(self.controllerKey())
 

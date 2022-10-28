@@ -20,9 +20,9 @@ class cooler(object):
         self.logger.setLevel(loglevel)
 
         self.EOL = b'\r'
-        
-        self.host = self.actor.config.get(self.name, 'host')
-        self.port = int(self.actor.config.get(self.name, 'port'))
+
+        self.host = self.actor.actorConfig[self.name]['host']
+        self.port = self.actor.actorConfig[self.name]['port']
 
         self.ioBuffer = bufferedSocket.BufferedSocket(self.name + "IO", EOL=b'\r\n')
 
@@ -134,30 +134,31 @@ class cooler(object):
         if not self.keepUnlocked:
             self.sendOneCommand('LOGOUT=STIRLING', cmd=cmd)
         
-    def getPID(self, cmd=None, name='cooler'):
+    def getPID(self, cmd=None):
         KP = float(self.sendOneCommand('KP', doClose=False, cmd=cmd))
         KI = float(self.sendOneCommand('KI', doClose=False, cmd=cmd))
         KD = float(self.sendOneCommand('KD', doClose=False, cmd=cmd))
         mode = self.sendOneCommand('COOLER', doClose=False, cmd=cmd)
 
         if cmd is not None:
-            cmd.inform('%sLoop=%s, %g,%g,%g' % (name, mode,
+            cmd.inform('%sLoop=%s, %g,%g,%g' % (self.name, mode,
                                                 KP, KI,KD))
         return mode, KP, KI, KD
-    
-    def startCooler(self, mode, setpoint, cmd=None, name='cooler'):
+
+    def startCooler(self, mode, setpoint, cmd=None):
         headTemp = float(self.sendOneCommand('TC', cmd=cmd))
         if headTemp > 350:
             cmd.fail('text="the %s cryocooler temperature is too high (%sK). Check the temperature sense cable."'
-                     % (name, headTemp))
+                     % (self.name, headTemp))
             return
 
         rejectTemp = float(self.sendOneCommand('TEMP2', cmd=cmd))
-        if rejectTemp > float(self.actor.config.get('cooler', 'rejectLimit')):
+        rejectLimit = self.actor.actorConfig[self.name]['rejectLimit']
+        if rejectTemp > rejectLimit:
             cmd.fail('text="the %s cryocooler reject temperature is too high (%sC). Check the coolant flow."'
                      % (name, rejectTemp))
             return
-            
+
         self.rejectLimitHit = False
 
         self.unlock()
@@ -177,7 +178,7 @@ class cooler(object):
         if cmd:
             cmd.finish()
         
-    def stopCooler(self, cmd=None, name='cooler', forceShutdown=False):
+    def stopCooler(self, cmd=None, forceShutdown=False):
         """ Stop the cooler.
 
         Args
@@ -196,10 +197,10 @@ class cooler(object):
         self.rejectLimitHit = forceShutdown
 
         if not forceShutdown:
-            self.status(cmd=cmd, name=name)
+            self.status(cmd=cmd)
 
-    def emergencyShutdown(self, cmd, name='cooler'):
-        self.stopCooler(cmd=cmd, name=name, forceShutdown=True)
+    def emergencyShutdown(self, cmd):
+        self.stopCooler(cmd=cmd, forceShutdown=True)
     
     def errorFlags(self, errorMask):
         """Return a string describing the error state
@@ -265,7 +266,7 @@ class cooler(object):
 
         return errorMask, ', '.join(elist)
         
-    def getTemps(self, cmd=None, name='cooler'):
+    def getTemps(self, cmd=None):
         mode = self.sendOneCommand('COOLER', doClose=False, cmd=cmd)
         errorMask = int(self.sendOneCommand('ERROR', doClose=False, cmd=cmd), base=2)
         try:
@@ -280,8 +281,9 @@ class cooler(object):
         rejectTemp = float(self.sendOneCommand('TEMP2', doClose=False, cmd=cmd))
         setTemp = float(self.sendOneCommand('TTARGET', cmd=cmd))
 
-        if rejectTemp > float(self.actor.config.get('cooler', 'rejectLimit')):
-            self.stopCooler(cmd, name=name, forceShutdown=True)
+        rejectLimit = self.actor.actorConfig[self.name]['rejectLimit']
+        if rejectTemp > rejectLimit:
+            self.stopCooler(cmd, forceShutdown=True)
         else:
             self.rejectLimitHit = False
 
@@ -293,26 +295,26 @@ class cooler(object):
                 call = cmd.inform
             else:
                 call = cmd.warn
-            call('%sStatus=%s,0x%03x, %s, %g,%g,%g' % (name, mode,
+            call('%sStatus=%s,0x%03x, %s, %g,%g,%g' % (self.name, mode,
                                                        errorMask, qstr(errorString),
                                                        minPower, maxPower, power))
-            cmd.inform('%sTemps=%g,%g,%g, %g' % (name, setTemp,
+            cmd.inform('%sTemps=%g,%g,%g, %g' % (self.name, setTemp,
                                                  rejectTemp, tipTemp,
                                                  power))
 
         return setTemp, rejectTemp, tipTemp, setTemp
-    
-    def status(self, cmd=None, name='cooler'):
+
+    def status(self, cmd=None):
         ret = []
-        
-        ret1 = self.getPID(cmd=cmd, name=name)
-        ret2 = self.getTemps(cmd=cmd, name=name)
+
+        ret1 = self.getPID(cmd=cmd)
+        ret2 = self.getTemps(cmd=cmd)
 
         ret.extend(ret1)
         ret.extend(ret2)
 
         return ret
-        
+
     def rawCmd(self, cmdStr, timeout=None, cmd=None):
         """ Send a raw command to the controller and return the output.
 

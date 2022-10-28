@@ -17,14 +17,17 @@ class ionpump(object):
         self.logger.setLevel(loglevel)
 
         self.EOL = b'\r'
-        
-        self.host = self.actor.config.get(self.name, 'host')
-        self.port = int(self.actor.config.get(self.name, 'port'))
-        self.busID = int(self.actor.config.get(self.name, 'busID'))
-        self.pumpIDs = [int(ID) for ID in self.actor.config.get('ionpump', 'pumpids').split(',')]
+
+        self.host = self.actor.actorConfig[self.name]['host']
+        self.port = self.actor.actorConfig[self.name]['port']
+        self.busID = self.actor.actorConfig[self.name]['busId']
+        self.pumpIDs = self.actor.actorConfig[self.name]['pumpIds']
+
         self.startTime = 0
         self.commandedOn = None
-        
+
+        self.logger.info(f'text="ionpump {self.host}:{self.port} {self.busID}:{self.pumpIDs}"')
+
     @property
     def npumps(self):
         return len(self.pumpIDs)
@@ -175,10 +178,10 @@ class ionpump(object):
         graceTime = 2.0
         if newState:
             try:
-                graceTime = float(self.actor.config.get('ionpump', 'delay'))
+                graceTime = self.actor.actorConfig[self.name]['delay']
             except:
                 pass
-            
+
         ret = []
         for c_i, c in enumerate(self.pumpIDs):
             if c_i == 0 and not pump1:
@@ -282,9 +285,9 @@ class ionpump(object):
 
         # INSTRM-772: create synthetic error when high pressure limit hit
         if (enabled and
-            (time.time() - self.startTime > float(self.actor.config.get('ionpump', 'spikeDelay'))) and
-            (p > float(self.actor.config.get('ionpump', 'maxPressure')))):
-            
+            (time.time() - self.startTime > self.actor.actorConfig[self.name]['spikeDelay']) and
+            (p > self.actor.actorConfig[self.name]['maxPressure'])):
+
             err |= 0x10000
             doTurnOff = True
 

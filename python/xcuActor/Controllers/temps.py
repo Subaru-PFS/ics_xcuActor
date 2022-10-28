@@ -118,21 +118,22 @@ class temps(object):
     def __init__(self, actor, name,
                  loglevel=logging.DEBUG):
 
+        self.name = name
         self.actor = actor
         self.logger = logging.getLogger('temps')
         self.logger.setLevel(loglevel)
 
         self.EOL = b'\n'
-        
-        host = self.actor.config.get('temps', 'host')
-        port = int(self.actor.config.get('temps', 'port'))
+
+        host = self.actor.actorConfig[self.name]['host']
+        port = self.actor.actorConfig[self.name]['port']
 
         self.dev = SocketIO(host, port, name, self.EOL,
                             keepOpen=False,
                             loglevel=loglevel)
 
         self.heaters = dict(asic=1, ccd=2)
-        
+
     def start(self, cmd=None):
         pass
 
