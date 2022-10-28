@@ -45,11 +45,6 @@ class OurActor(actorcore.ICC.ICC):
 
     def connectionMade(self):
         if self.everConnected is False:
-            logging.info("Attaching all controllers...")
-            self.allControllers = self.actorConfig['controllers']['starting']
-            self.attachAllControllers()
-            self.everConnected = True
-
             if self.name[-1] in '12':
                 self.roughName = 'rough1'
             else:
@@ -68,8 +63,13 @@ class OurActor(actorcore.ICC.ICC):
             self.logger.info(f'adding models: {_needModels}')
             self.addModels(_needModels)
             self.logger.info(f'added models: {self.models.keys()}')
+
             self.cryoMode = cryoMode.CryoMode(self)
-            # reactor.callLater(10, self.status_check)
+
+            logging.info("Attaching all controllers...")
+            self.allControllers = self.actorConfig['controllers']['starting']
+            self.attachAllControllers()
+            self.everConnected = True
 
     def statusLoop(self, controller):
         try:
