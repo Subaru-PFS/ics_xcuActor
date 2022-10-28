@@ -30,7 +30,7 @@ class PCM(object):
             self.port = port
 
         try:
-            self.gaugeType = self.actor.actorConfig['pcm']['gauge']
+            self.gaugeType = self.actor.actorConfig[self.name]['gauge']
         except:
             self.gaugeType = 'old'
 

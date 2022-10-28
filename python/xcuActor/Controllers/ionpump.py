@@ -20,11 +20,13 @@ class ionpump(object):
 
         self.host = self.actor.actorConfig[self.name]['host']
         self.port = self.actor.actorConfig[self.name]['port']
-        self.busID = self.actor.actorConfig[self.name]['busID']
+        self.busID = self.actor.actorConfig[self.name]['busId']
         self.pumpIDs = self.actor.actorConfig[self.name]['pumpIds']
 
         self.startTime = 0
         self.commandedOn = None
+
+        self.logger.info(f'text="ionpump {self.host}:{self.port} {self.busID}:{self.pumpIDs}"')
 
     @property
     def npumps(self):
