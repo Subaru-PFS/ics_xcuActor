@@ -13,7 +13,7 @@ class CoolerCmd(object):
         # This lets us access the rest of the actor.
         self.actor = actor
         self.name = 'cooler'
-        
+
         # Declare the commands we implement. When the actor is started
         # these are registered with the parser, which will call the
         # associated methods when matched. The callbacks will be
@@ -43,13 +43,6 @@ class CoolerCmd(object):
                                                  help='timeout (in seconds) for raw command.'),
         )
 
-    @property
-    def controller(self):
-        try:
-            return self.actor.controllers[self.name]
-        except KeyError:
-            raise RuntimeError('%s controller is not connected.' % (self.name))
-    
     def coolerRaw(self, cmd):
         """ Send a raw command to the cryocooler controller. """
 
@@ -67,38 +60,37 @@ class CoolerCmd(object):
         """ Generate all cooler keys."""
 
         controller = self.actor.controllers[cmd.cmd.name]
-        controller.status(cmd=cmd, name=cmd.cmd.name)
+        controller.status(cmd=cmd)
         cmd.finish()
 
     def temps(self, cmd):
         """ Generate temperature keys."""
-        
+
         controller = self.actor.controllers[cmd.cmd.name]
-        controller.getTemps(cmd=cmd, name=cmd.cmd.name)
+        controller.getTemps(cmd=cmd)
         cmd.finish()
 
     def tempLoop(self, cmd):
         """ Turn cryocooler temperature control loop on. """
 
         setpoint = cmd.cmd.keywords['setpoint'].values[0]
-        
+
         controller = self.actor.controllers[cmd.cmd.name]
-        controller.startCooler('temp', setpoint, cmd=cmd, name=cmd.cmd.name)
+        controller.startCooler('temp', setpoint, cmd=cmd)
         cmd.finish()
-        
+
     def powerLoop(self, cmd):
         """ Turn cryocooler power control loop on. """
 
         setpoint = cmd.cmd.keywords['setpoint'].values[0]
-        
+
         controller = self.actor.controllers[cmd.cmd.name]
-        controller.startCooler('power', setpoint, cmd=cmd, name=cmd.cmd.name)
+        controller.startCooler('power', setpoint, cmd=cmd)
         cmd.finish()
-        
+
     def off(self, cmd):
         """ Turn cryocooler control loop off. """
 
         controller = self.actor.controllers[cmd.cmd.name]
-        controller.stopCooler(cmd=cmd, name=cmd.cmd.name)
+        controller.stopCooler(cmd=cmd)
         cmd.finish()
-        
