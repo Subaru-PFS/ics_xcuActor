@@ -17,7 +17,7 @@ class gauge(pfeiffer.Pfeiffer):
 
         self.EOL = b'\r'
 
-        self.host = self.actor.actorCconfig[self.name]['host']
+        self.host = self.actor.actorConfig[self.name]['host']
         self.port = self.actor.actorConfig[self.name]['port']
 
         pfeiffer.Pfeiffer.__init__(self)
