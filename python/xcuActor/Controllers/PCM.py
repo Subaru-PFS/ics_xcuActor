@@ -4,9 +4,7 @@ import logging
 import socket
 import time
 
-from xcuActor.Controllers import pfeiffer
 from xcuActor.Controllers import idgPfeiffer
-reload(pfeiffer)
 reload(idgPfeiffer)
 
 class PCM(object):
@@ -29,17 +27,9 @@ class PCM(object):
             self.host = host
             self.port = port
 
-        try:
-            self.gaugeType = self.actor.actorConfig[self.name]['gauge']
-        except:
-            self.gaugeType = 'old'
+        self.gauge = idgPfeiffer.Pfeiffer(self.name)
+        self.logger.warn('gauge=%s,%s', 'new', self.gauge)
 
-        if self.gaugeType == 'old':
-            self.gauge = pfeiffer.Pfeiffer(self.name)
-        else:
-            self.gauge = idgPfeiffer.Pfeiffer(self.name)
-        self.logger.warn('gauge=%s,%s', self.gaugeType, self.gauge)
-        
     def start(self, cmd=None):
         pass
 
@@ -227,30 +217,9 @@ class PCM(object):
 
         ret = self.sendOneCommand(gaugeCmdStr, timeout=gaugeCmdTimeout + 1, cmd=cmd)
         gaugeRet = self.gauge.parseResponse(ret, None, cmd)
-        
+
         return gaugeRet
 
     def gaugeRawCmd(self, cmdStr, cmd=None):
         gaugeStr = self.gauge.makeRawCmd(cmdStr, cmd=cmd)
-        return self.sendGaugeCommand(gaugeStr, cmd=cmd)
-    
-    def pressure(self, cmd=None):
-        cmdStr = self.gauge.makePressureCmd()
-        ret = self.sendGaugeCommand(cmdStr, cmd=cmd)
-        return self.gauge.parsePressure(ret)
-    
-    def gaugeRawQuery(self, code, cmd=None):
-        try:
-            gaugeStr = self.gauge.makeRawQueryCmd(code, cmd)
-        except AttributeError:
-            raise RuntimeError("new gauges do not support raw query commands")
-        
-        return self.sendGaugeCommand(gaugeStr, cmd=cmd)
-
-    def gaugeRawSet(self, code, value, cmd=None):
-        try:
-            gaugeStr = self.gauge.makeRawSetCmd(code, value, cmd)
-        except AttributeError:
-            raise RuntimeError("new gauges do not support raw set commands")
-        
         return self.sendGaugeCommand(gaugeStr, cmd=cmd)
