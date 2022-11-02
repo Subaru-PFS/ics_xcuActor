@@ -6,7 +6,6 @@ from astropy import time as astroTime
 import opscore.protocols.keys as keys
 import opscore.protocols.types as types
 from opscore.utility.qstr import qstr
-from ics.utils import instdata
 
 class MotorsCmd(object):
 
@@ -98,22 +97,18 @@ class MotorsCmd(object):
 
         self.brokenLAMr1A = False
 
-        self.instData = instdata.InstData(self.actor)
-        self.instConfig = instdata.InstConfig(self.actor.name,
-                                              idDict=self.actor.ids.idDict)
         self.loadConfig()
 
     def loadConfig(self, cmd=None):
         if cmd is None:
             cmd = self.actor.bcast
-            doFinish = False
 
         self.farLimits = 0.0,0.0,0.0
         self.tilts = 0.0,0.0,0.0
         self.focus = 0.0
 
-        self.instConfig.reload()
-        cfg = self.instConfig['fpa']
+        self.actor.actorConfig.reload()
+        cfg = self.actor.actorConfig['fpa']
 
         self.range = np.array(cfg['range'])
         self.focus = cfg['focus']
@@ -187,9 +182,10 @@ class MotorsCmd(object):
         self.positions = [-1,-1,-1]
         self.positions = self._getCorrectedPosition(cmd)
 
+        actorData = self.actor.actorData
         try:
-            persistedPositions = self.instData.loadKey('motorPositions')
-            movedTime = self.instData.loadKey('motorMovedMjd')
+            persistedPositions = actorData.loadKey('motorPositions')
+            movedTime = actorData.loadKey('motorMovedMjd')
         except KeyError:
             cmd.warn('text="no persisted motor positions found. Will use controller positions if valid"')
             persistedPositions = self.positions
@@ -364,7 +360,7 @@ class MotorsCmd(object):
 
         keys = dict(motorMovedMjd=now,
                     motorPositions=self._getCorrectedPosition(cmd).tolist())
-        self.instData.persistKeys(keys)
+        self.actor.actorData.persistKeys(keys)
 
         cmd.inform(f'fpaMoved={now:0.6f}')
 

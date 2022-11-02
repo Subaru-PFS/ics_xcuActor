@@ -3,7 +3,6 @@ from functools import partial
 from threading import Timer
 
 import fysom
-import ics.utils.instdata as instdata
 
 class CryoMode(object):
     """Track, as much as we need to, the states of the devices controlling
@@ -19,7 +18,6 @@ class CryoMode(object):
 
     def __init__(self, actor, logLevel=logging.INFO):
         self.actor = actor
-        self.instData = instdata.InstData(actor)
         self.logger = logging.getLogger('cryomode')
         self.delayedEvent = None
 
@@ -48,6 +46,10 @@ class CryoMode(object):
                                  })
         self.reload()
         self.actor.models[self.actor.name].keyVarDict['turboSpeed'].addCallback(self.turboAtSpeed)
+
+    @property
+    def instData(self):
+        return self.actor.actorData
 
     def reload(self):
         """ reload persisted state, so it can survive shutdown."""
