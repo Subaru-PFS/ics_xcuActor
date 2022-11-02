@@ -1,6 +1,6 @@
-setupRequired(ics_utils)
 setupRequired(tron_actorcore)
 setupRequired(ics_actorkeys)
+setupRequired(pfs_instdata)
 setupOptional(ics_xcu_rtdADIO)
 
 pathPrepend(PATH, ${PRODUCT_DIR}/bin)
