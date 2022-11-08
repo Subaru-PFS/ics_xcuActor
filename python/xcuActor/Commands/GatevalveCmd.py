@@ -194,7 +194,7 @@ class GatevalveCmd(object):
 
         self.interlock.sendImage(path, verbose=True, doWait=doWait,
                                  sendReboot=sendReboot,
-                                 straightToCode=straightToCode)
+                                 straightToCode=straightToCode, cmd=cmd)
         cmd.finish()
 
     def status(self, cmd, doFinish=True):

@@ -130,12 +130,22 @@ class interlock(object):
         
         return self.sendCommandStr(cmdStr)
 
-    def sendImage(self, path, verbose=True, doWait=False, sendReboot=True, straightToCode=False):
-        """ Download an image file to the interlock board. 
+    def sendImage(self, path, verbose=True, doWait=False,
+                  sendReboot=True, straightToCode=False, cmd=None):
+        """Download an image file to the interlock board.
 
-        For a blank pic (bootloader only), do not send a reboot command.
-        Normally, _do_ send a reboot.
+        For a blank pic (bootloader only), send straightToCode and no sendReboot
+        Normally, _do_ sendReboot and no straightToCode.
+
+        The default is to assume that the interlock board has been
+        rebooted externally and is not yet up, but in the 2-3s
+        bootloader window before autoboot.
+
+        This is (re-)tested and working as of the 20221108 image.
         """
+
+        if cmd is None:
+            cmd =  self.actor.bcast
 
         eol = chr(0x0a)
         ack = chr(0x06) # ; ack='+'
@@ -190,6 +200,7 @@ class interlock(object):
         with open(path, 'rU') as hexfile:
             lines = hexfile.readlines()
             t0 = time.time()
+            cmd.inform('text="sending image file %s, %d lines"' % (path, len(lines)))
             self.logger.info('sending image file %s, %d lines' % (path, len(lines)))
             for l_i, rawl in enumerate(lines):
                 hexl = rawl.strip()
@@ -198,22 +209,27 @@ class interlock(object):
                 retries = 0
                 # self.logger.debug('sending line %d: %r' % (l_i, hexl))
                 while True:
-                    if verbose and retries > 0:
+                    if retries > 0:
+                        cmd.warn('text="resending line %d; try %d"' % (lineNumber,
+                                                                        retries))
                         self.logger.warn('resending line %d; try %d' % (lineNumber, 
                                                                         retries))
                     fullLine = hexl+eol
                     if verbose and lineNumber%100 == 1:
+                        cmd.inform('text="sending line %d / %d"' % (lineNumber, len(lines)))
                         self.logger.info('sending line %d / %d', lineNumber, len(lines))
                     self.logger.debug("sending line %d: %r", lineNumber, fullLine)
                     if True:
                         retline = self.sendOneLinePerChar(fullLine)
                     else:
                         self.device.write(fullLine.encode('latin-1'))
+                        time.sleep(0.05)
                         retline = self.device.read(size=len(hexl)+len(eol)+1).decode('latin-1')
                     self.logger.debug('recv %r' % (retline))
                     retline = retline.translate(strTrans)
 
                     if fullLine != retline[:len(fullLine)]:
+                        cmd.warn('text="command echo mismatch. sent %r rcvd %r"' % (fullLine, retline))
                         self.logger.warn("command echo mismatch. sent %r rcvd %r" % (fullLine, retline))
                     ret = retline[-1]
                     lineNumber += 1
@@ -230,6 +246,7 @@ class interlock(object):
             t1 = time.time()
             
         self.logger.info('sent image file %s in %0.2f seconds' % (path, t1-t0))
+        cmd.inform('text="sent image file %s in %0.2f seconds"' % (path, t1-t0))
         time.sleep(1)
         line = self.device.readline().decode('latin-1')
         self.logger.info('recv: %s', line)
