@@ -38,6 +38,10 @@ class ionpump(object):
 
         self.logger.info(f'text="ionpump {self.host}:{self.port} {self.pumpAddrs}"')
 
+    def __str__(self):
+        a = self.pumpAddrs
+        return f'ionpumps({self.host}:{self.port}; pump1:{a[0]}; pump2:{a[1]})'
+
     @property
     def npumps(self):
         return len(self.pumpAddrs)
