@@ -22,7 +22,7 @@ class IonpumpCmd(object):
             ('ionpumpRead', '@raw', self.ionpumpReadRaw),
             ('ionpumpWrite', '@raw', self.ionpumpWriteRaw),
             ('ionpump', 'ident', self.ident),
-            ('ionpump', 'status', self.status),
+            ('ionpump', 'status [@pump1] [@pump2]', self.status),
             ('ionpump', 'off [@pump1] [@pump2]', self.off),
             ('ionpump', 'on [@pump1] [@pump2] [<spam>]', self.on),
         ]
@@ -68,7 +68,7 @@ class IonpumpCmd(object):
         cmd_txt = cmd.cmd.keywords['raw'].values[0]
 
         win, value = cmd_txt.split()
-        
+
         ret = self.actor.controllers['ionpump'].sendWriteCommand(win, value, cmd=cmd)
         cmd.finish('text="returned %r"' % (ret))
 
@@ -79,15 +79,23 @@ class IonpumpCmd(object):
          - DSP software version
          - PIC software version
          - full speed in RPM
-         
+
         """
         ret = self.actor.controllers['ionpump'].ident(cmd=cmd)
         cmd.finish('ident=%s' % (','.join(ret)))
 
     def status(self, cmd):
-        npumps = self.actor.controllers['ionpump'].npumps
-        for i in range(npumps):
-            self.actor.controllers['ionpump'].readOnePump(i, cmd=cmd)
+        cmdArgs = cmd.cmd.keywords
+        pumps = []
+        if 'pump1' in cmdArgs:
+            pumps.append(0)
+        if 'pump2' in cmdArgs:
+            pumps.append(1)
+        if not pumps:
+            pumps.extend([0,1])
+
+        for p_i in pumps:
+            self.actor.controllers['ionpump'].readOnePump(p_i, cmd=cmd)
         cmd.finish()
 
     def on(self, cmd=None):
@@ -102,13 +110,13 @@ class IonpumpCmd(object):
         if '5' in ret:
             cmd.fail('text="ion pump controller is in LOCAL mode!"')
             return
-        
+
         spam = cmdArgs['spam'].values[0] if 'spam' in cmdArgs else 0
         for ii in range(spam):
             for i in range(npumps):
                 self.actor.controllers['ionpump'].readOnePump(i, cmd=cmd)
         cmd.finish()
-       
+
     def off(self, cmd=None):
         cmdArgs = cmd.cmd.keywords
         pump1 = 'pump1' in cmdArgs
@@ -121,4 +129,3 @@ class IonpumpCmd(object):
             cmd.fail('text="ion pump controller is in LOCAL mode!"')
         else:
             cmd.finish()
-        
