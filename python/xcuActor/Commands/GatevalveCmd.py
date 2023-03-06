@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import logging
 import time
 
 import numpy as np
@@ -123,6 +124,7 @@ class GatevalveCmd(object):
     def __init__(self, actor):
         # This lets us access the rest of the actor.
         self.actor = actor
+        self.logger = logging.getLogger('gatevalve')
 
         # Declare the commands we implement. When the actor is started
         # these are registered with the parser, which will call the
@@ -160,12 +162,35 @@ class GatevalveCmd(object):
         self.dPressSoftLimit = 22  # The overridable pressure difference limit for opening, Torr
         self.dPressHardLimit = 22  # The absolute pressure difference limit for opening, Torr
 
+        rougher = self.roughName
+
+    @property
+    def roughName(self):
+        sm = self.actor.ids.idDict['spectrograph']
+        if sm in {1, 2}:
+            roughName = 'rough1'
+        else:
+            roughName = 'rough2'
+
         try:
-            self.actor.actorConfig['interlock']['port']
-            val = 'new'
+            roughOverride = self.actor.actorConfig.get('roughActor', None)
+            if roughOverride is not None:
+                logging.warning('overwriting default roughActor with %s',
+                                roughOverride)
+                roughName = roughOverride
+        except:
+            pass
+
+        try:
+            self.actor.actorConfig['interlock']['ignoreRoughPump']
+            roughName = None
+            logging.warning('ignoring roughing pump')
         except Exception:
-            val = 'old'
-        self._interlockType = val
+            pass
+
+        if roughName is not None and roughName not in self.actor.models:
+            self.actor.addModels([roughName])
+        return roughName
 
     @property
     def interlock(self):
@@ -200,6 +225,7 @@ class GatevalveCmd(object):
     def status(self, cmd, doFinish=True):
         """ Generate all gatevalve keys."""
 
+        cmd.inform(f'roughActor={self.roughName}')
         self._doStatus(cmd, doFinish=doFinish)
 
     def setLimits(self, cmd):
@@ -218,27 +244,17 @@ class GatevalveCmd(object):
 
         cmd.finish(f'text="dPressure limits are atm={self.atmThreshold} soft={self.dPressSoftLimit} hard={self.dPressHardLimit}"')
 
-    def _getDewarPressure(self, cmd, pcm):
-        if self._interlockType == 'old':
-            try:
-                dewarPressure = pcm.pressure(cmd=cmd)
-            except Exception as e:
-                return f'could not check cryostat pressure: {e}'
-        else:
-            state = self.interlockStatus(cmd)
-            dewarPressure = state.insidePressure
+    def _getDewarPressure(self, cmd):
+        state = self.interlockStatus(cmd)
+        dewarPressure = state.insidePressure
 
         return dewarPressure
 
-    def _getRoughPressure(self, cmd, roughDict):
-        if self._interlockType == 'old':
-            roughPressure = roughDict['pressure'].getValue()
-        else:
-            state = self.interlockStatus(cmd)
-            roughPressure = state.outsidePressure
+    def _getRoughPressure(self, cmd):
+        state = self.interlockStatus(cmd)
+        roughPressure = state.outsidePressure
 
         return roughPressure
-
 
     def _checkOpenable(self, cmd, atAtmosphere, dPressLimitFlexible):
         """ Check whether the gatevalve can be opened.
@@ -261,19 +277,18 @@ class GatevalveCmd(object):
         if not pcm.systemInPowerMask(powerMask, 'interlock'):
             return 'interlock board not powered up (by PCM)',
 
-        dewarPressure = self._getDewarPressure(cmd, pcm)
+        dewarPressure = self._getDewarPressure(cmd)
 
-        try:
-            ignoreRoughPump = self.actor.actorConfig['interlock']['ignoreRoughPump']
-        except Exception:
-            ignoreRoughPump = False
-
-        roughName = self.actor.roughName
-        roughDict = self.actor.models[roughName].keyVarDict
-
-        if ignoreRoughPump:
-            roughSpeed = 0 if atAtmosphere else 30
+        roughName = self.roughName
+        if roughName is None:
+            if atAtmosphere:
+                roughSpeed = 0
+                roughPressure = 1000
+            else:
+                roughSpeed = 30
+                roughPressure = 0
         else:
+            roughDict = self.actor.models[roughName].keyVarDict
             callVal = self.actor.cmdr.call(actor=roughName, cmdStr="gauge status", timeLim=3)
             if callVal.didFail:
                 return 'failed to get roughing gauge pressure',
@@ -285,11 +300,11 @@ class GatevalveCmd(object):
             # Check what the invalid values are!!!! CPLXXX
             roughSpeed = roughDict['pumpSpeed'].getValue()
             roughMask, roughErrors = roughDict['pumpErrors'].getValue()
+            roughPressure = self._getRoughPressure(cmd)
 
         turboSpeed, turboStatus = self.actor.controllers['turbo'].speed(cmd)
         # turboDict = self.actor.models[self.actor.name].keyVarDict
 
-        roughPressure = self._getRoughPressure(cmd, roughDict)
 
         problems = []
         if atAtmosphere:
@@ -391,61 +406,44 @@ class GatevalveCmd(object):
         raise RuntimeError()
 
     def _doOpen(self, cmd):
-        if self._interlockType == 'old':
-            try:
-                self.gatevalve.open(cmd=cmd)
-            except Exception:
-                cmd.fail('text="FAILED to open gatevalve!!"')
-                return
-        else:
-            state = self._doStatus(cmd, doFinish=False)
-            if state.isBlocked():
-                cmd.fail('text="gatevalve open command is blocked. Close it to re-enable opening"')
-                return
+        state = self._doStatus(cmd, doFinish=False)
+        if state.isBlocked():
+            cmd.fail('text="gatevalve open command is blocked. Close it to re-enable opening"')
+            return
 
-            def isOpen(status):
-                return status.isOpen()
+        def isOpen(status):
+            return status.isOpen()
 
-            try:
-                self.gatevalve.request(True)
-                self._spinUntil(isOpen, cmd=cmd)
-            except Exception as e:
-                # cmd.warn(f'text="FAILED to open gatevalve: {e} -- commanding it to close"')
-                self._doStatus(cmd)
-                # self._doClose(cmd=cmd, doFinish=False)
-                cmd.fail(f'text="FAILED to open gatevalve; close it to re-enable opening"')
-                return
+        try:
+            self.gatevalve.request(True)
+            self._spinUntil(isOpen, cmd=cmd)
+        except Exception as e:
+            # cmd.warn(f'text="FAILED to open gatevalve: {e} -- commanding it to close"')
+            self._doStatus(cmd)
+            # self._doClose(cmd=cmd, doFinish=False)
+            cmd.fail(f'text="FAILED to open gatevalve; close it to re-enable opening"')
+            return
 
         self._doStatus(cmd)
         cmd.finish()
 
     def _doClose(self, cmd, doFinish=True):
-        if self._interlockType == 'old':
-            try:
-                self.gatevalve.close(cmd=cmd)
-            except Exception:
-                cmd.fail('text="FAILED to close gatevalve!!"')
-                return
-        else:
-            def isClosed(status):
-                return status.isClosed()
+        def isClosed(status):
+            return status.isClosed()
 
-            try:
-                self.gatevalve.request(False)
-                self._spinUntil(isClosed, cmd=cmd)
-            except Exception as e:
-                cmd.fail(f'text="FAILED to close gatevalve!!!!! {e}"')
-                return
+        try:
+            self.gatevalve.request(False)
+            self._spinUntil(isClosed, cmd=cmd)
+        except Exception as e:
+            cmd.fail(f'text="FAILED to close gatevalve!!!!! {e}"')
+            return
 
         self._doStatus(cmd)
         if doFinish:
             cmd.finish()
 
     def _doStatus(self, cmd, doFinish=True):
-        if self._interlockType == 'old':
-            ret = self.gatevalve.status(cmd=cmd)
-        else:
-            ret = self.interlockStatus(cmd)
+        ret = self.interlockStatus(cmd)
 
         if doFinish:
             cmd.finish()

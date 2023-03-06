@@ -45,21 +45,7 @@ class OurActor(actorcore.ICC.ICC):
 
     def connectionMade(self):
         if self.everConnected is False:
-            if self.name[-1] in '12':
-                self.roughName = 'rough1'
-            else:
-                self.roughName = 'rough2'
-
-            try:
-                roughOverride = self.actorConfig.get('roughActor', None)
-                if roughOverride is not None:
-                    logging.warning('overwriting default roughActor with %s',
-                                    roughOverride)
-                    self.roughName = roughOverride
-            except:
-                pass
-
-            _needModels = [self.name, self.roughName]
+            _needModels = [self.name]
             self.logger.info(f'adding models: {_needModels}')
             self.addModels(_needModels)
             self.logger.info(f'added models: {self.models.keys()}')
