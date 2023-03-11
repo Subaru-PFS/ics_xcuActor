@@ -191,7 +191,15 @@ class PcmCmd(object):
 
         inputNames = ["24Vups", "24Vaux"]
         for nidx in range(2):
-            lineState = "OK" # figure out battery power, etc later.
+            state = states[nidx]
+            if state == 'N':
+                lineState = "OK"
+            elif state == 'L':
+                lineState = "Low"
+            elif state == 'B':
+                lineState = "Battery"
+            else:
+                lineState = "Unknown"
             cmd.inform('pcmPower%d=%s,%s,%0.3f,%0.3f,%0.3f' %
                        (nidx+1, inputNames[nidx],
                         lineState,
@@ -257,7 +265,7 @@ class PcmCmd(object):
         if ret is None:
             cmd.fail('text="failed to execute getStatus command"')
             return
-        binVal = self.powerMasktoInt(ret)
+        binVal = self.powerMasktoInt(ret.decode('latin-1'))
         cmd.inform("powerMask=0x%02x; poweredUp=%s" % (binVal,
                                                        self.getPoweredNames(binVal)))    
         self.getPowerState(cmd)
@@ -455,12 +463,15 @@ class PcmCmd(object):
 
     def bootloader(self, cmd):
         return
-        
+
     def powerMasktoInt(self,mask):
+        portMask = ''
         for n in mask:
-            if n != 1:
-                n=0
-        return int(mask[2:],2)
+            if n == '1':
+                portMask += '1'
+            else:
+                portMask += '0'
+        return int(portMask, 2)
 
     def systemInPowerMask(self, mask, system):
         pcm = self.actor.controllers.get('PCM', None)
