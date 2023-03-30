@@ -281,12 +281,8 @@ class GatevalveCmd(object):
 
         roughName = self.roughName
         if roughName is None:
-            if atAtmosphere:
-                roughSpeed = 0
-                roughPressure = 1000
-            else:
-                roughSpeed = 30
-                roughPressure = 0
+            roughPressure = self._getRoughPressure(cmd)
+            roughSpeed = -9999
         else:
             roughDict = self.actor.models[roughName].keyVarDict
             callVal = self.actor.cmdr.call(actor=roughName, cmdStr="gauge status", timeLim=3)
@@ -308,7 +304,7 @@ class GatevalveCmd(object):
 
         problems = []
         if atAtmosphere:
-            if roughSpeed > 0:
+            if roughName is not None and roughSpeed > 0:
                 problems.append(f'roughing pump cannot be on to open at atmosphere')
             if turboSpeed > 0:
                 problems.append(f'turbo pump cannot be on to open at atmosphere')
@@ -317,7 +313,7 @@ class GatevalveCmd(object):
             if roughPressure < self.atmThreshold:
                 problems.append(f'roughing pressure too low to treat as atmosphere ({roughPressure} < {self.atmThreshold})')
         else:
-            if roughSpeed < 30:
+            if roughName is not None and roughSpeed < 30:
                 problems.append(f'roughing pump must be at speed to open under vacuum')
             if turboSpeed < 90000:
                 problems.append(f'turbo pump must be at speed to open under vacuum')
