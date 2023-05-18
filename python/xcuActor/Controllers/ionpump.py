@@ -1,11 +1,82 @@
 import logging
 import socket
 import time
+import traceback
 
 import numpy as np
 
 from opscore.utility.qstr import qstr
 from functools import reduce
+
+class IncompleteReply(Exception):
+    pass
+
+class ConnectTo4UHV:
+    """
+    Provide a context manager around a connction to a 4UHV.
+
+    Adds two features to a normal socket:
+
+    - retries failed connections. We *do* have contention at the far
+    end: allow other clients to finish.
+
+    - allows reuse of existing connection.
+    """
+    def __init__(self, cmd, host, port, sock=None, tryFor=3.0, waitTime=0.25):
+        self.cmd = cmd
+        self.host = host
+        self.port = port
+        self.sock = sock
+        self.doClose = sock is None
+        self.tryFor = tryFor
+        self.waitTime = waitTime
+
+    def __enter__(self):
+        cmd = self.cmd
+        if self.sock is not None:
+            # cmd.debug(f'text="keeping given socket: {self.sock}"')
+            return self.sock
+
+        try:
+            self.sock = sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(self.waitTime)
+        except socket.error as e:
+            cmd.warn('text="failed to create socket to ion pump: %s"' % (e))
+            raise
+
+        tryFor = self.tryFor
+        while tryFor > 0:
+            try:
+                cmd.debug(f'text="connecting {sock} to ({self.host}:{self.port}) ({tryFor}s left)"')
+                sock.connect((self.host, self.port))
+                sock.settimeout(1.0)
+                return sock
+            except socket.error as e:
+                tryFor -= self.waitTime
+                if tryFor > 0:
+                    cmd.debug(f'text="failed to connect to ion pump; retrying {tryFor} ({e})"')
+                    time.sleep(self.waitTime)
+                else:
+                    cmd.warn('text="failed to connect to ion pump: %s"' % (e))
+                    raise
+
+        cmd.warn(f'text="failed to connect to ion pump within {tryFor}s"')
+        raise RuntimeError(f'failed to connect to ion pump within {tryFor}s')
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        cmd = self.cmd
+        if self.doClose:
+            try:
+                cmd.debug(f'text="closing {self.sock}"')
+                self.sock.close()
+            except Exception as e:
+                cmd.warn(f'text="failed to close ionpump: {e}"')
+
+        if exc_type is not None:
+            cmd.warn(f'text="error commanding ionpump: {exc_type}({exc_value})"')
+            for l in traceback.format_exception(exc_type, exc_value, exc_tb):
+                cmd.warn(f'text="  {l.rstrip()}"')
+            return True
 
 class ionpump(object):
     def __init__(self, actor, name,
@@ -56,7 +127,55 @@ class ionpump(object):
         crc = reduce(int.__xor__, [c for c in s])
         return crc
 
-    def sendOneCommand(self, pumpIdx, cmdStr, cmd=None):
+    def readOneReply(self, cmd, sock) -> str:
+        # Try to consume a full reply, which might (unlikely but possible)
+        # come in 2+ packets.
+        ntries = 5
+        i = 0
+        while i < ntries:
+            try:
+                ret = sock.recv(1024)
+            except socket.error as e:
+                cmd.warn('text="failed to read response from ion pump: %s"' % (e))
+                raise
+
+            self.logger.info('received %r', ret)
+            cmd.diag('text="ionpump received %r"' % ret)
+
+            try:
+                reply = self.parseRawReply(ret, cmd)
+                if i > 0:
+                    cmd.diag(f'text="ionpump received complete response: {reply}"')
+                return reply
+            except IncompleteReply:
+                cmd.warn(f'text="ionpump received partial response {i+1}/{ntries}"')
+                i += 1
+                time.sleep(0.01)
+            except Exception as e:
+                cmd.warn('text="failed to read complete response from ion pump: %s"' % (e))
+                raise
+
+    def sendOneCommand(self, pumpIdx, cmdStr, sock=None, cmd=None) -> str:
+        """Send a single atomic ionpump command and return the response.
+
+        Args
+        ----
+        pumpIdx : `int`
+            the internal index of the ionpump. 0 or 1
+        cmdStr : `str` or `bytes`
+            the register read/write part of the command. We
+            add the CRC, etc.
+        sock : `socket.socket`
+            if passed in, use this. Else make a new connection.
+        cmd : `Command`
+            what to send errors and progress diagnostics to.
+
+        Returns
+        -------
+        reply : `bytes`
+            the content of the command response
+        """
+
         if cmd is None:
             cmd = self.actor.bcast
 
@@ -71,61 +190,47 @@ class ionpump(object):
         crc = self.calcCrc(coreCmd)
         fullCmd = b"\x02%s%02X" % (coreCmd, crc)
         self.logger.info('sending %r to %s:%s:%s', fullCmd, self.host, self.port, busAddr)
-        cmd.diag('text="%s sending %s"' % (self.name, fullCmd))
 
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(1.0)
-        except socket.error as e:
-            cmd.warn('text="failed to create socket to ion pump: %s"' % (e))
-            raise
+        with ConnectTo4UHV(cmd=cmd, host=self.host, port=self.port, sock=sock) as sock:
+            cmd.diag('text="%s sending %s"' % (self.name, fullCmd))
+            try:
+                sock.sendall(fullCmd)
+            except socket.error as e:
+                cmd.warn('text="failed to send command to ion pump: %s"' % (e))
+                raise
 
-        try:
-            s.connect((self.host, self.port))
-            s.sendall(fullCmd)
-        except socket.error as e:
-            cmd.warn('text="failed to create connect or send to ion pump: %s"' % (e))
-            raise
+            return self.readOneReply(cmd, sock)
 
-        try:
-            ret = s.recv(1024)
-        except socket.error as e:
-            cmd.warn('text="failed to read response from ion pump: %s"' % (e))
-            raise
-
-        self.logger.info('received %r', ret)
-        cmd.diag('text="ionpump received %r"' % ret)
-        s.close()
-
-        reply = self.parseRawReply(ret)
-
-        return reply
-
-    def parseRawReply(self, raw):
+    def parseRawReply(self, raw, cmd):
         if len(raw) < 6:
-            raise RuntimeError("too short reply: %r" % (raw))
+            cmd.warn(f'text="reply too short {raw}"')
+            raise IncompleteReply("too short reply: %r" % (raw))
 
         head = raw[:2]
         tail = raw[-3:]
 
         if head[:1] != b'\x02':
             raise RuntimeError("reply header is not x02: %r" % (raw))
+        if tail[:1] != b'\x03':
+            cmd.warn(f'text="reply too short? {tail} {tail[0]}"')
+            raise IncompleteReply("probably too short reply: %r" % (raw))
+
         crc = self.calcCrc(raw[1:-2])
         wantTail = b'\x03%02X' % (crc)
         if tail != wantTail:
+            cmd.warn(f'text="reply corrupt? {tail} vs. {wantTail}"')
             raise RuntimeError("reply tail/crc is not %r: %r" % (wantTail,
                                                                  raw))
-
         return raw[2:-3]
 
-    def sendReadCommand(self, pumpIdx, win, cmd=None):
+    def sendReadCommand(self, pumpIdx, win, cmd=None, sock=None):
         if isinstance(win, int):
             win = b"%03d" % (win)
         elif isinstance(win, str):
             win = win.encode('latin-1')
 
-        reply = self.sendOneCommand(pumpIdx, win+b'0', cmd=cmd)
-
+        reply = self.sendOneCommand(pumpIdx, win+b'0',
+                                    sock=sock, cmd=cmd)
         if reply[:3] != win:
             raise RuntimeError("win in reply is not %s: %r" % (win,
                                                                reply))
@@ -134,17 +239,17 @@ class ionpump(object):
 
         return reply[4:]
 
-    def sendWriteCommand(self, pumpIdx, win, value, cmd=None):
+    def sendWriteCommand(self, pumpIdx, win, value, cmd=None, sock=None):
         if isinstance(win, int):
             win = b"%03d" % (win)
         elif isinstance(win, str):
             win = win.encode('latin-1')
 
-        reply = self.sendOneCommand(pumpIdx, win+b'1'+value.encode('latin-1'), cmd=cmd)
-
+        reply = self.sendOneCommand(pumpIdx, win+b'1'+value.encode('latin-1'),
+                                    sock=sock, cmd=cmd)
         return reply
 
-    def readTemp(self, pumpIdx, cmd=None):
+    def readTemp(self, pumpIdx, cmd=None, sock=None):
         _, channel = self.pumpAddrs[pumpIdx]
 
         if channel == 1:
@@ -159,40 +264,44 @@ class ionpump(object):
             raise RuntimeError("unknown channel %s" % (channel))
 
         try:
-            reply = self.sendReadCommand(pumpIdx, win, cmd=cmd)
+            reply = self.sendReadCommand(pumpIdx, win,
+                                         sock=sock, cmd=cmd)
         except:
             reply = np.nan
 
         return float(reply)
 
-    def readVoltage(self, pumpIdx, cmd=None):
+    def readVoltage(self, pumpIdx, cmd=None, sock=None):
         _, channel = self.pumpAddrs[pumpIdx]
         try:
-            reply = self.sendReadCommand(pumpIdx, 800 + 10*channel, cmd=cmd)
+            reply = self.sendReadCommand(pumpIdx, 800 + 10*channel,
+                                         sock=sock, cmd=cmd)
         except:
             reply = np.nan
 
         return float(reply)
 
-    def readCurrent(self, pumpIdx, cmd=None):
+    def readCurrent(self, pumpIdx, cmd=None, sock=None):
         _, channel = self.pumpAddrs[pumpIdx]
         try:
-            reply = self.sendReadCommand(pumpIdx, 801 + 10*channel, cmd=cmd)
+            reply = self.sendReadCommand(pumpIdx, 801 + 10*channel,
+                                         sock=sock, cmd=cmd)
         except:
             reply = np.nan
 
         return float(reply)
 
-    def readPressure(self, pumpIdx, cmd=None):
+    def readPressure(self, pumpIdx, cmd=None, sock=None):
         _, channel = self.pumpAddrs[pumpIdx]
         try:
-            reply = self.sendReadCommand(pumpIdx, 802 + 10*channel, cmd=cmd)
+            reply = self.sendReadCommand(pumpIdx, 802 + 10*channel,
+                                         sock=sock, cmd=cmd)
         except:
             reply = np.nan
 
         return float(reply)
 
-    def _onOff(self, newState, pump1=True, pump2=True, cmd=None):
+    def _onOff(self, newState, pump1=True, pump2=True, cmd=None, sock=None):
         """ Turn the pumps on or off, and report the status. """
 
         graceTime = 2.0
@@ -202,43 +311,48 @@ class ionpump(object):
             except:
                 pass
 
-        ret = []
-        for pumpIdx, pumpAddr in enumerate(self.pumpAddrs):
-            if pumpIdx == 0 and not pump1:
-                continue
-            if pumpIdx == 1 and not pump2:
-                continue
-            _, channel = pumpAddr
+        with ConnectTo4UHV(cmd=cmd, host=self.host, port=self.port, sock=sock) as sock:
+            ret = []
+            for pumpIdx, pumpAddr in enumerate(self.pumpAddrs):
+                if pumpIdx == 0 and not pump1:
+                    continue
+                if pumpIdx == 1 and not pump2:
+                    continue
+                _, channel = pumpAddr
 
-            retCmd = self.sendWriteCommand(pumpIdx, 10+channel,
-                                           '%s' % (int(newState)), cmd=cmd)
-            ret.append(retCmd)
+                retCmd = self.sendWriteCommand(pumpIdx, 10+channel,
+                                               '%s' % (int(newState)),
+                                               sock=sock, cmd=cmd)
+                ret.append(retCmd)
+
+                self.startTimes[pumpIdx] = time.time()
+                self.commandedOn[pumpIdx] = newState
+
             time.sleep(graceTime)
-
-            self.startTimes[pumpIdx] = time.time()
-            self.commandedOn[pumpIdx] = newState
-
-        for pumpIdx, c in enumerate(self.pumpAddrs):
-            self.readOnePump(pumpIdx, cmd=cmd)
+            for pumpIdx, c in enumerate(self.pumpAddrs):
+                self.readOnePump(pumpIdx, sock=sock, cmd=cmd)
 
         return ret
 
-    def off(self, pump1=True, pump2=True, cmd=None):
+    def off(self, pump1=True, pump2=True, cmd=None, sock=None):
         """ Turn the pumps off, and report the status. """
 
-        return self._onOff(False, pump1=pump1, pump2=pump2, cmd=cmd)
+        return self._onOff(False, pump1=pump1, pump2=pump2,
+                           cmd=cmd, sock=sock)
 
-    def on(self, pump1=True, pump2=True, cmd=None):
+    def on(self, pump1=True, pump2=True, cmd=None, sock=None):
         """ Turn the pumps on, and report the status. """
 
-        return self._onOff(True, pump1=pump1, pump2=pump2, cmd=cmd)
+        return self._onOff(True, pump1=pump1, pump2=pump2,
+                           cmd=cmd, sock=sock)
 
-    def readEnabled(self, pumpIdx, cmd=None):
+    def readEnabled(self, pumpIdx, cmd=None, sock=None):
         _, channel = self.pumpAddrs[pumpIdx]
-        reply = self.sendReadCommand(pumpIdx, 10 + channel, cmd=cmd)
+        reply = self.sendReadCommand(pumpIdx, 10 + channel,
+                                     sock=sock, cmd=cmd)
         return int(reply)
 
-    def readError(self, pumpIdx, cmd=None):
+    def readError(self, pumpIdx, cmd=None, sock=None):
         """ Read the error mask for a single channel, or the union of all. 
 
         Args
@@ -251,8 +365,10 @@ class ionpump(object):
         mask - the errors as detailed in Table 13 of the 4UHV manual.
         """
         _, channel = self.pumpAddrs[pumpIdx]
-        self.sendWriteCommand(pumpIdx, 505, '%06d' % (channel), cmd=cmd)
-        reply = self.sendReadCommand(pumpIdx, 206, cmd=cmd)
+        self.sendWriteCommand(pumpIdx, 505, '%06d' % (channel),
+                              sock=sock, cmd=cmd)
+        reply = self.sendReadCommand(pumpIdx, 206,
+                                     sock=sock, cmd=cmd)
         return int(reply)
 
     errorBits = {0x0001:"Fan error",
@@ -289,57 +405,59 @@ class ionpump(object):
 
         return ",".join(errors)
 
-    def readOnePump(self, pumpIdx, cmd=None):
-        _, channel = self.pumpAddrs[pumpIdx]
-        enabled = self.readEnabled(pumpIdx)
+    def readOnePump(self, pumpIdx, sock=None, cmd=None):
+        with ConnectTo4UHV(cmd=cmd, host=self.host, port=self.port, sock=sock) as sock:
+            enabled = self.readEnabled(pumpIdx, sock=sock)
 
-        V = self.readVoltage(pumpIdx, cmd=cmd)
-        A = self.readCurrent(pumpIdx, cmd=cmd)
-        p = self.readPressure(pumpIdx, cmd=cmd)
-        t = self.readTemp(pumpIdx, cmd=cmd)
+            V = self.readVoltage(pumpIdx, cmd=cmd, sock=sock)
+            A = self.readCurrent(pumpIdx, cmd=cmd, sock=sock)
+            p = self.readPressure(pumpIdx, cmd=cmd, sock=sock)
+            t = self.readTemp(pumpIdx, cmd=cmd, sock=sock)
 
-        err = self.readError(pumpIdx, cmd=cmd)
+            err = self.readError(pumpIdx, cmd=cmd, sock=sock)
 
-        # INSTRM-594, INSTRM-758: create synthetic error when pump is on but not indicating current or pressure.
-        doTurnOff = False
-        if enabled and (V == 0 or A == 0 or p == 0):
-            err |= 0x8000
-            doTurnOff = True
+            # INSTRM-594, INSTRM-758: create synthetic error when pump is on but not indicating current or pressure.
+            doTurnOff = False
+            if enabled and (V == 0 or A == 0 or p == 0):
+                err |= 0x8000
+                doTurnOff = True
 
-        # INSTRM-772: create synthetic error when high pressure limit hit
-        if (enabled and
-            (time.time() - self.startTimes[pumpIdx] > self.actor.actorConfig[self.name]['spikeDelay']) and
-            (p > self.actor.actorConfig[self.name]['maxPressure'])):
+            # INSTRM-772: create synthetic error when high pressure limit hit
+            if (enabled and
+                (time.time() - self.startTimes[pumpIdx] > self.actor.actorConfig[self.name]['spikeDelay']) and
+                (p > self.actor.actorConfig[self.name]['maxPressure'])):
 
-            err |= 0x10000
-            doTurnOff = True
+                err |= 0x10000
+                doTurnOff = True
 
-        if (enabled and
-            (time.time() - self.startTimes[pumpIdx] < self.actor.actorConfig[self.name]['spikeDelay']) and
-            (p > self.actor.actorConfig[self.name]['maxPressureDuringStartup'])):
+            if (enabled and
+                (time.time() - self.startTimes[pumpIdx] < self.actor.actorConfig[self.name]['spikeDelay']) and
+                (p > self.actor.actorConfig[self.name]['maxPressureDuringStartup'])):
 
-            err |= 0x10000
-            doTurnOff = True
+                err |= 0x10000
+                doTurnOff = True
 
-        # INSTRM-1150: create synthetic error when pumps shut down on their own.
-        if self.commandedOn[pumpIdx] is True and not enabled:
-            err |= 0x20000
-            self.commandedOn[pumpIdx] = False
-        # If the actor has restarted, set our commandedOn state to the controller's state.
-        if self.commandedOn[pumpIdx] is None:
-            self.commandedOn[pumpIdx] = enabled
+            # INSTRM-1150: create synthetic error when pumps shut down on their own.
+            if self.commandedOn[pumpIdx] is True and not enabled:
+                err |= 0x20000
+                self.commandedOn[pumpIdx] = False
+            # If the actor has restarted, set our commandedOn state to the controller's state.
+            if self.commandedOn[pumpIdx] is None:
+                self.commandedOn[pumpIdx] = enabled
 
-        if cmd is not None:
-            cmdFunc = cmd.inform if err == 0 else cmd.warn
-            errString = self._makeErrorString(err)
+            if cmd is not None:
+                cmdFunc = cmd.inform if err == 0 else cmd.warn
+                errString = self._makeErrorString(err)
 
-            cmdFunc('ionPump%d=%d,%g,%g,%g, %g' % (pumpIdx+1,
-                                                   enabled,
-                                                   V,A,t,p))
-            cmdFunc('ionPump%dErrors=0x%05x,%s,%s' % (pumpIdx+1, err,
-                                                      "OK" if errString == "OK" else "ERROR",
-                                                      qstr(errString)))
-        if doTurnOff:
-            self.off(cmd=cmd)
+                cmdFunc('ionPump%d=%d,%g,%g,%g, %g' % (pumpIdx+1,
+                                                       enabled,
+                                                       V,A,t,p))
+                cmdFunc('ionPump%dErrors=0x%05x,%s,%s' % (pumpIdx+1, err,
+                                                          "OK" if errString == "OK" else "ERROR",
+                                                          qstr(errString)))
+            if doTurnOff:
+                # Just turn off a single pump
+                self.off(cmd=cmd, sock=sock,
+                         pump1=(pumpIdx==0), pump2=(pumpIdx==1))
 
-        return enabled,V,A,p
+            return enabled,V,A,p
