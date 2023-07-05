@@ -73,9 +73,8 @@ class ConnectTo4UHV:
                 cmd.warn(f'text="failed to close ionpump: {e}"')
 
         if exc_type is not None:
-            cmd.warn(f'text="error commanding ionpump: {exc_type}({exc_value})"')
-            for l in traceback.format_exception(exc_type, exc_value, exc_tb):
-                cmd.warn(f'text="  {l.rstrip()}"')
+            tb0 = traceback.extract_tb(exc_tb)[-1]
+            cmd.warn(f'text="error commanding ionpump at {tb0.filename}:{tb0.lineno} -- {exc_type.__name__}: {exc_value}"')
             return True
 
 class ionpump(object):
@@ -130,17 +129,19 @@ class ionpump(object):
     def readOneReply(self, cmd, sock) -> str:
         # Try to consume a full reply, which might (unlikely but possible)
         # come in 2+ packets.
-        ntries = 5
+        ntries = 10
         i = 0
+        ret = b''
         while i < ntries:
             try:
-                ret = sock.recv(1024)
+                ret1 = sock.recv(1024)
             except socket.error as e:
                 cmd.warn('text="failed to read response from ion pump: %s"' % (e))
                 raise
 
-            self.logger.info('received %r', ret)
-            cmd.diag('text="ionpump received %r"' % ret)
+            self.logger.info('received %r', ret1)
+            cmd.diag('text="ionpump received %r"' % ret1)
+            ret += ret1
 
             try:
                 reply = self.parseRawReply(ret, cmd)
@@ -148,12 +149,14 @@ class ionpump(object):
                     cmd.diag(f'text="ionpump received complete response: {reply}"')
                 return reply
             except IncompleteReply:
-                cmd.warn(f'text="ionpump received partial response {i+1}/{ntries}"')
+                cmd.warn(f'text="ionpump received partial response ({ret}/{ret1}) {i+1}/{ntries}"')
                 i += 1
                 time.sleep(0.01)
             except Exception as e:
                 cmd.warn('text="failed to read complete response from ion pump: %s"' % (e))
                 raise
+        cmd.warn(f'text="timed out reading response from ion pump; have {ret}"')
+        raise RuntimeError("timed out reading response from ion pump")
 
     def sendOneCommand(self, pumpIdx, cmdStr, sock=None, cmd=None) -> str:
         """Send a single atomic ionpump command and return the response.
