@@ -13,9 +13,10 @@ class CryoMode(object):
     For now, a command sets the mode.
 
     """
-    validModes = ('unknown', 'offline', 'standby', 'roughing', 'pumpdown', 'cooldown', 'operation', 'warmup', 'bakeout')
+    validModes = ('unknown', 'offline', 'standby', 'roughing', 'pumpdown', 'ionpumping', 'cooldown', 'operation', 'warmup', 'bakeout')
     standbyTime = dict(toPumpdown=600,  # turbo pump takes about 2 minutes to reach 90000RPM
-                       toCooldown=600)  # cryoCooler power takes about 4 minutes to go over 70W lower limit
+                       toCooldown=600,  # cryoCooler power takes about 4 minutes to go over 70W lower limit
+                       toIonpumping=30)  # Gives you half a minute to close the gatevalve.
 
     def __init__(self, actor, logLevel=logging.INFO):
         self.actor = actor
@@ -25,12 +26,13 @@ class CryoMode(object):
         callbacks = dict([(f'on{mode}', self.modeChangeCB) for mode in self.validModes])
 
         events = [{'name': 'toOffline',
-                   'src': ['unknown', 'standby', 'roughing', 'pumpdown', 'cooldown', 'operation', 'warmup', 'bakeout'],
+                   'src': ['unknown', 'standby', 'roughing', 'pumpdown', 'ionpumping', 'cooldown', 'operation', 'warmup', 'bakeout'],
                    'dst': 'offline'},
                   {'name': 'toRoughing', 'src': ['offline'], 'dst': 'roughing'},
                   {'name': 'toPumpdown', 'src': ['offline', 'roughing'], 'dst': 'pumpdown'},
                   {'name': 'toBakeout', 'src': ['offline', 'roughing', 'pumpdown'], 'dst': 'bakeout'},
-                  {'name': 'toCooldown', 'src': ['offline', 'pumpdown'], 'dst': 'cooldown'},
+                  {'name': 'toIonpumping', 'src': ['offline', 'pumpdown'], 'dst': 'ionpumping'},
+                  {'name': 'toCooldown', 'src': ['offline', 'pumpdown', 'ionpumping'], 'dst': 'cooldown'},
                   {'name': 'toOperation', 'src': ['offline', 'cooldown'], 'dst': 'operation'},
                   {'name': 'toWarmup', 'src': ['offline', 'cooldown', 'operation'], 'dst': 'warmup'}]
 
