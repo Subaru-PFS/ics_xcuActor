@@ -8,7 +8,7 @@ class MiscCmd(object):
         self.actor = actor
 
         self.vocab = [
-            ('setCryoMode', '@(offline|roughing|pumpdown|cooldown|operation|warmup|bakeout)', self.setCryoMode),
+            ('setCryoMode', '@(offline|roughing|pumpdown|ionpumping|cooldown|operation|warmup|bakeout)', self.setCryoMode),
             ('setRoughActor', '@(rough1|rough2)', self.setRoughActor),
         ]
 
