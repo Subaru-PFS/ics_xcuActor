@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
-from builtins import object
-import numpy as np
+import logging
 
-import time
+import numpy as np
 
 import opscore.protocols.keys as keys
 import opscore.protocols.types as types
@@ -14,6 +13,7 @@ class TempsCmd(object):
     def __init__(self, actor):
         # This lets us access the rest of the actor.
         self.actor = actor
+        self.logger = logging.getLogger('temps')
 
         # Declare the commands we implement. When the actor is started
         # these are registered with the parser, which will call the
@@ -26,8 +26,12 @@ class TempsCmd(object):
             ('temps', 'test1', self.test1),
             ('temps', 'test2', self.test2),
             ('HPheaters', '@(on|off) @(shield|spreader)', self.HPheaters),
-            ('heaters', '@(ccd|asic) <power>', self.heatersOn),
-            ('heaters', '@(ccd|asic) @off', self.heatersOff),
+            ('heaters', '@(ccd|h4|asic) <power>', self.heaterToPower),
+            ('heaters', '@(ccd|h4|asic) <temp>', self.heaterToTemp),
+            ('heaters', '@(ccd|h4|asic) @centerOffset', self.centerOffset),
+            ('heaters', '@config @(ccd|h4|asic) [<P>] [<I>] [<sensor>] [<safetyBand>]', 
+             self.heaterConfigure),
+            ('heaters', '@(ccd|h4|asic) @off', self.heaterOff),
             ('heaters', 'status', self.heaterStatus),
         ]
 
@@ -35,8 +39,19 @@ class TempsCmd(object):
         self.keys = keys.KeysDictionary("xcu_temps", (1, 1),
                                         keys.Key("power", types.Int(),
                                                  help='power level to set (0..100)'),
+                                        keys.Key("temp", types.Float(),
+                                                 help='temp setpoint (K)'),
                                         keys.Key("channel", types.Int(),
-                                                 help='channel to read'),           
+                                                 help='channel to read'),
+                                        keys.Key("P", types.Float(),
+                                                 help='Proportional gain'),
+                                        keys.Key("I", types.Float(),
+                                                 help='Integral gain'),
+                                        keys.Key("safetyBand", types.Float(),
+                                                 help='temperature margin to keep above coldest sensor.'),
+                                        keys.Key("sensor", types.Int(),
+                                                 help='sensor to servo on. 1..12'),
+                                          
                                         )
 
     def tempsRaw(self, cmd):
@@ -77,62 +92,155 @@ class TempsCmd(object):
         else:
             cmd.finish('text="returned %r"' % (ret))
 
+    @property
+    def heaterNamesForCamera(self):
+        """Fetch the list of heater names for the current camera."""
+        if self.actor.ids.arm == 'n':
+            return ['asic', 'h4']
+        else:
+            return ['ccd']
+
+    @property
+    def heaterListForCamera(self):
+        """Fetch the list of heaters (id, name) for the current camera."""
+        if self.actor.ids.arm == 'n':
+            return [(1, 'asic'), (2, 'h4')]
+        else:
+            return [(2, 'ccd')]
+
+    def heaterIdForName(self, name):
+        """Return the heater id for the given name."""
+        for hid, hname in self.heaterListForCamera:
+            if hname == name:
+                return hid
+        return None
+    
+    def parseHeaterReply(self, rawReply, cmd):
+        d = dict()
+        for p in rawReply.split():
+            k, v = p.split('=')
+            if '.' in v:
+                v = float(v)
+            else:
+                v = int(v)
+            d[k] = v
+        return d
+
+    heaterModes = {0: 'OFF', 1: 'POWER', 3: 'TEMP', 4: 'SAFETY'}
+    
     def heaterStatus(self, cmd):
         self.actor.controllers['temps'].fetchHeaters(cmd=cmd)
+
+        for hid, hname in self.heaterListForCamera:
+            rawReply = self.actor.controllers['temps'].tempsCmd(f'heater status id={hid}',
+                                                                cmd=cmd)
+            d = self.parseHeaterReply(rawReply, cmd)
+            mode = self.heaterModes[d['mode']]
+            output = d['output']
+            temp = d['temp']
+            level = min(1.0, output/0.096)
+            levelSetPoint = level if mode == 'POWER' else 0.0
+            tempsSetPoint = d['setpoint'] if mode == 'TEMP' else 0.0
+                
+            cmd.inform(f'heater{hid}={hname},{mode},{tempsSetPoint:0.2f},{levelSetPoint:0.2f},{level:0.3f},{temp:0.04f}')
         cmd.finish()
-        
-    def heatersOn(self, cmd):
-        """ Turn one of the heaters on. """
+
+    def getValidHeater(self, cmd):
+        """ Return the name and id of a valid heater in the command args."""
+        cmdKeys = cmd.cmd.keywords
+        validNames = self.heaterNamesForCamera
+
+        for n in validNames:
+            if n in cmdKeys:
+                return n, self.heaterIdForName(n)
+        raise ValueError(f'no valid heater ({validNames}) was specified!')
+
+    def heaterToTemp(self, cmd):
+        """ Make one of the heaters servo to a given temperature. """
 
         cmdKeys = cmd.cmd.keywords
 
-        power = cmdKeys['power'].values[0]
+        heaterName, heaterId = self.getValidHeater(cmd)
+        setpoint = cmdKeys['temp'].values[0]
 
-        if 'asic' in cmdKeys:
-            heater = 'asic'
-        elif 'ccd':
-            heater = 'ccd'
-        else:
-            cmd.fail('text="no heater (ccd or asic) was specified!"')
-            return
-
-        if power == 0:
-            return self.heatersOff(cmd)
-            
+        mode = 'TEMP' if setpoint > 0.0 else 'IDLE'
         try:
-            self.actor.controllers['temps'].heater(turnOn=True,
-                                                   heater=heater,
-                                                   power=power,
-                                                   cmd=cmd)
+            self.actor.controllers['temps'].tempsCmd(f'heater configure id={heaterId} setpoint={setpoint} mode={mode}',
+                                                      cmd=cmd)
         except Exception as e:
             cmd.fail('text="failed to control heaters: %s"' % (e))
-            return
 
-        cmd.finish()
+        self.heaterStatus(cmd)
 
-    def heatersOff(self, cmd):
+    def heaterToPower(self, cmd):
+        """ Set one of the heaters to a given power level  """
+
+        cmdKeys = cmd.cmd.keywords
+
+        heaterName, heaterId = self.getValidHeater(cmd)
+        setpoint = cmdKeys['power'].values[0] / 100.0
+
+        mode = 'POWER' if setpoint > 0.0 else 'IDLE'
+        try:
+            self.actor.controllers['temps'].tempsCmd(f'heater configure id={heaterId} power={setpoint} mode={mode}',
+                                                      cmd=cmd)
+        except Exception as e:
+            cmd.fail('text="failed to control heaters: %s"' % (e))
+
+        self.heaterStatus(cmd)
+
+    def centerOffset(self, cmd):
+        """ Set the centerOffset for one of the heaters. """
+
+        heaterName, heaterId = self.getValidHeater(cmd)
+
+        try:
+            self.actor.controllers['temps'].tempsCmd(f'heater centerOffset id={heaterId}',
+                                                      cmd=cmd)
+        except Exception as e:
+            cmd.fail('text="failed to control heaters: %s"' % (e))
+
+        self.heaterStatus(cmd)
+        
+    def heaterOff(self, cmd):
         """ Turn one of the heaters off. """
 
-        cmdKeys = cmd.cmd.keywords
-
-        if 'asic' in cmdKeys:
-            heater = 'asic'
-        elif 'ccd':
-            heater = 'ccd'
-        else:
-            cmd.fail('text="no heater (ccd or asic) was specified!"')
+        heaterName, heaterId = self.getValidHeater(cmd)
+        if heaterName is None:
             return
 
         try:
-            self.actor.controllers['temps'].heater(turnOn=False,
-                                                   heater=heater,
-                                                   power=0,
-                                                   cmd=cmd)
+            self.actor.controllers['temps'].tempsCmd(f'heater configure id={heaterId} mode=idle',
+                                                      cmd=cmd)
         except Exception as e:
             cmd.fail('text="failed to control heaters: %s"' % (e))
+
+        self.heaterStatus(cmd)
+
+    def heaterConfigure(self, cmd):
+        """ Configure one of the heaters. """
+
+        cmdKeys = cmd.cmd.keywords
+
+        heaterName, heaterId = self.getValidHeater(cmd)
+        if heaterName is None:
             return
 
-        cmd.finish()
+        terms = []
+        for arg in 'P', 'I', 'sensor', 'offset', 'safetyBand':
+            if arg in cmdKeys:
+                terms.append(f'{arg}={cmdKeys[arg].values[0]}')
+        if not terms:
+            cmd.fail('text="no configuration terms were specified!"')
+            return
+
+        try:
+            cmdStr = f'heater configure id={heaterId} {" ".join(terms)}'
+            self.actor.controllers['temps'].tempsCmd(cmdStr, cmd=cmd)
+        except Exception as e:
+            cmd.fail('text="failed to configure heater {heaterName}: %s"' % (e))
+
+        self.heaterStatus(cmd)
 
     def HPheaters(self, cmd):
         """ Control the heaters. """

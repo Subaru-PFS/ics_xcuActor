@@ -1,10 +1,7 @@
 from importlib import reload
 
-import numpy as np
-
 import logging
 import socket
-import time
 
 import xcuActor.Controllers.bufferedSocket as bufferedSocket
 reload(bufferedSocket)
@@ -132,7 +129,7 @@ class temps(object):
                             keepOpen=False,
                             loglevel=loglevel)
 
-        self.heaters = dict(asic=1, ccd=2)
+        self.heaters = dict(asic=1, ccd=2, h4=2)
 
     def start(self, cmd=None):
         pass
@@ -162,9 +159,7 @@ class temps(object):
             
         self.dev.sendOneCommand('~L%d %d' % (heaterNum, turnOn), cmd=cmd)
         self.dev.sendOneCommand('~V%d %d' % (heaterNum, power), cmd=cmd)
-            
-        return self.fetchHeaters(cmd=cmd)
-    
+        
     def HPheater(self, turnOn=None, heaterNum=None, cmd=None):
         if turnOn not in (True, False):
             raise RuntimeError('turnOn argument (%s) is not True/False' % (turnOn))
@@ -197,6 +192,16 @@ class temps(object):
                                                                         atLevel[1]/maxLevel, HPenabled[1]))
         return enabled + atLevel + HPenabled
         
+    def fetchHpHeaters(self, cmd=None):
+        """ Query all the HP heater states. """
+        
+        HPenabled = []
+        for heaterNum in range(2):
+            HPenabled0 = self.dev.sendOneCommand('?F%d' % (heaterNum+1), cmd=cmd)
+
+            HPenabled.append(int(HPenabled0))
+        return HPenabled
+    
     def fetchTemps(self, sensors=None, cmd=None):
         if sensors is None:
             sensors = list(range(12))
