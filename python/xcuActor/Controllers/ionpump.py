@@ -126,6 +126,19 @@ class ionpump(object):
         crc = reduce(int.__xor__, [c for c in s])
         return crc
 
+    def valueType(self, win):
+        """Return the value type for a given window.
+
+        See the Window Protocol sectoin of the fine manual.
+        """
+
+        if win in {11, 12, 13, 14, 504}:
+            return bool
+        elif win in {602, 603, 615, 625, 635, 645}:
+            return int
+        else:
+            return str
+        
     def readOneReply(self, cmd, sock) -> str:
         # Try to consume a full reply, which might (unlikely but possible)
         # come in 2+ packets.
@@ -227,13 +240,15 @@ class ionpump(object):
         return raw[2:-3]
 
     def sendReadCommand(self, pumpIdx, win, cmd=None, sock=None):
-        if isinstance(win, int):
-            win = b"%03d" % (win)
-        elif isinstance(win, str):
-            win = win.encode('latin-1')
+        if not isinstance(win, int):
+            raise RuntimeError("win must be an int: %s=%r" % (type(win), win))
+        win = b"%03d" % (win)
 
         reply = self.sendOneCommand(pumpIdx, win+b'0',
                                     sock=sock, cmd=cmd)
+        if not reply:
+            raise RuntimeError("no reply to read command of %s: %r" % (win,
+                                                                       reply))
         if reply[:3] != win:
             raise RuntimeError("win in reply is not %s: %r" % (win,
                                                                reply))
@@ -243,10 +258,9 @@ class ionpump(object):
         return reply[4:]
 
     def sendWriteCommand(self, pumpIdx, win, value, cmd=None, sock=None):
-        if isinstance(win, int):
-            win = b"%03d" % (win)
-        elif isinstance(win, str):
-            win = win.encode('latin-1')
+        if not isinstance(win, int):
+            raise RuntimeError("win must be an int: %s=%r" % (type(win), win))
+        win = b"%03d" % (win)
 
         reply = self.sendOneCommand(pumpIdx, win+b'1'+value.encode('latin-1'),
                                     sock=sock, cmd=cmd)

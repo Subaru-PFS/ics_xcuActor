@@ -19,8 +19,8 @@ class IonpumpCmd(object):
         #
         self.vocab = [
             ('ionpump', '@raw', self.ionpumpRaw),
-            ('ionpumpRead', '@raw', self.ionpumpReadRaw),
-            ('ionpumpWrite', '@raw', self.ionpumpWriteRaw),
+            ('ionpumpRead', '<pumpId> <win>', self.ionpumpRead),
+            ('ionpumpWrite', '<pumpId> <win> <valueString>', self.ionpumpWrite),
             ('ionpump', 'ident', self.ident),
             ('ionpump', 'status [@pump1] [@pump2]', self.status),
             ('ionpump', 'off [@pump1] [@pump2]', self.off),
@@ -29,9 +29,14 @@ class IonpumpCmd(object):
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("xcu_ionpump", (1, 1),
+                                        keys.Key("pumpId", types.Int(),
+                                                 help='the pump number to send the command to'),
                                         keys.Key("spam", types.Int(),
                                                  help='how many times to poll for status'),
-
+                                        keys.Key("valueString", types.String(),
+                                                 help='the 4UHV value to write. See ionpumpWrite help for details.'),
+                                        keys.Key("win", types.Int(),
+                                                 help='the 4UHV window to read or write'),
                                         )
 
     def ionpumpRaw(self, cmd):
@@ -42,21 +47,21 @@ class IonpumpCmd(object):
         ret = self.actor.controllers['ionpump'].ionpumpCmd(cmd_txt, cmd=cmd)
         cmd.finish('text="returned %r"' % (ret))
 
-    def ionpumpReadRaw(self, cmd):
-        """ Send a raw read command to the ionpump controller. 
+    def ionpumpRead(self, cmd):
+        """ Send a window read command to the ionpump controller. 
 
-        The format is simply the register number: `raw=REGNUM`.
+        Command format is `ionpumpRead pumpId={1,2} win=NNN`.
         """
 
-        cmd_txt = cmd.cmd.keywords['raw'].values[0]
+        pumpId = cmd.cmd.keywords['pumpId'].values[0]
+        win = cmd.cmd.keywords['win'].values[0]
 
-        ret = self.actor.controllers['ionpump'].sendReadCommand(cmd_txt, cmd=cmd)
+        ret = self.actor.controllers['ionpump'].sendReadCommand(pumpIdx=pumpId, 
+                                                                win=win, cmd=cmd)
         cmd.finish('text="returned %r"' % (ret))
 
-    def ionpumpWriteRaw(self, cmd):
-        """Send a raw write command to the ionpump controller. 
-
-        The format is `raw=REGNUM VALUE`.
+    def ionpumpWrite(self, cmd):
+        """Send a write command to the ionpump controller. 
 
         Note that the command does not know about types, so the value
         has to be padded if necessary. Ints are 6 digits, strings
@@ -65,11 +70,13 @@ class IonpumpCmd(object):
 
         """
 
-        cmd_txt = cmd.cmd.keywords['raw'].values[0]
+        pumpId = cmd.cmd.keywords['pumpId'].values[0]
+        win = cmd.cmd.keywords['win'].values[0]
+        value = cmd.cmd.keywords['valueString'].values[0]
 
-        win, value = cmd_txt.split()
-
-        ret = self.actor.controllers['ionpump'].sendWriteCommand(win, value, cmd=cmd)
+        ret = self.actor.controllers['ionpump'].sendWriteCommand(pumpIdx=pumpId, 
+                                                                 win=win, value=value, 
+                                                                 cmd=cmd)
         cmd.finish('text="returned %r"' % (ret))
 
     def ident(self, cmd):
