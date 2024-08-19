@@ -29,7 +29,7 @@ class CryoMode(object):
                    'src': ['unknown', 'standby', 'roughing', 'pumpdown', 'ionpumping', 'cooldown', 'operation', 'warmup', 'bakeout'],
                    'dst': 'offline'},
                   {'name': 'toRoughing', 'src': ['offline'], 'dst': 'roughing'},
-                  {'name': 'toPumpdown', 'src': ['offline', 'roughing'], 'dst': 'pumpdown'},
+                  {'name': 'toPumpdown', 'src': ['offline', 'roughing', 'ionpumping', 'bakeout'], 'dst': 'pumpdown'},
                   {'name': 'toBakeout', 'src': ['offline', 'roughing', 'pumpdown'], 'dst': 'bakeout'},
                   {'name': 'toIonpumping', 'src': ['offline', 'pumpdown'], 'dst': 'ionpumping'},
                   {'name': 'toCooldown', 'src': ['offline', 'pumpdown', 'ionpumping'], 'dst': 'cooldown'},
